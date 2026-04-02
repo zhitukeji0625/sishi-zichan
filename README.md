@@ -75,7 +75,7 @@ docker compose up -d --build
 - H5：`http://<服务器IP>:8083/m`
 - 管理端：`http://<服务器IP>:8083/admin/login`
 
-生产环境请修改 `.env` 中的密钥与 `NEXT_PUBLIC_APP_URL`；`docker-compose` 中 MySQL **不映射到宿主机**，仅 `app` 容器可访问。
+生产环境请修改 `.env` 中的密钥与 `NEXT_PUBLIC_APP_URL`；`docker-compose` 中数据库 **不映射到宿主机**，仅 `app` 容器可访问。若公网拉取 `mysql:8` 镜像失败，可改用本仓库默认的 **MariaDB 11**（与 Prisma `mysql` 连接串兼容）。
 
 ### 方式 B：Vercel 等 Serverless（需外置 MySQL）
 
