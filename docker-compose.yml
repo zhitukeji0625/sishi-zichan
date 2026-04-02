@@ -24,7 +24,7 @@ services:
         DATABASE_URL: mysql://root:root@mysql:3306/sishi
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-8083}:3000"
+      - "${APP_PORT:-18083}:3000"
     env_file:
       - .env
     environment:
