@@ -1,0 +1,51 @@
+# AGENTS.md
+
+## Cursor Cloud specific instructions
+
+### Overview
+
+This is a Next.js 15 asset leasing & auction platform (四师资产租赁) with MySQL/MariaDB via Prisma ORM. Single-package app (not a monorepo). See `README.md` for full setup and demo accounts.
+
+### Services
+
+| Service | How to start | Notes |
+|---------|-------------|-------|
+| MariaDB 11 | `sudo docker start mariadb` (already created) | Exposed on `127.0.0.1:3306`, root/root |
+| Next.js dev server | `npm run dev` | Runs on `http://localhost:3000` |
+
+### Database
+
+- Schema push: `npx prisma db push`
+- Seed: `npm run db:seed`
+- Studio: `npm run db:studio`
+
+If the MariaDB container doesn't exist yet, create it:
+```
+sudo nohup dockerd > /tmp/dockerd.log 2>&1 &
+sleep 5
+sudo docker run -d --name mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATABASE=sishi -p 3306:3306 mariadb:11 --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+```
+
+### Lint
+
+`next lint` / `npx eslint` does NOT work out of the box due to a known ESLint 9 vs `eslint-config-next` compatibility issue. The README states: "构建阶段已跳过 ESLint". This is a known limitation.
+
+### Testing
+
+- `npm run test` — runs Vitest (unit tests in `src/lib/__tests__/`)
+
+### Demo accounts (from seed data)
+
+- Division admin: `13900000001` / `admin123`
+- Tenant user: `13800138000` / `user123`
+
+### Environment variables
+
+Copy `.env.example` to `.env`. For local dev with Docker MariaDB, set `DATABASE_URL="mysql://root:root@127.0.0.1:3306/sishi"`.
+
+### Gotchas
+
+- Docker daemon must be started manually: `sudo nohup dockerd > /tmp/dockerd.log 2>&1 &`
+- Docker in this VM requires `fuse-overlayfs` storage driver and `iptables-legacy` (already configured in `/etc/docker/daemon.json`).
+- The `.env` file is gitignored. You must create it from `.env.example` if it doesn't exist.
+- The `prisma` `package.json#prisma` config is deprecated but functional; Prisma may warn about it.
