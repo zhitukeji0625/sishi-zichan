@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LayoutDashboard, LogOut, Package, Gavel, Megaphone, Sun, FileText, ClipboardList } from "lucide-react";
+import { LayoutDashboard, LogOut, Package, Gavel, Megaphone, Sun, FileText, ClipboardList, Building2, Users, Settings } from "lucide-react";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { roleLabel } from "@/lib/rbac";
 import { adminLogoutAction } from "./actions";
@@ -16,6 +16,9 @@ export default async function AdminAppLayout({ children }: { children: React.Rea
     { href: "/admin/registrations", label: "报名审核", icon: FileText },
     { href: "/admin/announcements", label: "公告", icon: Megaphone },
     { href: "/admin/drying", label: "晒场预约", icon: Sun },
+    { href: "/admin/organizations", label: "组织架构", icon: Building2 },
+    { href: "/admin/admins", label: "账号管理", icon: Users },
+    { href: "/admin/config", label: "系统配置", icon: Settings },
     { href: "/admin/audit", label: "操作日志", icon: ClipboardList },
   ];
 

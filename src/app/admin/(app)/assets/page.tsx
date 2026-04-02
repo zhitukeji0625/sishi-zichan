@@ -40,7 +40,7 @@ export default async function AdminAssetsPage() {
           <tbody>
             {assets.map((a) => (
               <tr key={a.id} className="border-b border-slate-50 last:border-0">
-                <td className="px-4 py-3 text-slate-900">{a.name}</td>
+                <td className="px-4 py-3"><Link href={`/admin/assets/${a.id}`} className="text-blue-700 hover:underline">{a.name}</Link></td>
                 <td className="px-4 py-3 text-slate-600">{a.type}</td>
                 <td className="px-4 py-3 text-slate-600">{a.org.name}</td>
                 <td className="px-4 py-3 text-slate-600">{a.status}</td>

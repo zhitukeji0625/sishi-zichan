@@ -5,6 +5,7 @@ import { isDivision, isRegimentOrAbove } from "@/lib/rbac";
 import { createAuctionProjectAction } from "./actions";
 import { generateAuctionResultAction, reviewAuctionResultAction } from "./result-actions";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { refreshAuctionProjectStatuses } from "@/lib/cron";
 
 export default async function AdminAuctionsPage() {
@@ -103,7 +104,7 @@ export default async function AdminAuctionsPage() {
               const projectId = p.id;
               return (
                 <tr key={p.id} className="border-b border-slate-50 last:border-0">
-                  <td className="px-4 py-3 font-mono text-xs text-slate-800">{p.code}</td>
+                  <td className="px-4 py-3 font-mono text-xs"><Link href={`/admin/auctions/${p.id}`} className="text-blue-700 hover:underline">{p.code}</Link></td>
                   <td className="px-4 py-3 text-slate-700">{p.asset.name}</td>
                   <td className="px-4 py-3 text-slate-600">{p.status}</td>
                   <td className="px-4 py-3 text-xs text-slate-500">
