@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
 import { notifyUser } from "@/lib/messages";
 
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 export async function signContractAction(contractId: string) {
   const user = await getCurrentEndUser();
   if (!user) return { error: "请先登录" };
@@ -54,11 +58,11 @@ export async function createAuctionContractAction(projectId: string) {
   });
   const htmlBody = template
     ? template.bodyHtml
-        .replace("{{orgName}}", result.project.asset.org?.name ?? "甲方")
-        .replace("{{userName}}", user.name ?? user.phone)
-        .replace("{{assetName}}", result.project.asset.name)
-        .replace("{{leaseTerm}}", result.project.leaseTermDesc ?? "以合同约定为准")
-    : `<p>竞拍合同：${result.project.asset.name}</p>`;
+        .replace("{{orgName}}", escapeHtml(result.project.asset.org?.name ?? "甲方"))
+        .replace("{{userName}}", escapeHtml(user.name ?? user.phone))
+        .replace("{{assetName}}", escapeHtml(result.project.asset.name))
+        .replace("{{leaseTerm}}", escapeHtml(result.project.leaseTermDesc ?? "以合同约定为准"))
+    : `<p>竞拍合同：${escapeHtml(result.project.asset.name)}</p>`;
   const contract = await prisma.contract.create({
     data: {
       type: "AUCTION_LEASE",
@@ -88,7 +92,7 @@ export async function createDryingContractAction(reservationId: string) {
     where: { reservationId, endUserId: user.id },
   });
   if (existing) return { ok: true as const, contractId: existing.id };
-  const htmlBody = `<p>晒场租赁合同</p><p>晒场：${reservation.listing.asset.name}</p><p>使用时段：${reservation.startDate.toISOString().slice(0, 10)} — ${reservation.endDate.toISOString().slice(0, 10)}</p><p>承租人：${user.name ?? user.phone}</p>`;
+  const htmlBody = `<p>晒场租赁合同</p><p>晒场：${escapeHtml(reservation.listing.asset.name)}</p><p>使用时段：${reservation.startDate.toISOString().slice(0, 10)} — ${reservation.endDate.toISOString().slice(0, 10)}</p><p>承租人：${escapeHtml(user.name ?? user.phone)}</p>`;
   const contract = await prisma.contract.create({
     data: {
       type: "DRYING_LEASE",

@@ -6,7 +6,6 @@ import { getCurrentEndUser } from "@/lib/auth/session";
 
 const schema = z.object({
   purpose: z.enum(["AUCTION_DEPOSIT", "AUCTION_RENT", "DRYING_DEPOSIT", "DRYING_RENT"]),
-  amount: z.number().positive(),
   auctionProjectId: z.string().optional(),
   reservationId: z.string().optional(),
 });
@@ -19,12 +18,46 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "参数无效" }, { status: 400 });
   }
-  const { purpose, amount, auctionProjectId, reservationId } = parsed.data;
+  const { purpose, auctionProjectId, reservationId } = parsed.data;
+
+  let amount: Decimal;
+
+  if (purpose === "AUCTION_DEPOSIT") {
+    if (!auctionProjectId) return NextResponse.json({ error: "缺少项目ID" }, { status: 400 });
+    const reg = await prisma.auctionRegistration.findUnique({
+      where: { projectId_endUserId: { projectId: auctionProjectId, endUserId: user.id } },
+    });
+    if (!reg) return NextResponse.json({ error: "未报名该项目" }, { status: 403 });
+    const project = await prisma.auctionProject.findUnique({ where: { id: auctionProjectId } });
+    if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+    amount = project.depositAmount;
+  } else if (purpose === "AUCTION_RENT") {
+    if (!auctionProjectId) return NextResponse.json({ error: "缺少项目ID" }, { status: 400 });
+    const result = await prisma.auctionResult.findUnique({ where: { projectId: auctionProjectId } });
+    if (!result || result.winnerId !== user.id) return NextResponse.json({ error: "无权操作" }, { status: 403 });
+    const topBid = await prisma.auctionBid.findFirst({
+      where: { projectId: auctionProjectId, endUserId: user.id },
+      orderBy: { amount: "desc" },
+    });
+    if (!topBid) return NextResponse.json({ error: "未找到出价记录" }, { status: 404 });
+    amount = topBid.amount;
+  } else if (purpose === "DRYING_DEPOSIT") {
+    if (!reservationId) return NextResponse.json({ error: "缺少预约ID" }, { status: 400 });
+    const reservation = await prisma.dryingReservation.findUnique({ where: { id: reservationId } });
+    if (!reservation || reservation.endUserId !== user.id) return NextResponse.json({ error: "预约不存在" }, { status: 403 });
+    amount = new Decimal(200);
+  } else {
+    if (!reservationId) return NextResponse.json({ error: "缺少预约ID" }, { status: 400 });
+    const reservation = await prisma.dryingReservation.findUnique({ where: { id: reservationId } });
+    if (!reservation || reservation.endUserId !== user.id) return NextResponse.json({ error: "预约不存在" }, { status: 403 });
+    amount = new Decimal(500);
+  }
+
   const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;
   const pay = await prisma.payment.create({
     data: {
       orderNo,
-      amount: new Decimal(amount),
+      amount,
       purpose,
       status: "SUCCESS",
       endUserId: user.id,

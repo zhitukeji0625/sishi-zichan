@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { isDivision, isRegimentOrAbove, adminCanAccessOrg } from "@/lib/rbac";
 import { notifyUser } from "@/lib/messages";
+import { writeAudit } from "@/lib/audit";
 
 export async function generateAuctionResultAction(projectId: string) {
   const admin = await getCurrentAdmin();
@@ -31,6 +32,7 @@ export async function generateAuctionResultAction(projectId: string) {
       status: "PENDING_REVIEW",
     },
   });
+  await writeAudit(admin.id, "AUCTION_RESULT_GENERATE", JSON.stringify({ projectId }));
   revalidatePath("/admin/auctions");
   return { ok: true as const };
 }
@@ -45,6 +47,8 @@ export async function reviewAuctionResultAction(formData: FormData) {
     include: { project: { include: { asset: true } } },
   });
   if (!result || result.status !== "PENDING_REVIEW") return;
+  const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, result.project.asset.orgId);
+  if (!canAccess) return;
   if (approve) {
     await prisma.auctionResult.update({
       where: { id: resultId },
@@ -64,5 +68,6 @@ export async function reviewAuctionResultAction(formData: FormData) {
       data: { status: "REJECTED", reviewedBy: admin.id },
     });
   }
+  await writeAudit(admin.id, "AUCTION_RESULT_REVIEW", JSON.stringify({ resultId, approve }));
   revalidatePath("/admin/auctions");
 }

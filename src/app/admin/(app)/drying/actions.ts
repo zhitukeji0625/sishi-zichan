@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { notifyUser } from "@/lib/messages";
+import { writeAudit } from "@/lib/audit";
 
 export async function reviewReservationFormAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
@@ -25,6 +26,7 @@ export async function reviewReservationFormAction(formData: FormData) {
       rejectReason: approve ? null : "未通过审核",
     },
   });
+  await writeAudit(admin.id, "DRYING_REVIEW", JSON.stringify({ id, approve }));
   if (res.endUserId) {
     await notifyUser(
       res.endUserId,

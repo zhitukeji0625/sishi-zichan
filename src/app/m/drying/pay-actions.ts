@@ -16,6 +16,12 @@ export async function payDryingDepositAction(reservationId: string) {
   if (reservation.status !== "APPROVED") {
     return { error: "当前状态不可支付" };
   }
+  const existingPayment = await prisma.payment.findFirst({
+    where: { reservationId, endUserId: user.id, purpose: "DRYING_DEPOSIT", status: "SUCCESS" },
+  });
+  if (existingPayment) {
+    return { ok: true as const };
+  }
   const depositAmount = 200;
   const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;
   await prisma.payment.create({

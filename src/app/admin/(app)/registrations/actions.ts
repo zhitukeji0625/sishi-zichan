@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { notifyUser } from "@/lib/messages";
+import { writeAudit } from "@/lib/audit";
 
 export async function reviewRegistrationFormAction(formData: FormData) {
   const registrationId = String(formData.get("id") ?? "");
@@ -27,6 +28,7 @@ export async function reviewRegistrationFormAction(formData: FormData) {
       rejectReason: approve ? null : rejectReason,
     },
   });
+  await writeAudit(admin.id, "REGISTRATION_REVIEW", JSON.stringify({ registrationId, approve }));
   await notifyUser(
     reg.endUserId,
     "报名审核结果",

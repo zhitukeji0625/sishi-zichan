@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg, isDivision, isRegimentOrAbove } from "@/lib/rbac";
+import { writeAudit } from "@/lib/audit";
 
 const createSchema = z.object({
   orgId: z.string(),
@@ -30,6 +31,7 @@ export async function createAnnouncementAction(formData: FormData) {
       publishedAt: isDivision(admin.role) ? new Date() : null,
     },
   });
+  await writeAudit(admin.id, "ANNOUNCEMENT_CREATE", JSON.stringify({ title: parsed.data.title }));
   revalidatePath("/admin/announcements");
   return { ok: true as const };
 }
@@ -41,6 +43,8 @@ export async function reviewAnnouncementFormAction(formData: FormData) {
   if (!admin || !isDivision(admin.role)) return;
   const ann = await prisma.announcement.findUnique({ where: { id } });
   if (!ann || ann.status !== "PENDING_REVIEW") return;
+  const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, ann.orgId);
+  if (!canAccess) return;
   await prisma.announcement.update({
     where: { id },
     data: {
@@ -49,5 +53,6 @@ export async function reviewAnnouncementFormAction(formData: FormData) {
       rejectReason: approve ? null : "已驳回",
     },
   });
+  await writeAudit(admin.id, "ANNOUNCEMENT_REVIEW", JSON.stringify({ id, approve }));
   revalidatePath("/admin/announcements");
 }

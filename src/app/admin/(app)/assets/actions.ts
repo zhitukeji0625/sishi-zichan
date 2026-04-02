@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
+import { writeAudit } from "@/lib/audit";
 import { AssetType, AssetStatus } from "@prisma/client";
 
 const schema = z.object({
@@ -45,6 +46,7 @@ export async function createAssetAction(formData: FormData) {
       status: d.status ?? AssetStatus.IDLE,
     },
   });
+  await writeAudit(admin.id, "ASSET_CREATE", JSON.stringify({ name: d.name, type: d.type }));
   revalidatePath("/admin/assets");
   return { ok: true as const };
 }

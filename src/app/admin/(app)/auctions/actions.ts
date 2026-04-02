@@ -6,6 +6,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg, isRegimentOrAbove } from "@/lib/rbac";
+import { writeAudit } from "@/lib/audit";
 
 const createSchema = z.object({
   assetId: z.string(),
@@ -47,6 +48,7 @@ export async function createAuctionProjectAction(formData: FormData) {
       status: "SCHEDULED",
     },
   });
+  await writeAudit(admin.id, "AUCTION_CREATE", JSON.stringify({ code, assetId: d.assetId }));
   revalidatePath("/admin/auctions");
   return { ok: true as const };
 }
