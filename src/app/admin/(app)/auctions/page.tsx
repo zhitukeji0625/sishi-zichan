@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
-import { isRegimentOrAbove } from "@/lib/rbac";
+import { isDivision, isRegimentOrAbove } from "@/lib/rbac";
 import { createAuctionProjectAction } from "./actions";
+import { generateAuctionResultAction, reviewAuctionResultAction } from "./result-actions";
 import { redirect } from "next/navigation";
 
 export default async function AdminAuctionsPage() {
@@ -11,7 +12,7 @@ export default async function AdminAuctionsPage() {
   const orgWhere = await orgFilterForAdmin(admin.role, admin.orgId);
   const projects = await prisma.auctionProject.findMany({
     where: { asset: orgWhere },
-    include: { asset: true },
+    include: { asset: true, result: { include: { project: true } } },
     orderBy: { createdAt: "desc" },
     take: 80,
   });
@@ -91,19 +92,61 @@ export default async function AdminAuctionsPage() {
               <th className="px-4 py-3 font-medium">资产</th>
               <th className="px-4 py-3 font-medium">状态</th>
               <th className="px-4 py-3 font-medium">时间</th>
+              <th className="px-4 py-3 font-medium">结果</th>
+              <th className="px-4 py-3 font-medium">操作</th>
             </tr>
           </thead>
           <tbody>
-            {projects.map((p) => (
-              <tr key={p.id} className="border-b border-slate-50 last:border-0">
-                <td className="px-4 py-3 font-mono text-xs text-slate-800">{p.code}</td>
-                <td className="px-4 py-3 text-slate-700">{p.asset.name}</td>
-                <td className="px-4 py-3 text-slate-600">{p.status}</td>
-                <td className="px-4 py-3 text-xs text-slate-500">
-                  {p.startsAt.toISOString().slice(0, 16)} — {p.endsAt.toISOString().slice(0, 16)}
-                </td>
-              </tr>
-            ))}
+            {projects.map((p) => {
+              const projectId = p.id;
+              return (
+                <tr key={p.id} className="border-b border-slate-50 last:border-0">
+                  <td className="px-4 py-3 font-mono text-xs text-slate-800">{p.code}</td>
+                  <td className="px-4 py-3 text-slate-700">{p.asset.name}</td>
+                  <td className="px-4 py-3 text-slate-600">{p.status}</td>
+                  <td className="px-4 py-3 text-xs text-slate-500">
+                    {p.startsAt.toISOString().slice(0, 16)} — {p.endsAt.toISOString().slice(0, 16)}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-600">
+                    {p.result ? p.result.status : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      {p.status === "ENDED" && !p.result && isRegimentOrAbove(admin.role) && (
+                        <form
+                          action={async () => {
+                            "use server";
+                            await generateAuctionResultAction(projectId);
+                          }}
+                        >
+                          <button type="submit" className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs text-white">
+                            生成结果
+                          </button>
+                        </form>
+                      )}
+                      {p.result && p.result.status === "PENDING_REVIEW" && isDivision(admin.role) && (
+                        <>
+                          <form action={reviewAuctionResultAction}>
+                            <input type="hidden" name="id" value={p.result.id} />
+                            <input type="hidden" name="approve" value="true" />
+                            <button type="submit" className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs text-white">
+                              审核通过
+                            </button>
+                          </form>
+                          <form action={reviewAuctionResultAction}>
+                            <input type="hidden" name="id" value={p.result.id} />
+                            <input type="hidden" name="approve" value="false" />
+                            <button type="submit" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700">
+                              驳回
+                            </button>
+                          </form>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
 import { getHighestBid } from "@/lib/auction";
 import { format } from "date-fns";
 import { registerAuctionAction } from "../actions";
 import { payAuctionDepositAction } from "../pay-actions";
+import { createAuctionContractAction, payAuctionRentAction } from "../../contract/sign-actions";
 import { BidForm } from "./BidForm";
 
 export default async function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -13,7 +14,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
   const user = await getCurrentEndUser();
   const project = await prisma.auctionProject.findUnique({
     where: { id },
-    include: { asset: true },
+    include: { asset: true, result: true },
   });
   if (!project) notFound();
   const projectId = project.id;
@@ -29,6 +30,17 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
     take: 15,
     select: { amount: true, createdAt: true },
   });
+  const isWinner = user && project.result?.winnerId === user.id && project.result?.status === "PUBLISHED";
+  const existingContract = isWinner
+    ? await prisma.contract.findFirst({
+        where: { auctionProjectId: projectId, endUserId: user.id },
+      })
+    : null;
+  const rentPaid = isWinner
+    ? !!(await prisma.payment.findFirst({
+        where: { auctionProjectId: projectId, endUserId: user.id, purpose: "AUCTION_RENT", status: "SUCCESS" },
+      }))
+    : false;
 
   async function register() {
     "use server";
@@ -38,6 +50,19 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
   async function payDeposit() {
     "use server";
     await payAuctionDepositAction(projectId);
+  }
+
+  async function goToContract() {
+    "use server";
+    const r = await createAuctionContractAction(projectId);
+    if ("contractId" in r && r.contractId) {
+      redirect(`/m/contract/${r.contractId}`);
+    }
+  }
+
+  async function payRent() {
+    "use server";
+    await payAuctionRentAction(projectId);
   }
 
   return (
@@ -59,6 +84,15 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
           {format(project.startsAt, "yyyy-MM-dd HH:mm")} — {format(project.endsAt, "yyyy-MM-dd HH:mm")}
         </div>
       </div>
+      {project.result?.status === "PUBLISHED" && (
+        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          <div className="font-medium">竞拍结果已公示</div>
+          {isWinner && <div className="mt-1">恭喜您竞拍成功！</div>}
+          {user && project.result?.winnerId && project.result.winnerId !== user.id && (
+            <div className="mt-1">很遗憾，您未中标。</div>
+          )}
+        </div>
+      )}
       {user && !reg && project.status !== "ENDED" && (
         <form action={register} className="mt-4">
           <button type="submit" className="w-full rounded-xl bg-slate-900 py-3 text-sm font-medium text-white">
@@ -81,6 +115,31 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
       )}
       {user && reg?.status === "APPROVED" && reg.depositPaid && project.status === "LIVE" && (
         <BidForm projectId={projectId} />
+      )}
+      {isWinner && !existingContract && (
+        <form action={goToContract} className="mt-4">
+          <button type="submit" className="w-full rounded-xl bg-blue-700 py-3 text-sm font-medium text-white">
+            签署合同
+          </button>
+        </form>
+      )}
+      {isWinner && existingContract && existingContract.status === "DRAFT" && (
+        <Link
+          href={`/m/contract/${existingContract.id}`}
+          className="mt-4 block w-full rounded-xl bg-blue-700 py-3 text-center text-sm font-medium text-white"
+        >
+          继续签署合同
+        </Link>
+      )}
+      {isWinner && existingContract?.status === "SIGNED" && !rentPaid && (
+        <form action={payRent} className="mt-4">
+          <button type="submit" className="w-full rounded-xl bg-emerald-700 py-3 text-sm font-medium text-white">
+            模拟支付租金
+          </button>
+        </form>
+      )}
+      {isWinner && rentPaid && (
+        <p className="mt-4 text-sm text-emerald-700">租金已支付，流程完成。</p>
       )}
       <div className="mt-6">
         <div className="text-sm font-medium text-slate-800">出价动态（匿名）</div>
