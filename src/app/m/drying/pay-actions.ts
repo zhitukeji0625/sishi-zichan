@@ -24,21 +24,23 @@ export async function payDryingDepositAction(reservationId: string) {
   }
   const depositAmount = 200;
   const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  await prisma.payment.create({
-    data: {
-      orderNo,
-      amount: depositAmount,
-      purpose: "DRYING_DEPOSIT",
-      status: "SUCCESS",
-      endUserId: user.id,
-      reservationId,
-      paidAt: new Date(),
-      channel: "ABC_MOCK",
-    },
-  });
-  await prisma.dryingReservation.update({
-    where: { id: reservationId },
-    data: { status: "CONTRACT_PENDING" },
+  await prisma.$transaction(async (tx) => {
+    await tx.payment.create({
+      data: {
+        orderNo,
+        amount: depositAmount,
+        purpose: "DRYING_DEPOSIT",
+        status: "SUCCESS",
+        endUserId: user.id,
+        reservationId,
+        paidAt: new Date(),
+        channel: "ABC_MOCK",
+      },
+    });
+    await tx.dryingReservation.update({
+      where: { id: reservationId },
+      data: { status: "CONTRACT_PENDING" },
+    });
   });
   revalidatePath("/m/orders");
   revalidatePath("/m/drying");

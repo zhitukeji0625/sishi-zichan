@@ -62,6 +62,22 @@ export async function reviewAuctionResultAction(formData: FormData) {
         "AUCTION_WIN",
       );
     }
+    // Refund non-winner deposits
+    const allRegs = await prisma.auctionRegistration.findMany({
+      where: { projectId: result.projectId, depositPaid: true, endUserId: { not: result.winnerId ?? undefined } },
+    });
+    for (const reg of allRegs) {
+      const existingRefund = await prisma.payment.findFirst({
+        where: { auctionProjectId: result.projectId, endUserId: reg.endUserId, purpose: "AUCTION_DEPOSIT", status: "REFUNDED" },
+      });
+      if (!existingRefund) {
+        await prisma.payment.updateMany({
+          where: { auctionProjectId: result.projectId, endUserId: reg.endUserId, purpose: "AUCTION_DEPOSIT", status: "SUCCESS" },
+          data: { status: "REFUNDED" },
+        });
+        await notifyUser(reg.endUserId, "保证金退还通知", `项目 ${result.project.code} 的竞拍保证金已原路退回。`, "DEPOSIT_REFUND");
+      }
+    }
   } else {
     await prisma.auctionResult.update({
       where: { id: resultId },

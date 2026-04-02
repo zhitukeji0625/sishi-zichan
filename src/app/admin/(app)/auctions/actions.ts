@@ -33,7 +33,7 @@ export async function createAuctionProjectAction(formData: FormData) {
   if (!asset) return { error: "资产不存在" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return { error: "无权使用该资产发拍" };
-  const code = `AP${Date.now()}`;
+  const code = `AP${Date.now()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
   await prisma.auctionProject.create({
     data: {
       code,

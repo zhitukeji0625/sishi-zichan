@@ -19,20 +19,22 @@ export async function signContractAction(contractId: string) {
   if (contract.status !== "DRAFT") {
     return { error: "合同状态不可签署" };
   }
-  await prisma.contract.update({
-    where: { id: contractId },
-    data: {
-      status: "SIGNED",
-      effectiveAt: new Date(),
-      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-    },
-  });
-  if (contract.reservationId) {
-    await prisma.dryingReservation.update({
-      where: { id: contract.reservationId },
-      data: { status: "ACTIVE" },
+  await prisma.$transaction(async (tx) => {
+    await tx.contract.update({
+      where: { id: contractId },
+      data: {
+        status: "SIGNED",
+        effectiveAt: new Date(),
+        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+      },
     });
-  }
+    if (contract.reservationId) {
+      await tx.dryingReservation.update({
+        where: { id: contract.reservationId },
+        data: { status: "ACTIVE" },
+      });
+    }
+  });
   await notifyUser(user.id, "合同已签署", "您的合同已签署成功。", "CONTRACT_SIGNED");
   revalidatePath("/m/contract");
   revalidatePath("/m/orders");

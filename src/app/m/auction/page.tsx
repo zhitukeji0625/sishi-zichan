@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
+import { refreshAuctionProjectStatuses } from "@/lib/cron";
 
 export default async function MAuctionListPage() {
+  await refreshAuctionProjectStatuses();
   const projects = await prisma.auctionProject.findMany({
     where: { status: { in: ["SCHEDULED", "LIVE", "ENDED"] } },
     include: { asset: true },
