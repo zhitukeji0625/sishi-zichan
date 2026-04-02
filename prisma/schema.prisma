@@ -1,0 +1,424 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrgLevel {
+  DIVISION
+  REGIMENT
+  COMPANY
+}
+
+enum AdminRole {
+  DIVISION_ADMIN
+  REGIMENT_ADMIN
+  COMPANY_ADMIN
+}
+
+enum AssetType {
+  WORKSHOP
+  MACHINERY
+  FACILITY
+  LAND
+  DRYING_FIELD
+  OTHER
+}
+
+enum AssetStatus {
+  IDLE
+  IN_USE
+  MAINTENANCE
+}
+
+enum AuctionProjectStatus {
+  DRAFT
+  SCHEDULED
+  LIVE
+  ENDED
+  CANCELLED
+}
+
+enum RegistrationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AnnouncementStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  WITHDRAWN
+}
+
+enum DryingListingStatus {
+  OPERATING
+  MAINTENANCE
+  PAUSED
+  OFFLINE
+}
+
+enum ReservationStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  PENDING_PAYMENT
+  PAID
+  CONTRACT_PENDING
+  ACTIVE
+  CANCELLED
+  COMPLETED
+}
+
+enum ContractType {
+  AUCTION_LEASE
+  DRYING_LEASE
+}
+
+enum ContractStatus {
+  DRAFT
+  SIGNED
+  EXPIRED
+}
+
+enum PaymentPurpose {
+  AUCTION_DEPOSIT
+  AUCTION_RENT
+  DRYING_DEPOSIT
+  DRYING_RENT
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum EndUserType {
+  PERSON
+  COMPANY
+}
+
+model Organization {
+  id        String       @id @default(cuid())
+  name      String
+  code      String       @unique
+  level     OrgLevel
+  parentId  String?
+  parent    Organization? @relation("OrgTree", fields: [parentId], references: [id])
+  children  Organization[] @relation("OrgTree")
+  leaderName String?
+  phone     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  adminUsers    AdminUser[]
+  endUsers      EndUser[]
+  assets        Asset[]
+  announcements Announcement[]
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  phone        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole
+  orgId        String
+  org          Organization @relation(fields: [orgId], references: [id])
+  disabled     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  auditLogs AuditLog[]
+}
+
+model EndUser {
+  id           String      @id @default(cuid())
+  phone        String      @unique
+  passwordHash String?
+  name         String?
+  idCard       String?
+  orgId        String?
+  org          Organization? @relation(fields: [orgId], references: [id])
+  userType     EndUserType @default(PERSON)
+  companyName  String?
+  creditCode   String?
+  legalName    String?
+  verified     Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  externalIdentities ExternalIdentity[]
+  registrations      AuctionRegistration[]
+  bids                 AuctionBid[]
+  reservations         DryingReservation[]
+  contracts            Contract[]
+  payments             Payment[]
+  messages             MessageLog[]
+}
+
+model ExternalIdentity {
+  id              String   @id @default(cuid())
+  provider        String
+  externalUserId  String
+  endUserId       String
+  endUser         EndUser  @relation(fields: [endUserId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@unique([provider, externalUserId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  kind      String
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Asset {
+  id            String       @id @default(cuid())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id])
+  type          AssetType
+  name          String
+  locationText  String
+  specs         String?      @db.Text
+  description   String?      @db.LongText
+  imagesJson    String?      @db.Text
+  refPriceMin   Decimal?     @db.Decimal(12, 2)
+  refPriceMax   Decimal?     @db.Decimal(12, 2)
+  status        AssetStatus  @default(IDLE)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  auctionProjects AuctionProject[]
+  dryingListing   DryingFieldListing?
+}
+
+model AuctionProject {
+  id            String               @id @default(cuid())
+  code          String               @unique
+  assetId       String
+  asset         Asset                @relation(fields: [assetId], references: [id])
+  startPrice    Decimal              @db.Decimal(12, 2)
+  bidStep       Decimal              @db.Decimal(12, 2)
+  startsAt      DateTime
+  endsAt        DateTime
+  depositAmount Decimal              @db.Decimal(12, 2)
+  paymentDays   Int                  @default(7)
+  leaseTermDesc String?              @db.Text
+  status        AuctionProjectStatus @default(SCHEDULED)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  registrations AuctionRegistration[]
+  bids          AuctionBid[]
+  result        AuctionResult?
+  contracts     Contract[]
+  payments      Payment[]
+}
+
+model AuctionRegistration {
+  id         String             @id @default(cuid())
+  projectId  String
+  project    AuctionProject     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  endUserId  String
+  endUser    EndUser            @relation(fields: [endUserId], references: [id], onDelete: Cascade)
+  status     RegistrationStatus @default(PENDING)
+  rejectReason String?          @db.Text
+  depositPaid Boolean           @default(false)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@unique([projectId, endUserId])
+}
+
+model AuctionBid {
+  id        String         @id @default(cuid())
+  projectId String
+  project   AuctionProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  endUserId String
+  endUser   EndUser        @relation(fields: [endUserId], references: [id], onDelete: Cascade)
+  amount    Decimal        @db.Decimal(12, 2)
+  createdAt DateTime       @default(now())
+
+  @@index([projectId, createdAt])
+}
+
+model AuctionResult {
+  id          String         @id @default(cuid())
+  projectId   String         @unique
+  project     AuctionProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status      String         @default("PENDING_REVIEW")
+  winnerId    String?
+  reviewedBy  String?
+  publishedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Announcement {
+  id        String             @id @default(cuid())
+  orgId     String
+  org       Organization       @relation(fields: [orgId], references: [id])
+  title     String
+  content   String             @db.LongText
+  status    AnnouncementStatus @default(DRAFT)
+  rejectReason String?         @db.Text
+  attachmentsJson String?      @db.Text
+  publishedAt DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+model DryingFieldListing {
+  id        String              @id @default(cuid())
+  assetId   String              @unique
+  asset     Asset               @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  status    DryingListingStatus @default(OPERATING)
+  lat       Float?
+  lng       Float?
+  builtYear Int?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  capacityRules DryingCapacityRule[]
+  bookingRules  DryingBookingRule[]
+  reservations  DryingReservation[]
+}
+
+model DryingCapacityRule {
+  id         String             @id @default(cuid())
+  listingId  String
+  listing    DryingFieldListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  startDate  DateTime           @db.Date
+  endDate    DateTime           @db.Date
+  maxPeople  Int                @default(10)
+}
+
+model DryingBookingRule {
+  id              String             @id @default(cuid())
+  listingId       String
+  listing         DryingFieldListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  maxAdvanceDays  Int                @default(7)
+  holidayJson     String?            @db.Text
+}
+
+model DryingReservation {
+  id         String             @id @default(cuid())
+  listingId  String
+  listing    DryingFieldListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  endUserId  String
+  endUser    EndUser            @relation(fields: [endUserId], references: [id], onDelete: Cascade)
+  startDate  DateTime           @db.Date
+  endDate    DateTime           @db.Date
+  status     ReservationStatus  @default(PENDING_REVIEW)
+  rejectReason String?          @db.Text
+  orderNo    String             @unique @default(cuid())
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  payments   Payment[]
+  contracts  Contract[]
+}
+
+model ContractTemplate {
+  id        String       @id @default(cuid())
+  name      String
+  type      ContractType
+  bodyHtml  String       @db.LongText
+  active    Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model Contract {
+  id             String         @id @default(cuid())
+  type           ContractType
+  endUserId      String
+  endUser        EndUser        @relation(fields: [endUserId], references: [id], onDelete: Cascade)
+  auctionProjectId String?
+  auctionProject AuctionProject? @relation(fields: [auctionProjectId], references: [id])
+  reservationId  String?
+  reservation    DryingReservation? @relation(fields: [reservationId], references: [id])
+  htmlBody       String         @db.LongText
+  signatureSvg   String?        @db.LongText
+  status         ContractStatus @default(DRAFT)
+  effectiveAt    DateTime?
+  expiresAt      DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model Payment {
+  id          String         @id @default(cuid())
+  orderNo     String         @unique
+  channel     String         @default("ABC_MOCK")
+  amount      Decimal        @db.Decimal(12, 2)
+  purpose     PaymentPurpose
+  status      PaymentStatus  @default(PENDING)
+  endUserId   String
+  endUser     EndUser        @relation(fields: [endUserId], references: [id], onDelete: Cascade)
+  auctionProjectId String?
+  auctionProject   AuctionProject? @relation(fields: [auctionProjectId], references: [id])
+  reservationId    String?
+  reservation      DryingReservation? @relation(fields: [reservationId], references: [id])
+  paidAt      DateTime?
+  metaJson    String?        @db.Text
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model MessageTemplate {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  title     String
+  body      String   @db.Text
+  channel   String   @default("IN_APP")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MessageLog {
+  id        String   @id @default(cuid())
+  endUserId String?
+  endUser   EndUser? @relation(fields: [endUserId], references: [id])
+  templateCode String?
+  title     String
+  body      String   @db.Text
+  channel   String
+  status    String   @default("SENT")
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String    @id @default(cuid())
+  adminUserId String?
+  adminUser  AdminUser? @relation(fields: [adminUserId], references: [id])
+  action     String
+  detail     String?   @db.Text
+  ip         String?
+  createdAt  DateTime  @default(now())
+}
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+}
+
+model ThirdPartyUserSnapshot {
+  id             String   @id @default(cuid())
+  externalUserId String   @unique
+  payloadJson    String   @db.Text
+  fetchedAt      DateTime @default(now())
+}
