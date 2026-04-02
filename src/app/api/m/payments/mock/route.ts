@@ -28,11 +28,16 @@ export async function POST(req: Request) {
       where: { projectId_endUserId: { projectId: auctionProjectId, endUserId: user.id } },
     });
     if (!reg) return NextResponse.json({ error: "未报名该项目" }, { status: 403 });
+    if (reg.depositPaid) return NextResponse.json({ error: "保证金已缴纳" }, { status: 409 });
     const project = await prisma.auctionProject.findUnique({ where: { id: auctionProjectId } });
     if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
     amount = project.depositAmount;
   } else if (purpose === "AUCTION_RENT") {
     if (!auctionProjectId) return NextResponse.json({ error: "缺少项目ID" }, { status: 400 });
+    const existingRent = await prisma.payment.findFirst({
+      where: { auctionProjectId, endUserId: user.id, purpose: "AUCTION_RENT", status: "SUCCESS" },
+    });
+    if (existingRent) return NextResponse.json({ error: "租金已支付" }, { status: 409 });
     const result = await prisma.auctionResult.findUnique({ where: { projectId: auctionProjectId } });
     if (!result || result.winnerId !== user.id) return NextResponse.json({ error: "无权操作" }, { status: 403 });
     const topBid = await prisma.auctionBid.findFirst({
@@ -45,6 +50,11 @@ export async function POST(req: Request) {
     if (!reservationId) return NextResponse.json({ error: "缺少预约ID" }, { status: 400 });
     const reservation = await prisma.dryingReservation.findUnique({ where: { id: reservationId } });
     if (!reservation || reservation.endUserId !== user.id) return NextResponse.json({ error: "预约不存在" }, { status: 403 });
+    if (reservation.status !== "APPROVED") return NextResponse.json({ error: "当前状态不可支付" }, { status: 400 });
+    const existingDeposit = await prisma.payment.findFirst({
+      where: { reservationId, endUserId: user.id, purpose: "DRYING_DEPOSIT", status: "SUCCESS" },
+    });
+    if (existingDeposit) return NextResponse.json({ error: "保证金已缴纳" }, { status: 409 });
     amount = new Decimal(200);
   } else {
     if (!reservationId) return NextResponse.json({ error: "缺少预约ID" }, { status: 400 });
