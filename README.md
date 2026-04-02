@@ -64,16 +64,18 @@ npm start
 git clone https://github.com/zhitukeji0625/sishi-zichan.git
 cd sishi-zichan
 git checkout cursor/-bc-3d90e3cd-56d5-478b-b73d-426145302072-c87a
+cp .env.deploy.example .env   # 编辑 SESSION_SECRET、THIRD_PARTY_JWT_SECRET、NEXT_PUBLIC_APP_URL
+export APP_PORT=8083            # 可选，默认 8083
 docker compose up -d --build
 ```
 
-首次启动会执行 `prisma db push` 与 `db:seed`。浏览器访问：
+首次启动会执行 `prisma db push` 与 `db:seed`。浏览器访问（默认对外端口 **8083**，容器内仍为 3000）：
 
-- **预览入口**：`http://<服务器IP>:3000`
-- H5：`http://<服务器IP>:3000/m`
-- 管理端：`http://<服务器IP>:3000/admin/login`
+- **预览入口**：`http://<服务器IP>:8083`
+- H5：`http://<服务器IP>:8083/m`
+- 管理端：`http://<服务器IP>:8083/admin/login`
 
-生产环境请修改 `docker-compose.yml` 中的 `SESSION_SECRET`、`THIRD_PARTY_JWT_SECRET` 与数据库密码，并勿将 MySQL 端口暴露公网（仅内网或云厂商托管 MySQL）。
+生产环境请修改 `.env` 中的密钥与 `NEXT_PUBLIC_APP_URL`；`docker-compose` 中 MySQL **不映射到宿主机**，仅 `app` 容器可访问。
 
 ### 方式 B：Vercel 等 Serverless（需外置 MySQL）
 
