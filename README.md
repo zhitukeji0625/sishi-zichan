@@ -77,6 +77,8 @@ docker compose up -d --build
 
 无反代时可直接访问 `http://<服务器IP>:19084`。`.env` 中 `NEXT_PUBLIC_APP_URL` 请与浏览器实际地址一致（反代用 `:18084`）。
 
+**纯 HTTP 部署**：Docker Compose 已设置 `COOKIE_SECURE=false`；若生产环境全站 **HTTPS**，请将 `docker-compose.yml` 中 `COOKIE_SECURE` 改为 `"true"`，否则浏览器在 HTTP 下不会保存登录 Cookie。
+
 生产环境请修改 `.env` 中的密钥与 `NEXT_PUBLIC_APP_URL`；`docker-compose` 中数据库 **不映射到宿主机**，仅 `app` 容器可访问。若公网拉取 `mysql:8` 镜像失败，可改用本仓库默认的 **MariaDB 11**（与 Prisma `mysql` 连接串兼容）。
 
 ### 方式 B：Vercel 等 Serverless（需外置 MySQL）

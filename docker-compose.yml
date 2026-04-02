@@ -30,6 +30,8 @@ services:
       - .env
     environment:
       DATABASE_URL: mysql://root:root@mysql:3306/sishi
+      # 当前为 HTTP（:18084）；若全站 HTTPS 请改为 "true"
+      COOKIE_SECURE: "false"
     depends_on:
       mysql:
         condition: service_healthy

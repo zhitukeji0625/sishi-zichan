@@ -7,6 +7,14 @@ const SESSION_COOKIE_ADMIN = "sishi_admin_session";
 const SESSION_COOKIE_USER = "sishi_user_session";
 const SESSION_DAYS = 7;
 
+/** 生产环境若仅用 HTTP（无 TLS），须设 COOKIE_SECURE=false，否则浏览器不会带上 Cookie */
+function cookieSecure() {
+  const v = process.env.COOKIE_SECURE;
+  if (v === "true") return true;
+  if (v === "false") return false;
+  return process.env.NODE_ENV === "production";
+}
+
 function secret() {
   const s = process.env.SESSION_SECRET;
   if (!s || s.length < 16) throw new Error("SESSION_SECRET must be set (min 16 chars)");
@@ -44,7 +52,7 @@ export async function setSessionCookie(kind: "admin" | "end_user", token: string
   (await cookies()).set(name, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecure(),
     path: "/",
     expires: expiresAt,
   });
