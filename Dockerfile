@@ -12,7 +12,8 @@ RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ARG DATABASE_URL="mysql://root:root@mysql:3306/sishi"
+# 构建阶段无数据库；占位 URL 仅用于满足 Prisma Client 生成
+ARG DATABASE_URL="mysql://root:root@127.0.0.1:3306/sishi"
 ENV DATABASE_URL=${DATABASE_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma generate
