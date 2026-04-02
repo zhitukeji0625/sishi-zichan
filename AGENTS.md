@@ -36,8 +36,17 @@ sudo docker run -d --name mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATAB
 
 ### Demo accounts (from seed data)
 
-- Division admin: `13900000001` / `admin123`
+- Division admin: `13900000001` / `admin123` (师级，全权限)
+- Regiment admin: `13900000002` / `admin123` (团级)
+- Company admin: `13900000003` / `admin123` (连队级)
 - Tenant user: `13800138000` / `user123`
+
+### Architecture notes
+
+- `src/middleware.ts` protects `/admin/**` and `/api/m/**` routes via cookie checks
+- All admin mutations are audit-logged via `writeAudit()` in `src/lib/audit.ts`
+- Mock payment routes enforce server-side amounts and idempotency
+- Contract HTML templates escape user data to prevent XSS
 
 ### Environment variables
 
