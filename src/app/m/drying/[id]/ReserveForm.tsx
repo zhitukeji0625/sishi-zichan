@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function ReserveForm({ listingId }: { listingId: string }) {
+export function ReserveForm({ listingId, minDate, maxDate }: { listingId: string; minDate: string; maxDate: string }) {
   const router = useRouter();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -37,6 +37,8 @@ export function ReserveForm({ listingId }: { listingId: string }) {
         <input
           type="date"
           required
+          min={minDate}
+          max={maxDate}
           className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
@@ -47,6 +49,8 @@ export function ReserveForm({ listingId }: { listingId: string }) {
         <input
           type="date"
           required
+          min={minDate}
+          max={maxDate}
           className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
           value={endDate}
           onChange={(e) => setEndDate(e.target.value)}

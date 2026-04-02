@@ -32,6 +32,22 @@ export default async function MHomePage() {
             晒场预约
           </Link>
         </div>
+        {user && (
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <Link
+              href="/m/orders"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-medium text-slate-800 hover:bg-slate-50"
+            >
+              我的订单
+            </Link>
+            <Link
+              href="/m/me"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-medium text-slate-800 hover:bg-slate-50"
+            >
+              个人中心
+            </Link>
+          </div>
+        )}
         {!user && (
           <div className="mt-5 border-t border-slate-100 pt-4">
             <p className="mb-3 text-center text-sm text-slate-500">尚未登录</p>

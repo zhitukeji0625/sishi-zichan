@@ -44,7 +44,7 @@ export default async function DryingDetailPage({ params }: { params: Promise<{ i
         </ul>
       </div>
       {user ? (
-        <ReserveForm listingId={listing.id} />
+        <ReserveForm listingId={listing.id} minDate={format(today, "yyyy-MM-dd")} maxDate={format(horizon, "yyyy-MM-dd")} />
       ) : (
         <p className="mt-4 text-sm text-slate-500">
           请先<Link href="/m/login">登录</Link>后预约

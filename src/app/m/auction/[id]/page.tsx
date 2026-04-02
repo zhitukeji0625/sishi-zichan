@@ -113,9 +113,12 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
           </button>
         </form>
       )}
-      {user && reg?.status === "APPROVED" && reg.depositPaid && project.status === "LIVE" && (
-        <BidForm projectId={projectId} />
-      )}
+      {user && reg?.status === "APPROVED" && reg.depositPaid && project.status === "LIVE" && (() => {
+        const minNext = top
+          ? Number(top.toString()) + Number(project.bidStep.toString())
+          : Number(project.startPrice.toString());
+        return <BidForm projectId={projectId} minBid={minNext} />;
+      })()}
       {isWinner && !existingContract && (
         <form action={goToContract} className="mt-4">
           <button type="submit" className="w-full rounded-xl bg-blue-700 py-3 text-sm font-medium text-white">

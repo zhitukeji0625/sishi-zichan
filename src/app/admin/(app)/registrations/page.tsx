@@ -3,6 +3,11 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { reviewRegistrationFormAction } from "./actions";
 
+async function handleReview(formData: FormData) {
+  "use server";
+  await reviewRegistrationFormAction(formData);
+}
+
 export default async function AdminRegistrationsPage() {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
@@ -36,7 +41,7 @@ export default async function AdminRegistrationsPage() {
             </div>
             {admin.role === "COMPANY_ADMIN" && r.status === "PENDING" && (
               <div className="flex gap-2">
-                <form action={reviewRegistrationFormAction}>
+                <form action={handleReview}>
                   <input type="hidden" name="id" value={r.id} />
                   <input type="hidden" name="approve" value="true" />
                   <button
@@ -46,7 +51,7 @@ export default async function AdminRegistrationsPage() {
                     通过
                   </button>
                 </form>
-                <form action={reviewRegistrationFormAction}>
+                <form action={handleReview}>
                   <input type="hidden" name="id" value={r.id} />
                   <input type="hidden" name="approve" value="false" />
                   <input type="hidden" name="rejectReason" value="资料不全" />

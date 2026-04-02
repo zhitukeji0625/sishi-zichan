@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function BidForm({ projectId }: { projectId: string }) {
+export function BidForm({ projectId, minBid }: { projectId: string; minBid: number }) {
   const router = useRouter();
   const [amount, setAmount] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -32,11 +32,13 @@ export function BidForm({ projectId }: { projectId: string }) {
   return (
     <form onSubmit={onSubmit} className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
       <div className="text-sm font-medium text-slate-800">出价</div>
+      <p className="text-xs text-slate-500">最低出价：¥{minBid.toFixed(2)}</p>
       <input
         type="number"
         step="0.01"
+        min={minBid}
         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-        placeholder="金额（元）"
+        placeholder={`≥ ¥${minBid.toFixed(2)}`}
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
       />

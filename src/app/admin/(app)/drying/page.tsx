@@ -3,6 +3,11 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { reviewReservationFormAction } from "./actions";
 
+async function handleReview(formData: FormData) {
+  "use server";
+  await reviewReservationFormAction(formData);
+}
+
 export default async function AdminDryingPage() {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
@@ -37,14 +42,14 @@ export default async function AdminDryingPage() {
             </div>
             {admin.role === "COMPANY_ADMIN" && r.status === "PENDING_REVIEW" && (
               <div className="flex gap-2">
-                <form action={reviewReservationFormAction}>
+                <form action={handleReview}>
                   <input type="hidden" name="id" value={r.id} />
                   <input type="hidden" name="approve" value="true" />
                   <button type="submit" className="rounded-lg bg-emerald-700 px-3 py-2 text-sm text-white">
                     通过
                   </button>
                 </form>
-                <form action={reviewReservationFormAction}>
+                <form action={handleReview}>
                   <input type="hidden" name="id" value={r.id} />
                   <input type="hidden" name="approve" value="false" />
                   <button type="submit" className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">

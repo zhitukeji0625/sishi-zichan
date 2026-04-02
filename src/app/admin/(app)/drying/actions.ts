@@ -11,14 +11,15 @@ export async function reviewReservationFormAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const approve = formData.get("approve") === "true";
   const admin = await getCurrentAdmin();
-  if (!admin || admin.role !== "COMPANY_ADMIN") return;
+  if (!admin) return { error: "未登录" };
+  if (admin.role !== "COMPANY_ADMIN") return { error: "无权限" };
   const res = await prisma.dryingReservation.findUnique({
     where: { id },
     include: { listing: { include: { asset: true } } },
   });
-  if (!res || res.status !== "PENDING_REVIEW") return;
+  if (!res || res.status !== "PENDING_REVIEW") return { error: "记录不存在或状态不正确" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, res.listing.asset.orgId);
-  if (!ok) return;
+  if (!ok) return { error: "无权操作该组织" };
   await prisma.dryingReservation.update({
     where: { id },
     data: {

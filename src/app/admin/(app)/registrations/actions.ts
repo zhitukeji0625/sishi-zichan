@@ -12,15 +12,15 @@ export async function reviewRegistrationFormAction(formData: FormData) {
   const approve = formData.get("approve") === "true";
   const rejectReason = String(formData.get("rejectReason") ?? "未通过");
   const admin = await getCurrentAdmin();
-  if (!admin) return;
-  if (admin.role !== "COMPANY_ADMIN") return;
+  if (!admin) return { error: "未登录" };
+  if (admin.role !== "COMPANY_ADMIN") return { error: "无权限" };
   const reg = await prisma.auctionRegistration.findUnique({
     where: { id: registrationId },
     include: { project: { include: { asset: true } }, endUser: true },
   });
-  if (!reg) return;
+  if (!reg) return { error: "记录不存在" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, reg.project.asset.orgId);
-  if (!ok) return;
+  if (!ok) return { error: "无权操作该组织" };
   await prisma.auctionRegistration.update({
     where: { id: registrationId },
     data: {
