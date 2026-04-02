@@ -65,15 +65,17 @@ git clone https://github.com/zhitukeji0625/sishi-zichan.git
 cd sishi-zichan
 git checkout cursor/-bc-3d90e3cd-56d5-478b-b73d-426145302072-c87a
 cp .env.deploy.example .env   # 编辑 SESSION_SECRET、THIRD_PARTY_JWT_SECRET、NEXT_PUBLIC_APP_URL
-export APP_PORT=18083           # 可选，默认 18083
+export APP_PORT=19084           # 可选，默认 19084（见下方「与 18084 反代」）
 docker compose up -d --build
 ```
 
-首次启动会执行 `prisma db push` 与 `db:seed`。浏览器访问（默认对外端口 **18083**，容器内仍为 3000）：
+首次启动会执行 `prisma db push` 与 `db:seed`。默认 Docker 映射 **19084** → 容器 3000；若宝塔 **18084** 反代到 `127.0.0.1:19084`，用户访问：
 
-- **预览入口**：`http://<服务器IP>:18083`
-- H5：`http://<服务器IP>:18083/m`
-- 管理端：`http://<服务器IP>:18083/admin/login`
+- **预览入口**：`http://<服务器IP>:18084`
+- H5：`http://<服务器IP>:18084/m`
+- 管理端：`http://<服务器IP>:18084/admin/login`
+
+无反代时可直接访问 `http://<服务器IP>:19084`。`.env` 中 `NEXT_PUBLIC_APP_URL` 请与浏览器实际地址一致（反代用 `:18084`）。
 
 生产环境请修改 `.env` 中的密钥与 `NEXT_PUBLIC_APP_URL`；`docker-compose` 中数据库 **不映射到宿主机**，仅 `app` 容器可访问。若公网拉取 `mysql:8` 镜像失败，可改用本仓库默认的 **MariaDB 11**（与 Prisma `mysql` 连接串兼容）。
 

@@ -24,7 +24,8 @@ services:
         DATABASE_URL: mysql://root:root@mysql:3306/sishi
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-18083}:3000"
+      # 默认 19084：宝塔 Apache 对外 18084 反代到本机 19084 时与此一致
+      - "${APP_PORT:-19084}:3000"
     env_file:
       - .env
     environment:
