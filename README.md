@@ -52,6 +52,38 @@ npm run build
 npm start
 ```
 
+## 部署与预览 URL
+
+本仓库**不会自动生成**公网地址；预览链接来自你选择的托管平台。
+
+### 方式 A：Docker Compose（任意云主机 / 内网）
+
+在一台已安装 [Docker](https://docs.docker.com/get-docker/) 的机器上：
+
+```bash
+git clone https://github.com/zhitukeji0625/sishi-zichan.git
+cd sishi-zichan
+git checkout cursor/-bc-3d90e3cd-56d5-478b-b73d-426145302072-c87a
+docker compose up -d --build
+```
+
+首次启动会执行 `prisma db push` 与 `db:seed`。浏览器访问：
+
+- **预览入口**：`http://<服务器IP>:3000`
+- H5：`http://<服务器IP>:3000/m`
+- 管理端：`http://<服务器IP>:3000/admin/login`
+
+生产环境请修改 `docker-compose.yml` 中的 `SESSION_SECRET`、`THIRD_PARTY_JWT_SECRET` 与数据库密码，并勿将 MySQL 端口暴露公网（仅内网或云厂商托管 MySQL）。
+
+### 方式 B：Vercel 等 Serverless（需外置 MySQL）
+
+将项目连接 **PlanetScale / Neon（不适用 MySQL）/ 云 RDS MySQL** 等，在面板配置环境变量 `DATABASE_URL`、`SESSION_SECRET`、`THIRD_PARTY_JWT_SECRET`、`NEXT_PUBLIC_APP_URL`。  
+若已关联 GitHub，合并或打开 PR 后可在 Vercel 控制台查看 **Preview Deployment** 的域名（形如 `https://xxx.vercel.app`）。
+
+### 当前 PR
+
+草稿 PR：<https://github.com/zhitukeji0625/sishi-zichan/pull/1> — 部署成功后把该环境域名当作「预览版本」即可。
+
 ## 测试
 
 ```bash

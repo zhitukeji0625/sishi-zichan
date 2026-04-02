@@ -1,0 +1,39 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sishi
+    ports:
+      - "3306:3306"
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DATABASE_URL: mysql://root:root@mysql:3306/sishi
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: mysql://root:root@mysql:3306/sishi
+      SESSION_SECRET: change-me-in-preview-at-least-32-characters-long
+      THIRD_PARTY_JWT_SECRET: change-me-third-party-secret-32chars
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: >
+      sh -c "
+      npx prisma db push --accept-data-loss &&
+      npm run db:seed &&
+      npm start
+      "
