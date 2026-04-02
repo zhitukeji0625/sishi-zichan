@@ -1,0 +1,10 @@
+README.md
+pyproject.toml
+src/sishi_zichan/__init__.py
+src/sishi_zichan/portfolio.py
+src/sishi_zichan.egg-info/PKG-INFO
+src/sishi_zichan.egg-info/SOURCES.txt
+src/sishi_zichan.egg-info/dependency_links.txt
+src/sishi_zichan.egg-info/requires.txt
+src/sishi_zichan.egg-info/top_level.txt
+tests/test_portfolio.py
