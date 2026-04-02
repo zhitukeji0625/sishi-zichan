@@ -29,10 +29,4 @@ body {
     sans-serif;
 }
 
-a {
-  color: var(--primary);
-}
-
-a:hover {
-  color: var(--primary-hover);
-}
+/* 不在此处统一改 <a> 颜色，否则会覆盖组件里的 text-white 等，导致主按钮「蓝底蓝字」不可读 */
