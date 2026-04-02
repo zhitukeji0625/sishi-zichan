@@ -1,0 +1,21 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
+import { getCurrentEndUser } from "@/lib/auth/session";
+import { notifyUser } from "@/lib/messages";
+
+export async function registerAuctionAction(projectId: string) {
+  const user = await getCurrentEndUser();
+  if (!user) return { error: "请先登录" };
+  const exists = await prisma.auctionRegistration.findUnique({
+    where: { projectId_endUserId: { projectId, endUserId: user.id } },
+  });
+  if (exists) return { ok: true as const };
+  await prisma.auctionRegistration.create({
+    data: { projectId, endUserId: user.id, status: "PENDING" },
+  });
+  await notifyUser(user.id, "报名已提交", "您的竞拍报名已提交，请等待连队审核。", "REG_SUBMIT");
+  revalidatePath(`/m/auction/${projectId}`);
+  return { ok: true as const };
+}
