@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowUp } from "lucide-react";
 
 export function BidForm({ projectId, minBid }: { projectId: string; minBid: number }) {
   const router = useRouter();
   const [amount, setAmount] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
@@ -21,35 +22,53 @@ export function BidForm({ projectId, minBid }: { projectId: string; minBid: numb
     setLoading(false);
     const j = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setMsg(j.error ?? "出价失败");
+      setMsg({ text: j.error ?? "出价失败", ok: false });
       return;
     }
-    setMsg("出价成功");
+    setMsg({ text: "出价成功！", ok: true });
     setAmount("");
     router.refresh();
   }
 
   return (
-    <form onSubmit={onSubmit} className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <div className="text-sm font-medium text-slate-800">出价</div>
-      <p className="text-xs text-slate-500">最低出价：¥{minBid.toFixed(2)}</p>
-      <input
-        type="number"
-        step="0.01"
-        min={minBid}
-        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-        placeholder={`≥ ¥${minBid.toFixed(2)}`}
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-      />
-      {msg && <p className="text-xs text-slate-600">{msg}</p>}
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-lg bg-blue-700 py-2 text-sm font-medium text-white disabled:opacity-60"
-      >
-        {loading ? "提交中…" : "确认出价"}
-      </button>
+    <form onSubmit={onSubmit} className="card-elevated overflow-hidden">
+      <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-bold text-slate-800">我要出价</span>
+          <span className="status-badge status-live">最低 ¥{minBid.toFixed(2)}</span>
+        </div>
+      </div>
+      <div className="p-4 space-y-3">
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400">¥</span>
+          <input
+            type="number"
+            step="0.01"
+            min={minBid}
+            className="input-field !pl-10 !text-lg font-bold"
+            placeholder={minBid.toFixed(2)}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+        </div>
+        {msg && (
+          <div className={`animate-scale-in rounded-xl px-4 py-2.5 text-sm font-medium ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>
+            {msg.text}
+          </div>
+        )}
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn-primary flex w-full items-center justify-center gap-2 !py-3.5 text-[15px]"
+        >
+          {loading ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          ) : (
+            <ArrowUp className="h-4.5 w-4.5" />
+          )}
+          {loading ? "出价中…" : "确认出价"}
+        </button>
+      </div>
     </form>
   );
 }

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
 import { getHighestBid } from "@/lib/auction";
 import { format } from "date-fns";
+import { ChevronLeft } from "lucide-react";
 import { registerAuctionAction } from "../actions";
 import { payAuctionDepositAction } from "../pay-actions";
 import { createAuctionContractAction, payAuctionRentAction } from "../../contract/sign-actions";
@@ -65,94 +66,168 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
     await payAuctionRentAction(projectId);
   }
 
+  const statusInfo: Record<string, { label: string; cls: string }> = {
+    LIVE: { label: "竞拍中", cls: "status-live" },
+    SCHEDULED: { label: "即将开始", cls: "status-scheduled" },
+    ENDED: { label: "已结束", cls: "status-ended" },
+  };
+  const st = statusInfo[project.status] ?? { label: project.status, cls: "status-ended" };
+
   return (
-    <div className="px-4 pt-6">
-      <Link href="/m/auction" className="text-sm text-blue-700">
-        ← 返回列表
-      </Link>
-      <h1 className="mt-2 text-lg font-semibold text-slate-900">{project.asset.name}</h1>
-      <p className="mt-1 text-sm text-slate-500">{project.code}</p>
-      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm text-sm text-slate-700">
-        <div>状态：{project.status}</div>
-        <div className="mt-1">起拍价：¥{project.startPrice.toString()}</div>
-        <div className="mt-1">加价幅度：¥{project.bidStep.toString()}</div>
-        <div className="mt-1">保证金：¥{project.depositAmount.toString()}</div>
-        <div className="mt-1">
-          当前最高：¥{top ? top.toString() : project.startPrice.toString()}
-        </div>
-        <div className="mt-1 text-xs text-slate-500">
-          {format(project.startsAt, "yyyy-MM-dd HH:mm")} — {format(project.endsAt, "yyyy-MM-dd HH:mm")}
+    <div className="animate-fade-in">
+      <div className="gradient-header px-5 pb-12 pt-8">
+        <Link href="/m/auction" className="mb-3 inline-flex items-center gap-1 text-xs text-blue-200 hover:text-white">
+          <ChevronLeft className="h-3.5 w-3.5" /> 返回列表
+        </Link>
+        <h1 className="text-lg font-bold text-white">{project.asset.name}</h1>
+        <div className="mt-1 flex items-center gap-2">
+          <span className={`status-badge ${st.cls}`}>{st.label}</span>
+          <span className="text-xs text-blue-200">{project.code}</span>
         </div>
       </div>
-      {project.result?.status === "PUBLISHED" && (
-        <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-          <div className="font-medium">竞拍结果已公示</div>
-          {isWinner && <div className="mt-1">恭喜您竞拍成功！</div>}
-          {user && project.result?.winnerId && project.result.winnerId !== user.id && (
-            <div className="mt-1">很遗憾，您未中标。</div>
+
+      <div className="relative -mt-6 px-4 space-y-4">
+        {/* Price info card */}
+        <div className="card-elevated-lg p-5 animate-slide-up">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-[11px] font-medium text-slate-400">当前最高出价</div>
+              <div className="mt-1 text-2xl font-black text-blue-600">
+                ¥{top ? top.toString() : project.startPrice.toString()}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[11px] font-medium text-slate-400">起拍价</div>
+              <div className="mt-1 text-lg font-bold text-slate-700">¥{project.startPrice.toString()}</div>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-3 border-t border-slate-100 pt-4">
+            <div className="text-center">
+              <div className="text-[11px] text-slate-400">加价幅度</div>
+              <div className="mt-0.5 text-sm font-bold text-slate-700">¥{project.bidStep.toString()}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-[11px] text-slate-400">保证金</div>
+              <div className="mt-0.5 text-sm font-bold text-slate-700">¥{project.depositAmount.toString()}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-[11px] text-slate-400">竞拍时段</div>
+              <div className="mt-0.5 text-[11px] font-medium text-slate-500">
+                {format(project.startsAt, "MM/dd HH:mm")}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Result banner */}
+        {project.result?.status === "PUBLISHED" && (
+          <div className={`card-elevated overflow-hidden animate-scale-in ${isWinner ? "border-emerald-200 bg-emerald-50" : "border-slate-200"}`}>
+            <div className="p-4">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${isWinner ? "bg-emerald-100" : "bg-slate-100"}`}>
+                  {isWinner ? <span className="text-lg">🎉</span> : <span className="text-lg">📋</span>}
+                </div>
+                <div>
+                  <div className={`font-bold ${isWinner ? "text-emerald-800" : "text-slate-700"}`}>
+                    {isWinner ? "恭喜您竞拍成功！" : "竞拍结果已公示"}
+                  </div>
+                  {user && project.result?.winnerId && project.result.winnerId !== user.id && (
+                    <div className="text-sm text-slate-500">很遗憾，您未中标</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="space-y-3 animate-slide-up stagger-2">
+          {user && !reg && project.status !== "ENDED" && (
+            <form action={register}>
+              <button type="submit" className="btn-primary w-full !py-3.5 text-[15px]">报名参与竞拍</button>
+            </form>
+          )}
+          {user && reg?.status === "PENDING" && (
+            <div className="card-elevated flex items-center gap-3 p-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100">
+                <span className="text-sm">⏳</span>
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-amber-800">报名审核中</div>
+                <div className="text-xs text-amber-600">请等待连队管理员审核</div>
+              </div>
+            </div>
+          )}
+          {user && reg?.status === "REJECTED" && (
+            <div className="card-elevated flex items-center gap-3 border-red-200 bg-red-50 p-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100">
+                <span className="text-sm">✗</span>
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-red-800">报名未通过</div>
+                <div className="text-xs text-red-600">{reg.rejectReason}</div>
+              </div>
+            </div>
+          )}
+          {user && reg?.status === "APPROVED" && !reg.depositPaid && (
+            <form action={payDeposit}>
+              <button type="submit" className="w-full rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 py-3.5 text-[15px] font-bold text-white shadow-md shadow-amber-500/20">
+                缴纳保证金 ¥{project.depositAmount.toString()}
+              </button>
+            </form>
+          )}
+          {user && reg?.status === "APPROVED" && reg.depositPaid && project.status === "LIVE" && (() => {
+            const minNext = top
+              ? Number(top.toString()) + Number(project.bidStep.toString())
+              : Number(project.startPrice.toString());
+            return <BidForm projectId={projectId} minBid={minNext} />;
+          })()}
+          {isWinner && !existingContract && (
+            <form action={goToContract}>
+              <button type="submit" className="btn-primary w-full !py-3.5 text-[15px]">签署合同</button>
+            </form>
+          )}
+          {isWinner && existingContract && existingContract.status === "DRAFT" && (
+            <Link href={`/m/contract/${existingContract.id}`} className="btn-primary block w-full text-center !py-3.5 text-[15px]">
+              继续签署合同
+            </Link>
+          )}
+          {isWinner && existingContract?.status === "SIGNED" && !rentPaid && (
+            <form action={payRent}>
+              <button type="submit" className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3.5 text-[15px] font-bold text-white shadow-md shadow-emerald-500/20">
+                支付租金
+              </button>
+            </form>
+          )}
+          {isWinner && rentPaid && (
+            <div className="card-elevated flex items-center gap-3 border-emerald-200 bg-emerald-50 p-4">
+              <span className="text-lg">✅</span>
+              <div className="text-sm font-semibold text-emerald-700">租金已支付，全部流程已完成</div>
+            </div>
           )}
         </div>
-      )}
-      {user && !reg && project.status !== "ENDED" && (
-        <form action={register} className="mt-4">
-          <button type="submit" className="w-full rounded-xl bg-slate-900 py-3 text-sm font-medium text-white">
-            报名参与
-          </button>
-        </form>
-      )}
-      {user && reg?.status === "PENDING" && (
-        <p className="mt-4 text-sm text-amber-700">报名审核中</p>
-      )}
-      {user && reg?.status === "REJECTED" && (
-        <p className="mt-4 text-sm text-red-600">报名未通过：{reg.rejectReason}</p>
-      )}
-      {user && reg?.status === "APPROVED" && !reg.depositPaid && (
-        <form action={payDeposit} className="mt-4">
-          <button type="submit" className="w-full rounded-xl bg-blue-700 py-3 text-sm font-medium text-white">
-            模拟缴纳保证金（农行演示）
-          </button>
-        </form>
-      )}
-      {user && reg?.status === "APPROVED" && reg.depositPaid && project.status === "LIVE" && (() => {
-        const minNext = top
-          ? Number(top.toString()) + Number(project.bidStep.toString())
-          : Number(project.startPrice.toString());
-        return <BidForm projectId={projectId} minBid={minNext} />;
-      })()}
-      {isWinner && !existingContract && (
-        <form action={goToContract} className="mt-4">
-          <button type="submit" className="w-full rounded-xl bg-blue-700 py-3 text-sm font-medium text-white">
-            签署合同
-          </button>
-        </form>
-      )}
-      {isWinner && existingContract && existingContract.status === "DRAFT" && (
-        <Link
-          href={`/m/contract/${existingContract.id}`}
-          className="mt-4 block w-full rounded-xl bg-blue-700 py-3 text-center text-sm font-medium text-white"
-        >
-          继续签署合同
-        </Link>
-      )}
-      {isWinner && existingContract?.status === "SIGNED" && !rentPaid && (
-        <form action={payRent} className="mt-4">
-          <button type="submit" className="w-full rounded-xl bg-emerald-700 py-3 text-sm font-medium text-white">
-            模拟支付租金
-          </button>
-        </form>
-      )}
-      {isWinner && rentPaid && (
-        <p className="mt-4 text-sm text-emerald-700">租金已支付，流程完成。</p>
-      )}
-      <div className="mt-6">
-        <div className="text-sm font-medium text-slate-800">出价动态（匿名）</div>
-        <ul className="mt-2 space-y-1 text-xs text-slate-600">
-          {bids.map((b, i) => (
-            <li key={i}>
-              ¥{b.amount.toString()} · {format(b.createdAt, "HH:mm:ss")}
-            </li>
-          ))}
-        </ul>
+
+        {/* Bid history */}
+        <div className="card-elevated p-5 animate-slide-up stagger-3">
+          <div className="mb-3 text-sm font-bold text-slate-800">出价记录</div>
+          {bids.length > 0 ? (
+            <div className="space-y-2">
+              {bids.map((b, i) => (
+                <div key={i} className="flex items-center justify-between rounded-lg bg-slate-50 px-3.5 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className={`h-2 w-2 rounded-full ${i === 0 ? "bg-blue-500" : "bg-slate-300"}`} />
+                    <span className={`font-mono text-sm ${i === 0 ? "font-bold text-blue-600" : "text-slate-600"}`}>
+                      ¥{b.amount.toString()}
+                    </span>
+                  </div>
+                  <span className="text-xs text-slate-400">{format(b.createdAt, "HH:mm:ss")}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-6 text-center text-sm text-slate-400">暂无出价</div>
+          )}
+        </div>
       </div>
     </div>
   );
