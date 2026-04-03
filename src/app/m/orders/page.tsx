@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
+import { getDictMap } from "@/lib/dict";
 import { payDryingDepositAction } from "../drying/pay-actions";
 import { createDryingContractAction } from "../contract/sign-actions";
 import { cancelReservationAction } from "./actions";
@@ -29,30 +30,27 @@ export default async function MOrdersPage() {
     }),
   ]);
 
-  const statusLabel: Record<string, { text: string; cls: string }> = {
-    PENDING_REVIEW: { text: "待审核", cls: "status-pending" },
-    APPROVED: { text: "待付保证金", cls: "status-approved" },
-    REJECTED: { text: "已驳回", cls: "status-rejected" },
-    PENDING_PAYMENT: { text: "待支付", cls: "status-pending" },
-    CONTRACT_PENDING: { text: "待签合同", cls: "status-scheduled" },
-    ACTIVE: { text: "使用中", cls: "status-live" },
-    CANCELLED: { text: "已取消", cls: "status-ended" },
-    COMPLETED: { text: "已完成", cls: "status-success" },
-    PAID: { text: "已支付", cls: "status-success" },
+  const resStatusMap = await getDictMap("reservation_status");
+  const purposeMap = await getDictMap("payment_purpose");
+  const payStatusDictMap = await getDictMap("payment_status");
+
+  const statusCls: Record<string, string> = {
+    PENDING_REVIEW: "status-pending",
+    APPROVED: "status-approved",
+    REJECTED: "status-rejected",
+    PENDING_PAYMENT: "status-pending",
+    CONTRACT_PENDING: "status-scheduled",
+    ACTIVE: "status-live",
+    CANCELLED: "status-ended",
+    COMPLETED: "status-success",
+    PAID: "status-success",
   };
 
-  const purposeLabel: Record<string, string> = {
-    AUCTION_DEPOSIT: "竞拍保证金",
-    AUCTION_RENT: "竞拍租金",
-    DRYING_DEPOSIT: "晒场保证金",
-    DRYING_RENT: "晒场租金",
-  };
-
-  const payStatusLabel: Record<string, { text: string; cls: string }> = {
-    SUCCESS: { text: "成功", cls: "status-success" },
-    PENDING: { text: "待支付", cls: "status-pending" },
-    FAILED: { text: "失败", cls: "status-rejected" },
-    REFUNDED: { text: "已退款", cls: "status-ended" },
+  const payStatusCls: Record<string, string> = {
+    SUCCESS: "status-success",
+    PENDING: "status-pending",
+    FAILED: "status-rejected",
+    REFUNDED: "status-ended",
   };
 
   return (
@@ -75,7 +73,7 @@ export default async function MOrdersPage() {
           <div className="space-y-2">
             {reservations.map((r) => {
               const resId = r.id;
-              const sl = statusLabel[r.status] ?? { text: r.status, cls: "status-ended" };
+              const sl = { text: resStatusMap[r.status] ?? r.status, cls: statusCls[r.status] ?? "status-ended" };
               return (
                 <div key={r.id} className="card-elevated overflow-hidden">
                   <div className="p-4">
@@ -157,12 +155,12 @@ export default async function MOrdersPage() {
           </div>
           <div className="space-y-2">
             {payments.map((p) => {
-              const ps = payStatusLabel[p.status] ?? { text: p.status, cls: "status-ended" };
+              const ps = { text: payStatusDictMap[p.status] ?? p.status, cls: payStatusCls[p.status] ?? "status-ended" };
               return (
                 <div key={p.id} className="card-elevated p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <div className="text-sm font-semibold text-slate-800">{purposeLabel[p.purpose] ?? p.purpose}</div>
+                      <div className="text-sm font-semibold text-slate-800">{purposeMap[p.purpose] ?? p.purpose}</div>
                       <div className="mt-0.5 font-mono text-[10px] text-slate-300">{p.orderNo}</div>
                     </div>
                     <div className="text-right">

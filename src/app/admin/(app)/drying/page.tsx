@@ -3,8 +3,7 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { reviewReservationFormAction } from "./actions";
 import { createDryingListingAction, toggleDryingListingStatusAction } from "./listing-actions";
-import { dryingListingStatusLabels, reservationStatusLabels } from "@/lib/labels";
-import type { DryingListingStatus, ReservationStatus } from "@prisma/client";
+import { getDictMap } from "@/lib/dict";
 
 async function handleReview(formData: FormData) {
   "use server";
@@ -33,6 +32,9 @@ export default async function AdminDryingPage() {
     orderBy: { createdAt: "desc" },
     take: 100,
   });
+
+  const dryingStatusMap = await getDictMap("drying_listing_status");
+  const resStatusMap = await getDictMap("reservation_status");
 
   return (
     <div>
@@ -66,7 +68,7 @@ export default async function AdminDryingPage() {
               {listings.map((l) => (
                 <tr key={l.id} className="border-b border-slate-50 last:border-0">
                   <td className="px-4 py-3 text-slate-900">{l.asset.name}</td>
-                  <td className="px-4 py-3 text-slate-600">{dryingListingStatusLabels[l.status as DryingListingStatus] ?? l.status}</td>
+                  <td className="px-4 py-3 text-slate-600">{dryingStatusMap[l.status] ?? l.status}</td>
                   <td className="px-4 py-3">
                     <form action={async (fd: FormData) => { "use server"; await toggleDryingListingStatusAction(fd); }} className="inline-flex gap-2">
                       <input type="hidden" name="listingId" value={l.id} />
@@ -98,7 +100,7 @@ export default async function AdminDryingPage() {
                 单号 {r.orderNo} · {r.endUser.name ?? r.endUser.phone}
               </div>
               <div className="text-xs text-slate-500">
-                {r.startDate.toISOString().slice(0, 10)} — {r.endDate.toISOString().slice(0, 10)} · {reservationStatusLabels[r.status as ReservationStatus] ?? r.status}
+                {r.startDate.toISOString().slice(0, 10)} — {r.endDate.toISOString().slice(0, 10)} · {resStatusMap[r.status] ?? r.status}
               </div>
             </div>
             {admin.role === "COMPANY_ADMIN" && r.status === "PENDING_REVIEW" && (

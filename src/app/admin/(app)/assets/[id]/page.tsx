@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
+import { getDictItems } from "@/lib/dict";
 import { deleteAssetAction } from "../edit-actions";
 import { AssetForm } from "../AssetForm";
 
@@ -23,6 +24,9 @@ export default async function EditAssetPage({ params }: { params: Promise<{ id: 
     redirect("/admin/assets");
   }
 
+  const typeOptions = await getDictItems("asset_type");
+  const statusOptions = await getDictItems("asset_status");
+
   return (
     <div className="mx-auto max-w-xl">
       <Link href="/admin/assets" className="text-sm text-blue-700">← 返回资产列表</Link>
@@ -33,6 +37,8 @@ export default async function EditAssetPage({ params }: { params: Promise<{ id: 
           orgs={[{ id: asset.orgId, name: asset.org.name, code: asset.org.code }]}
           defaultOrgId={asset.orgId}
           action="edit"
+          typeOptions={typeOptions}
+          statusOptions={statusOptions}
           asset={{
             id: asset.id,
             name: asset.name,

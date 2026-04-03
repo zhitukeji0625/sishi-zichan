@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { isDivision } from "@/lib/rbac";
 import { createOrgAction } from "./actions";
-import { orgLevelLabels } from "@/lib/labels";
+import { getDictItems, getDictMap } from "@/lib/dict";
 
 export default async function AdminOrganizationsPage() {
   const admin = await getCurrentAdmin();
@@ -12,6 +12,9 @@ export default async function AdminOrganizationsPage() {
     include: { parent: { select: { name: true } } },
     orderBy: [{ level: "asc" }, { code: "asc" }],
   });
+
+  const orgLevelOptions = await getDictItems("org_level");
+  const orgLevelMap = await getDictMap("org_level");
 
   async function create(fd: FormData) {
     "use server";
@@ -40,8 +43,8 @@ export default async function AdminOrganizationsPage() {
             <div>
               <label className="mb-1 block text-xs text-slate-600">级别</label>
               <select name="level" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                {Object.entries(orgLevelLabels).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
+                {orgLevelOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
             </div>
@@ -84,7 +87,7 @@ export default async function AdminOrganizationsPage() {
               <tr key={o.id} className="border-b border-slate-50 last:border-0">
                 <td className="px-4 py-3 text-slate-900">{o.name}</td>
                 <td className="px-4 py-3 font-mono text-xs text-slate-500">{o.code}</td>
-                <td className="px-4 py-3 text-slate-600">{orgLevelLabels[o.level as keyof typeof orgLevelLabels] ?? o.level}</td>
+                <td className="px-4 py-3 text-slate-600">{orgLevelMap[o.level] ?? o.level}</td>
                 <td className="px-4 py-3 text-slate-500">{o.parent?.name ?? "—"}</td>
                 <td className="px-4 py-3 text-slate-600">{o.leaderName ?? "—"}</td>
                 <td className="px-4 py-3 text-slate-500">{o.phone ?? "—"}</td>

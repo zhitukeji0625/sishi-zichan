@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { isDivision, roleLabel } from "@/lib/rbac";
-import { AdminRole } from "@prisma/client";
+import { getDictItems } from "@/lib/dict";
 import { createAdminAction, toggleAdminDisableAction } from "./actions";
 
 export default async function AdminUsersPage() {
@@ -13,6 +13,8 @@ export default async function AdminUsersPage() {
     orderBy: { createdAt: "desc" },
   });
   const orgs = await prisma.organization.findMany({ orderBy: { code: "asc" } });
+
+  const roleOptions = await getDictItems("admin_role");
 
   async function create(fd: FormData) {
     "use server";
@@ -45,8 +47,8 @@ export default async function AdminUsersPage() {
             <div>
               <label className="mb-1 block text-xs text-slate-600">角色</label>
               <select name="role" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                {Object.values(AdminRole).map((r) => (
-                  <option key={r} value={r}>{roleLabel(r)}</option>
+                {roleOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
             </div>

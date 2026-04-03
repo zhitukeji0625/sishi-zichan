@@ -3,8 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { Plus, Package } from "lucide-react";
-import { assetTypeLabels, assetStatusLabels } from "@/lib/labels";
-import type { AssetType, AssetStatus } from "@prisma/client";
+import { getDictMap } from "@/lib/dict";
 
 export default async function AdminAssetsPage() {
   const admin = await getCurrentAdmin();
@@ -16,6 +15,9 @@ export default async function AdminAssetsPage() {
     orderBy: { updatedAt: "desc" },
     take: 100,
   });
+
+  const typeMap = await getDictMap("asset_type");
+  const statusMap = await getDictMap("asset_status");
 
   return (
     <div>
@@ -58,9 +60,9 @@ export default async function AdminAssetsPage() {
                     } catch { return <div className="h-10 w-10 rounded-lg bg-slate-100" />; }
                   })()}
                 </td>
-                <td className="px-4 py-3 text-slate-600">{assetTypeLabels[a.type as AssetType] ?? a.type}</td>
+                <td className="px-4 py-3 text-slate-600">{typeMap[a.type] ?? a.type}</td>
                 <td className="px-4 py-3 text-slate-600">{a.org.name}</td>
-                <td className="px-4 py-3 text-slate-600">{assetStatusLabels[a.status as AssetStatus] ?? a.status}</td>
+                <td className="px-4 py-3 text-slate-600">{statusMap[a.status] ?? a.status}</td>
               </tr>
             ))}
             {assets.length === 0 && (

@@ -3,8 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
-import { auctionStatusLabels, registrationStatusLabels, paymentPurposeLabels, paymentStatusLabels, assetTypeLabels } from "@/lib/labels";
-import type { AuctionProjectStatus, RegistrationStatus, PaymentPurpose, PaymentStatus, AssetType } from "@prisma/client";
+import { getDictMap } from "@/lib/dict";
 
 export default async function AdminAuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,11 +21,17 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
   });
   if (!project) notFound();
 
+  const auctionStatusMap = await getDictMap("auction_status");
+  const assetTypeMap = await getDictMap("asset_type");
+  const regStatusMap = await getDictMap("registration_status");
+  const payPurposeMap = await getDictMap("payment_purpose");
+  const payStatusMap = await getDictMap("payment_status");
+
   return (
     <div>
       <Link href="/admin/auctions" className="text-sm text-blue-700">← 返回竞拍列表</Link>
       <h1 className="mt-2 text-xl font-semibold text-slate-900">{project.asset.name}</h1>
-      <p className="mt-1 text-sm text-slate-500">编号：{project.code} · 状态：{auctionStatusLabels[project.status as AuctionProjectStatus] ?? project.status}</p>
+      <p className="mt-1 text-sm text-slate-500">编号：{project.code} · 状态：{auctionStatusMap[project.status] ?? project.status}</p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm text-sm text-slate-700">
@@ -43,7 +48,7 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm text-sm">
           <div className="font-medium text-slate-800 mb-2">资产信息</div>
           <div className="text-slate-700">{project.asset.name}</div>
-          <div className="text-xs text-slate-500">{assetTypeLabels[project.asset.type as AssetType] ?? project.asset.type} · {project.asset.org.name}</div>
+          <div className="text-xs text-slate-500">{assetTypeMap[project.asset.type] ?? project.asset.type} · {project.asset.org.name}</div>
           <div className="text-xs text-slate-500">{project.asset.locationText}</div>
           {project.result && (
             <div className="mt-3 border-t border-slate-100 pt-3">
@@ -72,7 +77,7 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
                 <tr key={r.id} className="border-b border-slate-50 last:border-0">
                   <td className="px-4 py-3 text-slate-700">{r.endUser.name ?? "—"}</td>
                   <td className="px-4 py-3 text-slate-500">{r.endUser.phone}</td>
-                  <td className="px-4 py-3 text-slate-600">{registrationStatusLabels[r.status as RegistrationStatus] ?? r.status}</td>
+                  <td className="px-4 py-3 text-slate-600">{regStatusMap[r.status] ?? r.status}</td>
                   <td className="px-4 py-3 text-slate-600">{r.depositPaid ? "已缴" : "未缴"}</td>
                 </tr>
               ))}
@@ -122,8 +127,8 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
                 <tr key={p.id} className="border-b border-slate-50 last:border-0">
                   <td className="px-4 py-3 font-mono text-xs text-slate-500">{p.orderNo}</td>
                   <td className="px-4 py-3 text-slate-800">¥{p.amount.toString()}</td>
-                  <td className="px-4 py-3 text-slate-600">{paymentPurposeLabels[p.purpose as PaymentPurpose] ?? p.purpose}</td>
-                  <td className="px-4 py-3 text-slate-600">{paymentStatusLabels[p.status as PaymentStatus] ?? p.status}</td>
+                  <td className="px-4 py-3 text-slate-600">{payPurposeMap[p.purpose] ?? p.purpose}</td>
+                  <td className="px-4 py-3 text-slate-600">{payStatusMap[p.status] ?? p.status}</td>
                 </tr>
               ))}
               {project.payments.length === 0 && (

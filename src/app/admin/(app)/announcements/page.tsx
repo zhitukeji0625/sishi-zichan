@@ -4,8 +4,7 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { adminScopedOrgIds, isDivision, isRegimentOrAbove } from "@/lib/rbac";
 import { createAnnouncementAction, reviewAnnouncementFormAction, deleteAnnouncementAction } from "./actions";
-import { announcementStatusLabels } from "@/lib/labels";
-import type { AnnouncementStatus } from "@prisma/client";
+import { getDictMap } from "@/lib/dict";
 
 export default async function AdminAnnouncementsPage() {
   const admin = await getCurrentAdmin();
@@ -22,6 +21,8 @@ export default async function AdminAnnouncementsPage() {
     orderBy: { createdAt: "desc" },
     take: 80,
   });
+
+  const annStatusMap = await getDictMap("announcement_status");
 
   async function create(fd: FormData) {
     "use server";
@@ -71,7 +72,7 @@ export default async function AdminAnnouncementsPage() {
               <div>
                 <div className="font-medium text-slate-900">{a.title}</div>
                 <div className="text-xs text-slate-500">
-                  {a.org.name} · {announcementStatusLabels[a.status as AnnouncementStatus] ?? a.status}
+                  {a.org.name} · {annStatusMap[a.status] ?? a.status}
                 </div>
               </div>
               {isDivision(admin.role) && a.status === "PENDING_REVIEW" && (

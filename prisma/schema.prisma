@@ -422,3 +422,30 @@ model ThirdPartyUserSnapshot {
   payloadJson    String   @db.Text
   fetchedAt      DateTime @default(now())
 }
+
+model DictCategory {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  name        String
+  description String?
+  builtIn     Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  items DictItem[]
+}
+
+model DictItem {
+  id         String       @id @default(cuid())
+  categoryId String
+  category   DictCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  value      String
+  label      String
+  sortOrder  Int          @default(0)
+  enabled    Boolean      @default(true)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@unique([categoryId, value])
+  @@index([categoryId, sortOrder])
+}

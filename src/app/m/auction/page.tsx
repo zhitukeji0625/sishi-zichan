@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
 import { refreshAuctionProjectStatuses } from "@/lib/cron";
+import { getDictMap } from "@/lib/dict";
 import { Gavel } from "lucide-react";
 
 export default async function MAuctionListPage() {
@@ -13,10 +14,11 @@ export default async function MAuctionListPage() {
     take: 50,
   });
 
-  const statusMap: Record<string, { label: string; class: string }> = {
-    LIVE: { label: "进行中", class: "status-live" },
-    SCHEDULED: { label: "即将开始", class: "status-scheduled" },
-    ENDED: { label: "已结束", class: "status-ended" },
+  const auctionStatusMap = await getDictMap("auction_status");
+  const statusCls: Record<string, string> = {
+    LIVE: "status-live",
+    SCHEDULED: "status-scheduled",
+    ENDED: "status-ended",
   };
 
   return (
@@ -28,7 +30,7 @@ export default async function MAuctionListPage() {
       <div className="relative -mt-6 px-4">
         <div className="space-y-3">
           {projects.map((p, i) => {
-            const st = statusMap[p.status] ?? { label: p.status, class: "status-ended" };
+            const st = { label: auctionStatusMap[p.status] ?? p.status, class: statusCls[p.status] ?? "status-ended" };
             return (
               <Link
                 key={p.id}

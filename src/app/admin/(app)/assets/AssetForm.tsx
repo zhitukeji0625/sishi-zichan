@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImageUploader } from "@/components/ImageUploader";
-import { assetTypeLabels, assetStatusLabels } from "@/lib/labels";
-
 interface Org {
   id: string;
   name: string;
@@ -15,6 +13,8 @@ interface Props {
   orgs: Org[];
   defaultOrgId: string;
   action: "create" | "edit";
+  typeOptions: { value: string; label: string }[];
+  statusOptions: { value: string; label: string }[];
   asset?: {
     id: string;
     name: string;
@@ -30,7 +30,7 @@ interface Props {
   };
 }
 
-export function AssetForm({ orgs, defaultOrgId, action, asset }: Props) {
+export function AssetForm({ orgs, defaultOrgId, action, typeOptions, statusOptions, asset }: Props) {
   const router = useRouter();
   const [images, setImages] = useState<string[]>(() => {
     if (asset?.imagesJson) {
@@ -73,7 +73,7 @@ export function AssetForm({ orgs, defaultOrgId, action, asset }: Props) {
       <div>
         <label className="mb-1.5 block text-sm font-medium text-slate-700">资产类型</label>
         <select name="type" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" defaultValue={asset?.type ?? "LAND"}>
-          {Object.entries(assetTypeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          {typeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </div>
       <div>
@@ -109,7 +109,7 @@ export function AssetForm({ orgs, defaultOrgId, action, asset }: Props) {
       <div>
         <label className="mb-1.5 block text-sm font-medium text-slate-700">状态</label>
         <select name="status" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" defaultValue={asset?.status ?? "IDLE"}>
-          {Object.entries(assetStatusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </div>
       {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}
