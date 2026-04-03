@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImageUploader } from "@/components/ImageUploader";
-import { AssetType, AssetStatus } from "@prisma/client";
+import { assetTypeLabels, assetStatusLabels } from "@/lib/labels";
 
 interface Org {
   id: string;
@@ -73,7 +73,7 @@ export function AssetForm({ orgs, defaultOrgId, action, asset }: Props) {
       <div>
         <label className="mb-1.5 block text-sm font-medium text-slate-700">资产类型</label>
         <select name="type" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" defaultValue={asset?.type ?? "LAND"}>
-          {Object.values(AssetType).map((t) => <option key={t} value={t}>{t}</option>)}
+          {Object.entries(assetTypeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       </div>
       <div>
@@ -109,7 +109,7 @@ export function AssetForm({ orgs, defaultOrgId, action, asset }: Props) {
       <div>
         <label className="mb-1.5 block text-sm font-medium text-slate-700">状态</label>
         <select name="status" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" defaultValue={asset?.status ?? "IDLE"}>
-          {Object.values(AssetStatus).map((s) => <option key={s} value={s}>{s}</option>)}
+          {Object.entries(assetStatusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       </div>
       {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>}

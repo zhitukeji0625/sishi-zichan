@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { reviewRegistrationFormAction } from "./actions";
+import { registrationStatusLabels } from "@/lib/labels";
+import type { RegistrationStatus } from "@prisma/client";
 
 async function handleReview(formData: FormData) {
   "use server";
@@ -37,7 +39,7 @@ export default async function AdminRegistrationsPage() {
               <div className="text-sm text-slate-600">
                 {r.project.asset.name} · {r.project.code}
               </div>
-              <div className="text-xs text-slate-500">状态：{r.status}</div>
+              <div className="text-xs text-slate-500">状态：{registrationStatusLabels[r.status as RegistrationStatus] ?? r.status}</div>
             </div>
             {admin.role === "COMPANY_ADMIN" && r.status === "PENDING" && (
               <div className="flex gap-2">

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { isDivision, isRegimentOrAbove } from "@/lib/rbac";
+import { auctionStatusLabels } from "@/lib/labels";
 import { createAuctionProjectAction } from "./actions";
 import { generateAuctionResultAction, reviewAuctionResultAction } from "./result-actions";
 import { redirect } from "next/navigation";
@@ -106,12 +107,12 @@ export default async function AdminAuctionsPage() {
                 <tr key={p.id} className="border-b border-slate-50 last:border-0">
                   <td className="px-4 py-3 font-mono text-xs"><Link href={`/admin/auctions/${p.id}`} className="text-blue-700 hover:underline">{p.code}</Link></td>
                   <td className="px-4 py-3 text-slate-700">{p.asset.name}</td>
-                  <td className="px-4 py-3 text-slate-600">{p.status}</td>
+                  <td className="px-4 py-3 text-slate-600">{auctionStatusLabels[p.status as keyof typeof auctionStatusLabels] ?? p.status}</td>
                   <td className="px-4 py-3 text-xs text-slate-500">
                     {p.startsAt.toISOString().slice(0, 16)} — {p.endsAt.toISOString().slice(0, 16)}
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-600">
-                    {p.result ? p.result.status : "—"}
+                    {p.result ? (p.result.status === "PUBLISHED" ? "已公示" : p.result.status === "PENDING_REVIEW" ? "待审核" : p.result.status === "REJECTED" ? "已驳回" : p.result.status) : "—"}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
