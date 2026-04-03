@@ -35,9 +35,14 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    volumes:
+      - upload-data:/app/data
     command: >
       sh -c "
       npx prisma db push --accept-data-loss &&
       npm run db:seed &&
       npm start
       "
+
+volumes:
+  upload-data:
