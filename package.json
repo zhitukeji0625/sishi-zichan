@@ -8,8 +8,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "prisma:validate": "DOTENV_CONFIG_PATH=.env.example NODE_OPTIONS='-r dotenv/config' prisma validate",
+    "ci": "npm run lint && npm run typecheck && npm run test && npm run prisma:validate && npm run build",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio"
