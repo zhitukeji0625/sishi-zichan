@@ -52,3 +52,18 @@ export async function createAuctionProjectAction(formData: FormData) {
   revalidatePath("/admin/auctions");
   return { ok: true as const };
 }
+
+export async function cancelAuctionAction(projectId: string) {
+  const admin = await getCurrentAdmin();
+  if (!admin) return { error: "未登录" };
+  if (!isRegimentOrAbove(admin.role)) return { error: "无权操作" };
+  const project = await prisma.auctionProject.findUnique({ where: { id: projectId }, include: { asset: true } });
+  if (!project) return { error: "项目不存在" };
+  const ok = await adminCanAccessOrg(admin.role, admin.orgId, project.asset.orgId);
+  if (!ok) return { error: "无权操作" };
+  if (project.status === "ENDED") return { error: "已结束的项目不可取消" };
+  await prisma.auctionProject.update({ where: { id: projectId }, data: { status: "CANCELLED" } });
+  await writeAudit(admin.id, "AUCTION_CREATE", JSON.stringify({ projectId, action: "cancel" }));
+  revalidatePath("/admin/auctions");
+  return { ok: true as const };
+}

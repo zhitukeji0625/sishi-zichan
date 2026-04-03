@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { adminScopedOrgIds, isDivision, isRegimentOrAbove } from "@/lib/rbac";
-import { createAnnouncementAction, reviewAnnouncementFormAction } from "./actions";
+import { createAnnouncementAction, reviewAnnouncementFormAction, deleteAnnouncementAction } from "./actions";
 
 export default async function AdminAnnouncementsPage() {
   const admin = await getCurrentAdmin();
@@ -90,7 +90,15 @@ export default async function AdminAnnouncementsPage() {
                   </form>
                 </div>
               )}
+              {isRegimentOrAbove(admin.role) && (a.status === "DRAFT" || a.status === "PUBLISHED") && (
+                <form action={async () => { "use server"; await deleteAnnouncementAction(a.id); }}>
+                  <button type="submit" className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50">
+                    删除
+                  </button>
+                </form>
+              )}
             </div>
+            <div className="mt-1 text-xs text-slate-400 line-clamp-2">{a.content.replace(/<[^>]*>/g, "").slice(0, 100)}</div>
           </div>
         ))}
       </div>

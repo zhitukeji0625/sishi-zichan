@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { reviewReservationFormAction } from "./actions";
+import { createDryingListingAction, toggleDryingListingStatusAction } from "./listing-actions";
 
 async function handleReview(formData: FormData) {
   "use server";
@@ -12,6 +13,15 @@ export default async function AdminDryingPage() {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
   const orgWhere = await orgFilterForAdmin(admin.role, admin.orgId);
+  const listings = await prisma.dryingFieldListing.findMany({
+    where: { asset: orgWhere },
+    include: { asset: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const dryingAssets = await prisma.asset.findMany({
+    where: { ...orgWhere, type: "DRYING_FIELD", dryingListing: null },
+    orderBy: { name: "asc" },
+  });
   const list = await prisma.dryingReservation.findMany({
     where: { listing: { asset: orgWhere } },
     include: {
@@ -25,6 +35,55 @@ export default async function AdminDryingPage() {
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">晒场预约</h1>
+
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-slate-900">晒场上架管理</h2>
+        {dryingAssets.length > 0 && (
+          <form action={async (fd: FormData) => { "use server"; await createDryingListingAction(fd); }} className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h3 className="mb-3 text-sm font-medium text-slate-800">上架新晒场</h3>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <select name="assetId" required className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                {dryingAssets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              <input name="maxPeople" type="number" defaultValue={10} placeholder="每日最大人数" className="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <input name="maxAdvanceDays" type="number" defaultValue={7} placeholder="提前预约天数" className="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+            </div>
+            <button type="submit" className="mt-3 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800">上架</button>
+          </form>
+        )}
+        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-slate-100 bg-slate-50 text-slate-600">
+              <tr>
+                <th className="px-4 py-3 font-medium">晒场</th>
+                <th className="px-4 py-3 font-medium">状态</th>
+                <th className="px-4 py-3 font-medium">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {listings.map((l) => (
+                <tr key={l.id} className="border-b border-slate-50 last:border-0">
+                  <td className="px-4 py-3 text-slate-900">{l.asset.name}</td>
+                  <td className="px-4 py-3 text-slate-600">{l.status}</td>
+                  <td className="px-4 py-3">
+                    <form action={async (fd: FormData) => { "use server"; await toggleDryingListingStatusAction(fd); }} className="inline-flex gap-2">
+                      <input type="hidden" name="listingId" value={l.id} />
+                      <input type="hidden" name="status" value={l.status === "OPERATING" ? "PAUSED" : "OPERATING"} />
+                      <button type="submit" className="text-xs text-blue-700 hover:underline">
+                        {l.status === "OPERATING" ? "暂停" : "恢复运营"}
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+              {listings.length === 0 && (
+                <tr><td colSpan={3} className="px-4 py-8 text-center text-slate-500">暂无晒场上架</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div className="mt-6 space-y-3">
         {list.map((r) => (
           <div

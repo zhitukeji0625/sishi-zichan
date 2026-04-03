@@ -131,6 +131,14 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
           </table>
         </div>
       </div>
+
+      {(project.status === "SCHEDULED" || project.status === "LIVE") && (
+        <form action={async () => { "use server"; const { cancelAuctionAction } = await import("../actions"); await cancelAuctionAction(project.id); }} className="mt-6">
+          <button type="submit" className="rounded-lg border border-red-200 px-4 py-2 text-sm text-red-700 hover:bg-red-50">
+            取消竞拍项目
+          </button>
+        </form>
+      )}
     </div>
   );
 }
