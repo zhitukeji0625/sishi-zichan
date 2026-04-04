@@ -5,13 +5,18 @@ import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+/** 需要本地 MySQL/MariaDB：复制 .env.example 为 .env 并 `npx prisma db push` 后设置 RUN_DB_INTEGRATION=1 */
+const describePlaceBid =
+  process.env.RUN_DB_INTEGRATION === "1" ? describe : describe.skip;
+
+describePlaceBid("placeBid", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
   let userId: string;
 
   beforeAll(async () => {
+    await prisma.$connect();
     const org = await prisma.organization.create({
       data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
     });
@@ -58,6 +63,10 @@ describe("placeBid", () => {
   });
 
   afterAll(async () => {
+    if (!projectId) {
+      await prisma.$disconnect();
+      return;
+    }
     await prisma.auctionBid.deleteMany({ where: { projectId } });
     await prisma.auctionRegistration.deleteMany({ where: { projectId } });
     await prisma.auctionProject.delete({ where: { id: projectId } });
