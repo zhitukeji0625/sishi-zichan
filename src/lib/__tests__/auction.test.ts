@@ -1,17 +1,41 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+} from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+async function mysqlReachable(): Promise<boolean> {
+  const c = new PrismaClient();
+  try {
+    await c.$connect();
+    await c.$disconnect();
+    return true;
+  } catch {
+    try {
+      await c.$disconnect();
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }
+}
 
-describe("placeBid", () => {
+const dbReady = await mysqlReachable();
+
+describe.skipIf(!dbReady)("placeBid (integration)", () => {
+  let prisma: PrismaClient;
   let orgId: string;
   let assetId: string;
   let projectId: string;
   let userId: string;
 
   beforeAll(async () => {
+    prisma = new PrismaClient();
     const org = await prisma.organization.create({
       data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
     });
