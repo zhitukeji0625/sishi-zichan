@@ -5,7 +5,9 @@ import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+const dbAvailable = process.env.VITEST_DB_AVAILABLE === "1";
+
+describe.skipIf(!dbAvailable)("placeBid (integration)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
