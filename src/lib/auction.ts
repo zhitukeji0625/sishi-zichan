@@ -9,6 +9,24 @@ export async function getHighestBid(projectId: string) {
   return top?.amount ?? null;
 }
 
+/** 下一笔允许的最低出价（首笔为起拍价，否则为当前最高 + 加价幅度） */
+export function minNextBidAmount(params: {
+  highestBidAmount: Decimal | null;
+  startPrice: Decimal;
+  bidStep: Decimal;
+}): Decimal {
+  const { highestBidAmount, startPrice, bidStep } = params;
+  return highestBidAmount
+    ? new Decimal(highestBidAmount.toString()).plus(bidStep.toString())
+    : new Decimal(startPrice.toString());
+}
+
+export function assertBidAtLeastMin(amount: Decimal, minNext: Decimal): void {
+  if (amount.lessThan(minNext)) {
+    throw new Error(`出价需不低于 ${minNext.toFixed(2)}`);
+  }
+}
+
 export async function placeBid(params: {
   projectId: string;
   endUserId: string;
@@ -30,12 +48,12 @@ export async function placeBid(params: {
       where: { projectId },
       orderBy: { amount: "desc" },
     });
-    const minNext = top
-      ? new Decimal(top.amount.toString()).plus(project.bidStep.toString())
-      : new Decimal(project.startPrice.toString());
-    if (amount.lessThan(minNext)) {
-      throw new Error(`出价需不低于 ${minNext.toFixed(2)}`);
-    }
+    const minNext = minNextBidAmount({
+      highestBidAmount: top?.amount ?? null,
+      startPrice: new Decimal(project.startPrice.toString()),
+      bidStep: new Decimal(project.bidStep.toString()),
+    });
+    assertBidAtLeastMin(amount, minNext);
     const bid = await tx.auctionBid.create({
       data: { projectId, endUserId, amount },
     });
