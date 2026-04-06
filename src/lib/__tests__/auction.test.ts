@@ -3,9 +3,10 @@ import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
 
-describe("placeBid", () => {
+describe.skipIf(!hasDatabaseUrl)("placeBid (integration)", () => {
+  const prisma = new PrismaClient();
   let orgId: string;
   let assetId: string;
   let projectId: string;
@@ -58,6 +59,7 @@ describe("placeBid", () => {
   });
 
   afterAll(async () => {
+    if (!projectId) return;
     await prisma.auctionBid.deleteMany({ where: { projectId } });
     await prisma.auctionRegistration.deleteMany({ where: { projectId } });
     await prisma.auctionProject.delete({ where: { id: projectId } });
