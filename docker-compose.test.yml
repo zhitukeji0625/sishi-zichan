@@ -1,0 +1,16 @@
+# 本地 / CI 集成测试用 MySQL（映射到宿主机 3307，避免与已有 3306 冲突）
+services:
+  mysql-test:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: sishi
+    ports:
+      - "3307:3306"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
