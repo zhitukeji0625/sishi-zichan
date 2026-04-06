@@ -7,7 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
+    "test:db": "docker compose -f docker-compose.yml -f docker-compose.test.yml up -d mysql --wait",
+    "test:integration": "npm run test:db && cross-env DATABASE_URL=mysql://root:root@127.0.0.1:3306/sishi prisma db push && cross-env RUN_DB_TESTS=1 vitest run src/lib/__tests__/auction.test.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:push": "prisma db push",
@@ -56,6 +58,7 @@
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^6.0.1",
+    "cross-env": "^10.1.0",
     "jsdom": "^29.0.1",
     "prisma": "6.19.3",
     "vitest": "^4.1.2"

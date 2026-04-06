@@ -3,9 +3,10 @@ import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
+/** 需本机 Docker + MariaDB，见 npm run test:integration */
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+describe.skipIf(process.env.RUN_DB_TESTS !== "1")("placeBid (integration)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;

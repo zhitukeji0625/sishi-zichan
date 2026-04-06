@@ -1,0 +1,6 @@
+# 本地 / CI 集成测试：将 MariaDB 暴露到本机 3306，与 vitest.config 默认 DATABASE_URL 一致。
+# 使用方式：docker compose -f docker-compose.yml -f docker-compose.test.yml up -d mysql --wait
+services:
+  mysql:
+    ports:
+      - "127.0.0.1:3306:3306"
