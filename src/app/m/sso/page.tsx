@@ -6,14 +6,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 function SsoInner() {
   const router = useRouter();
   const search = useSearchParams();
-  const [msg, setMsg] = useState("正在验证第三方票据…");
+  const token = search.get("token");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const msg = !token ? "缺少 token 参数" : errorMsg ?? "正在验证第三方票据…";
 
   useEffect(() => {
-    const token = search.get("token");
-    if (!token) {
-      setMsg("缺少 token 参数");
-      return;
-    }
+    if (!token) return;
     (async () => {
       const res = await fetch("/api/auth/third-party", {
         method: "POST",
@@ -22,13 +20,13 @@ function SsoInner() {
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        setMsg(j.error ?? "登录失败");
+        setErrorMsg(j.error ?? "登录失败");
         return;
       }
       router.replace("/m");
       router.refresh();
     })();
-  }, [search, router]);
+  }, [token, router]);
 
   return (
     <div className="px-4 pt-16 text-center text-sm text-slate-600">
