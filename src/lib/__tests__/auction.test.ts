@@ -1,11 +1,32 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { minRequiredBidAmount, placeBid } from "@/lib/auction";
+
+describe("minRequiredBidAmount", () => {
+  it("首笔出价为起拍价", () => {
+    const min = minRequiredBidAmount({
+      startPrice: new Decimal(100),
+      bidStep: new Decimal(10),
+      highestBidAmount: null,
+    });
+    expect(min.toString()).toBe("100");
+  });
+
+  it("已有最高价时为最高价加价幅度", () => {
+    const min = minRequiredBidAmount({
+      startPrice: new Decimal(100),
+      bidStep: new Decimal(10),
+      highestBidAmount: new Decimal(100),
+    });
+    expect(min.toString()).toBe("110");
+  });
+});
 
 const prisma = new PrismaClient();
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
 
-describe("placeBid", () => {
+describe.skipIf(!hasDatabaseUrl)("placeBid（需 DATABASE_URL）", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
@@ -67,7 +88,7 @@ describe("placeBid", () => {
     await prisma.$disconnect();
   });
 
-  it("accepts first bid at start price", async () => {
+  it("接受起拍价作为首笔出价", async () => {
     const bid = await placeBid({
       projectId,
       endUserId: userId,
@@ -76,7 +97,7 @@ describe("placeBid", () => {
     expect(bid.amount.toString()).toBe("100");
   });
 
-  it("rejects bid below min increment", async () => {
+  it("拒绝低于最低加价的出价", async () => {
     await expect(
       placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
     ).rejects.toThrow();
