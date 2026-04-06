@@ -51,6 +51,7 @@ export default async function AdminAssetsPage() {
                     try {
                       const imgs = a.imagesJson ? JSON.parse(a.imagesJson) : [];
                       return imgs.length > 0 ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- admin list thumb from stored URL
                         <img src={imgs[0]} alt="" className="h-10 w-10 rounded-lg object-cover" />
                       ) : (
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
