@@ -3,9 +3,11 @@ import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
+/** 与 Prisma schema 一致，需可用的 MySQL/MariaDB；未配置时跳过以免误报失败 */
+const prismaReady = Boolean(process.env.DATABASE_URL);
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+describe.skipIf(!prismaReady)("placeBid", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
