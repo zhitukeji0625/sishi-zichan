@@ -1,84 +1,116 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PrismaClient } from "@prisma/client";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { Decimal } from "@prisma/client/runtime/library";
+
+const ctx = vi.hoisted(() => ({
+  bids: [] as Array<{
+    projectId: string;
+    endUserId: string;
+    amount: Decimal;
+  }>,
+}));
+
+vi.mock("@/lib/prisma", () => {
+  const project = {
+    id: "p1",
+    status: "LIVE" as const,
+    startPrice: { toString: () => "100" },
+    bidStep: { toString: () => "10" },
+  };
+
+  const registration = {
+    status: "APPROVED" as const,
+    depositPaid: true,
+  };
+
+  function buildTx() {
+    return {
+      auctionProject: {
+        findUnique: vi.fn(async ({ where: { id } }: { where: { id: string } }) =>
+          id === "p1" ? project : null,
+        ),
+      },
+      auctionRegistration: {
+        findUnique: vi.fn(
+          async ({
+            where: { projectId_endUserId },
+          }: {
+            where: { projectId_endUserId: { projectId: string; endUserId: string } };
+          }) =>
+            projectId_endUserId.projectId === "p1" &&
+            projectId_endUserId.endUserId === "u1"
+              ? registration
+              : null,
+        ),
+      },
+      auctionBid: {
+        findFirst: vi.fn(
+          async ({
+            where: { projectId },
+          }: {
+            where: { projectId: string };
+            orderBy: { amount: string };
+          }) => {
+            const list = ctx.bids.filter((b) => b.projectId === projectId);
+            if (!list.length) return null;
+            let top = list[0];
+            for (const b of list) {
+              if (b.amount.greaterThan(top.amount)) top = b;
+            }
+            return { amount: top.amount };
+          },
+        ),
+        create: vi.fn(
+          async ({
+            data,
+          }: {
+            data: { projectId: string; endUserId: string; amount: Decimal };
+          }) => {
+            ctx.bids.push(data);
+            return data;
+          },
+        ),
+      },
+    };
+  }
+
+  return {
+    prisma: {
+      $transaction: vi.fn(
+        async (fn: (tx: ReturnType<typeof buildTx>) => Promise<unknown>) =>
+          fn(buildTx()),
+      ),
+    },
+  };
+});
+
 import { placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
-
 describe("placeBid", () => {
-  let orgId: string;
-  let assetId: string;
-  let projectId: string;
-  let userId: string;
+  const projectId = "p1";
+  const endUserId = "u1";
 
-  beforeAll(async () => {
-    const org = await prisma.organization.create({
-      data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
-    });
-    orgId = org.id;
-    const asset = await prisma.asset.create({
-      data: {
-        orgId,
-        type: "LAND",
-        name: "测试资产",
-        locationText: "测试",
-        status: "IDLE",
-      },
-    });
-    assetId = asset.id;
-    const user = await prisma.endUser.create({
-      data: {
-        phone: `199${Date.now().toString().slice(-8)}`,
-        passwordHash: "x",
-        name: "测试用户",
-      },
-    });
-    userId = user.id;
-    const project = await prisma.auctionProject.create({
-      data: {
-        code: `TAP${Date.now()}`,
-        assetId,
-        startPrice: new Decimal(100),
-        bidStep: new Decimal(10),
-        depositAmount: new Decimal(5),
-        startsAt: new Date(Date.now() - 1000),
-        endsAt: new Date(Date.now() + 86400000),
-        status: "LIVE",
-      },
-    });
-    projectId = project.id;
-    await prisma.auctionRegistration.create({
-      data: {
-        projectId,
-        endUserId: userId,
-        status: "APPROVED",
-        depositPaid: true,
-      },
-    });
-  });
-
-  afterAll(async () => {
-    await prisma.auctionBid.deleteMany({ where: { projectId } });
-    await prisma.auctionRegistration.deleteMany({ where: { projectId } });
-    await prisma.auctionProject.delete({ where: { id: projectId } });
-    await prisma.asset.delete({ where: { id: assetId } });
-    await prisma.endUser.delete({ where: { id: userId } });
-    await prisma.organization.delete({ where: { id: orgId } });
-    await prisma.$disconnect();
+  beforeEach(() => {
+    ctx.bids.length = 0;
+    vi.clearAllMocks();
   });
 
   it("accepts first bid at start price", async () => {
     const bid = await placeBid({
       projectId,
-      endUserId: userId,
+      endUserId,
       amount: new Decimal(100),
     });
     expect(bid.amount.toString()).toBe("100");
   });
 
   it("rejects bid below min increment", async () => {
+    await placeBid({
+      projectId,
+      endUserId,
+      amount: new Decimal(100),
+    });
     await expect(
-      placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
+      placeBid({ projectId, endUserId, amount: new Decimal(105) }),
     ).rejects.toThrow();
   });
 });
