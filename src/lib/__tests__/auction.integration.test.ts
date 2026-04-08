@@ -3,9 +3,11 @@ import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
+const runDb = process.env.RUN_DB_TESTS === "1";
+
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+describe.skipIf(!runDb)("placeBid (integration)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
