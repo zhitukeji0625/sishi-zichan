@@ -1,3 +1,4 @@
+import type { AuctionBid, AuctionProject, AuctionRegistration } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 
@@ -9,36 +10,60 @@ export async function getHighestBid(projectId: string) {
   return top?.amount ?? null;
 }
 
+type BidTx = {
+  auctionProject: {
+    findUnique: (args: { where: { id: string } }) => Promise<AuctionProject | null>;
+  };
+  auctionRegistration: {
+    findUnique: (args: {
+      where: { projectId_endUserId: { projectId: string; endUserId: string } };
+    }) => Promise<AuctionRegistration | null>;
+  };
+  auctionBid: {
+    findFirst: (args: {
+      where: { projectId: string };
+      orderBy: { amount: "desc" };
+    }) => Promise<AuctionBid | null>;
+    create: (args: {
+      data: { projectId: string; endUserId: string; amount: Decimal };
+    }) => Promise<AuctionBid>;
+  };
+};
+
+export async function placeBidWithTx(
+  tx: BidTx,
+  params: { projectId: string; endUserId: string; amount: Decimal },
+) {
+  const { projectId, endUserId, amount } = params;
+  const project = await tx.auctionProject.findUnique({ where: { id: projectId } });
+  if (!project || project.status !== "LIVE") {
+    throw new Error("竞拍未在进行中");
+  }
+  const reg = await tx.auctionRegistration.findUnique({
+    where: { projectId_endUserId: { projectId, endUserId } },
+  });
+  if (!reg || reg.status !== "APPROVED" || !reg.depositPaid) {
+    throw new Error("无出价资格，请完成报名与保证金");
+  }
+  const top = await tx.auctionBid.findFirst({
+    where: { projectId },
+    orderBy: { amount: "desc" },
+  });
+  const minNext = top
+    ? new Decimal(top.amount.toString()).plus(project.bidStep.toString())
+    : new Decimal(project.startPrice.toString());
+  if (amount.lessThan(minNext)) {
+    throw new Error(`出价需不低于 ${minNext.toFixed(2)}`);
+  }
+  return tx.auctionBid.create({
+    data: { projectId, endUserId, amount },
+  });
+}
+
 export async function placeBid(params: {
   projectId: string;
   endUserId: string;
   amount: Decimal;
 }) {
-  const { projectId, endUserId, amount } = params;
-  return prisma.$transaction(async (tx) => {
-    const project = await tx.auctionProject.findUnique({ where: { id: projectId } });
-    if (!project || project.status !== "LIVE") {
-      throw new Error("竞拍未在进行中");
-    }
-    const reg = await tx.auctionRegistration.findUnique({
-      where: { projectId_endUserId: { projectId, endUserId } },
-    });
-    if (!reg || reg.status !== "APPROVED" || !reg.depositPaid) {
-      throw new Error("无出价资格，请完成报名与保证金");
-    }
-    const top = await tx.auctionBid.findFirst({
-      where: { projectId },
-      orderBy: { amount: "desc" },
-    });
-    const minNext = top
-      ? new Decimal(top.amount.toString()).plus(project.bidStep.toString())
-      : new Decimal(project.startPrice.toString());
-    if (amount.lessThan(minNext)) {
-      throw new Error(`出价需不低于 ${minNext.toFixed(2)}`);
-    }
-    const bid = await tx.auctionBid.create({
-      data: { projectId, endUserId, amount },
-    });
-    return bid;
-  });
+  return prisma.$transaction(async (tx) => placeBidWithTx(tx, params));
 }

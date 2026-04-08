@@ -1,84 +1,97 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PrismaClient } from "@prisma/client";
+import { describe, it, expect, vi } from "vitest";
+import type { AuctionBid, AuctionProject, AuctionRegistration } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { placeBidWithTx } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+const projectId = "p1";
+const endUserId = "u1";
 
-describe("placeBid", () => {
-  let orgId: string;
-  let assetId: string;
-  let projectId: string;
-  let userId: string;
+function baseProject(overrides: Partial<AuctionProject> = {}): AuctionProject {
+  return {
+    id: projectId,
+    code: "C1",
+    assetId: "a1",
+    startPrice: new Decimal(100),
+    bidStep: new Decimal(10),
+    depositAmount: new Decimal(5),
+    startsAt: new Date(),
+    endsAt: new Date(),
+    status: "LIVE",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  } as AuctionProject;
+}
 
-  beforeAll(async () => {
-    const org = await prisma.organization.create({
-      data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
-    });
-    orgId = org.id;
-    const asset = await prisma.asset.create({
-      data: {
-        orgId,
-        type: "LAND",
-        name: "测试资产",
-        locationText: "测试",
-        status: "IDLE",
-      },
-    });
-    assetId = asset.id;
-    const user = await prisma.endUser.create({
-      data: {
-        phone: `199${Date.now().toString().slice(-8)}`,
-        passwordHash: "x",
-        name: "测试用户",
-      },
-    });
-    userId = user.id;
-    const project = await prisma.auctionProject.create({
-      data: {
-        code: `TAP${Date.now()}`,
-        assetId,
-        startPrice: new Decimal(100),
-        bidStep: new Decimal(10),
-        depositAmount: new Decimal(5),
-        startsAt: new Date(Date.now() - 1000),
-        endsAt: new Date(Date.now() + 86400000),
-        status: "LIVE",
-      },
-    });
-    projectId = project.id;
-    await prisma.auctionRegistration.create({
-      data: {
-        projectId,
-        endUserId: userId,
-        status: "APPROVED",
-        depositPaid: true,
-      },
-    });
-  });
+function baseReg(overrides: Partial<AuctionRegistration> = {}): AuctionRegistration {
+  return {
+    id: "r1",
+    projectId,
+    endUserId,
+    status: "APPROVED",
+    depositPaid: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  } as AuctionRegistration;
+}
 
-  afterAll(async () => {
-    await prisma.auctionBid.deleteMany({ where: { projectId } });
-    await prisma.auctionRegistration.deleteMany({ where: { projectId } });
-    await prisma.auctionProject.delete({ where: { id: projectId } });
-    await prisma.asset.delete({ where: { id: assetId } });
-    await prisma.endUser.delete({ where: { id: userId } });
-    await prisma.organization.delete({ where: { id: orgId } });
-    await prisma.$disconnect();
-  });
+function makeTx(state: { top: AuctionBid | null }) {
+  return {
+    auctionProject: {
+      findUnique: vi.fn(async () => baseProject()),
+    },
+    auctionRegistration: {
+      findUnique: vi.fn(async () => baseReg()),
+    },
+    auctionBid: {
+      findFirst: vi.fn(async () => state.top),
+      create: vi.fn(async ({ data }) => {
+        const bid = {
+          id: "bid-new",
+          projectId: data.projectId,
+          endUserId: data.endUserId,
+          amount: data.amount,
+          createdAt: new Date(),
+        } as AuctionBid;
+        state.top = bid;
+        return bid;
+      }),
+    },
+  };
+}
 
+describe("placeBidWithTx", () => {
   it("accepts first bid at start price", async () => {
-    const bid = await placeBid({
+    const state = { top: null as AuctionBid | null };
+    const tx = makeTx(state);
+    const bid = await placeBidWithTx(tx, {
       projectId,
-      endUserId: userId,
+      endUserId,
       amount: new Decimal(100),
     });
     expect(bid.amount.toString()).toBe("100");
+    expect(tx.auctionBid.create).toHaveBeenCalledTimes(1);
   });
 
   it("rejects bid below min increment", async () => {
+    const state = {
+      top: {
+        id: "bid-1",
+        projectId,
+        endUserId,
+        amount: new Decimal(100),
+        createdAt: new Date(),
+      } as AuctionBid,
+    };
+    const tx = makeTx(state);
     await expect(
-      placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
-    ).rejects.toThrow();
+      placeBidWithTx(tx, {
+        projectId,
+        endUserId,
+        amount: new Decimal(105),
+      }),
+    ).rejects.toThrow(/出价需不低于/);
+    expect(tx.auctionBid.create).not.toHaveBeenCalled();
   });
 });
