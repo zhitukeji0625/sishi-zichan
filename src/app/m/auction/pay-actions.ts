@@ -9,6 +9,22 @@ export async function payAuctionDepositAction(projectId: string) {
   if (!user) return;
   const project = await prisma.auctionProject.findUnique({ where: { id: projectId } });
   if (!project) return;
+  const alreadyPaid = await prisma.payment.findFirst({
+    where: {
+      auctionProjectId: projectId,
+      endUserId: user.id,
+      purpose: "AUCTION_DEPOSIT",
+      status: "SUCCESS",
+    },
+  });
+  if (alreadyPaid) {
+    await prisma.auctionRegistration.updateMany({
+      where: { projectId, endUserId: user.id },
+      data: { depositPaid: true },
+    });
+    revalidatePath(`/m/auction/${projectId}`);
+    return;
+  }
   const orderNo = `MOCK${Date.now()}`;
   await prisma.payment.create({
     data: {

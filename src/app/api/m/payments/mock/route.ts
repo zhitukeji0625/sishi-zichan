@@ -20,6 +20,42 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "参数无效" }, { status: 400 });
   }
   const { purpose, amount, auctionProjectId, reservationId } = parsed.data;
+  if (purpose === "AUCTION_DEPOSIT" && auctionProjectId) {
+    const existing = await prisma.payment.findFirst({
+      where: {
+        auctionProjectId,
+        endUserId: user.id,
+        purpose: "AUCTION_DEPOSIT",
+        status: "SUCCESS",
+      },
+    });
+    if (existing) {
+      return NextResponse.json({
+        ok: true,
+        orderNo: existing.orderNo,
+        paidAt: existing.paidAt,
+        idempotent: true,
+      });
+    }
+  }
+  if (purpose === "DRYING_DEPOSIT" && reservationId) {
+    const existing = await prisma.payment.findFirst({
+      where: {
+        reservationId,
+        endUserId: user.id,
+        purpose: "DRYING_DEPOSIT",
+        status: "SUCCESS",
+      },
+    });
+    if (existing) {
+      return NextResponse.json({
+        ok: true,
+        orderNo: existing.orderNo,
+        paidAt: existing.paidAt,
+        idempotent: true,
+      });
+    }
+  }
   const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;
   const pay = await prisma.payment.create({
     data: {
