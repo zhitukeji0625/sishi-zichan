@@ -1,84 +1,107 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PrismaClient } from "@prisma/client";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { getMinimumNextBidAmount, placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    $transaction: vi.fn(),
+  },
+}));
 
-describe("placeBid", () => {
-  let orgId: string;
-  let assetId: string;
-  let projectId: string;
-  let userId: string;
+import { prisma } from "@/lib/prisma";
 
-  beforeAll(async () => {
-    const org = await prisma.organization.create({
-      data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
+describe("getMinimumNextBidAmount", () => {
+  it("uses start price when there is no prior bid", () => {
+    const min = getMinimumNextBidAmount({
+      startPrice: 100,
+      bidStep: 10,
+      highestBidAmount: null,
     });
-    orgId = org.id;
-    const asset = await prisma.asset.create({
-      data: {
-        orgId,
-        type: "LAND",
-        name: "测试资产",
-        locationText: "测试",
-        status: "IDLE",
-      },
-    });
-    assetId = asset.id;
-    const user = await prisma.endUser.create({
-      data: {
-        phone: `199${Date.now().toString().slice(-8)}`,
-        passwordHash: "x",
-        name: "测试用户",
-      },
-    });
-    userId = user.id;
-    const project = await prisma.auctionProject.create({
-      data: {
-        code: `TAP${Date.now()}`,
-        assetId,
-        startPrice: new Decimal(100),
-        bidStep: new Decimal(10),
-        depositAmount: new Decimal(5),
-        startsAt: new Date(Date.now() - 1000),
-        endsAt: new Date(Date.now() + 86400000),
-        status: "LIVE",
-      },
-    });
-    projectId = project.id;
-    await prisma.auctionRegistration.create({
-      data: {
-        projectId,
-        endUserId: userId,
-        status: "APPROVED",
-        depositPaid: true,
-      },
-    });
+    expect(min.toString()).toBe("100");
   });
 
-  afterAll(async () => {
-    await prisma.auctionBid.deleteMany({ where: { projectId } });
-    await prisma.auctionRegistration.deleteMany({ where: { projectId } });
-    await prisma.auctionProject.delete({ where: { id: projectId } });
-    await prisma.asset.delete({ where: { id: assetId } });
-    await prisma.endUser.delete({ where: { id: userId } });
-    await prisma.organization.delete({ where: { id: orgId } });
-    await prisma.$disconnect();
+  it("adds bid step to highest bid when present", () => {
+    const min = getMinimumNextBidAmount({
+      startPrice: 100,
+      bidStep: 10,
+      highestBidAmount: new Decimal(100),
+    });
+    expect(min.toString()).toBe("110");
+  });
+});
+
+function buildTxMocks(params: {
+  project: {
+    status: string;
+    startPrice: Decimal;
+    bidStep: Decimal;
+  };
+  reg: { status: string; depositPaid: boolean } | null;
+  topBid: { amount: Decimal } | null;
+}) {
+  const { project, reg, topBid } = params;
+  return {
+    auctionProject: {
+      findUnique: vi.fn().mockResolvedValue(project),
+    },
+    auctionRegistration: {
+      findUnique: vi.fn().mockResolvedValue(reg),
+    },
+    auctionBid: {
+      findFirst: vi.fn().mockResolvedValue(topBid),
+      create: vi.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) => ({
+        id: "bid-test",
+        ...data,
+      })),
+    },
+  };
+}
+
+describe("placeBid", () => {
+  beforeEach(() => {
+    vi.mocked(prisma.$transaction).mockReset();
   });
 
   it("accepts first bid at start price", async () => {
+    const tx = buildTxMocks({
+      project: {
+        status: "LIVE",
+        startPrice: new Decimal(100),
+        bidStep: new Decimal(10),
+      },
+      reg: { status: "APPROVED", depositPaid: true },
+      topBid: null,
+    });
+    vi.mocked(prisma.$transaction).mockImplementation(async (fn) =>
+      (fn as (t: typeof tx) => Promise<unknown>)(tx),
+    );
+
     const bid = await placeBid({
-      projectId,
-      endUserId: userId,
+      projectId: "p1",
+      endUserId: "u1",
       amount: new Decimal(100),
     });
     expect(bid.amount.toString()).toBe("100");
+    expect(tx.auctionBid.create).toHaveBeenCalledTimes(1);
   });
 
   it("rejects bid below min increment", async () => {
+    const tx = buildTxMocks({
+      project: {
+        status: "LIVE",
+        startPrice: new Decimal(100),
+        bidStep: new Decimal(10),
+      },
+      reg: { status: "APPROVED", depositPaid: true },
+      topBid: { amount: new Decimal(100) },
+    });
+    vi.mocked(prisma.$transaction).mockImplementation(async (fn) =>
+      (fn as (t: typeof tx) => Promise<unknown>)(tx),
+    );
+
     await expect(
-      placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
+      placeBid({ projectId: "p1", endUserId: "u1", amount: new Decimal(105) }),
     ).rejects.toThrow();
+    expect(tx.auctionBid.create).not.toHaveBeenCalled();
   });
 });
