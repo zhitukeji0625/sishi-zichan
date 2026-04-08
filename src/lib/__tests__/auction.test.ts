@@ -1,84 +1,71 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PrismaClient } from "@prisma/client";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { placeBidInTransaction } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+const projectId = "p1";
+const endUserId = "u1";
 
-describe("placeBid", () => {
-  let orgId: string;
-  let assetId: string;
-  let projectId: string;
-  let userId: string;
+function makeTx(overrides?: {
+  topAmount?: string | null;
+  bidAmount?: string;
+}) {
+  const topAmount = overrides?.topAmount ?? null;
+  const project = {
+    id: projectId,
+    status: "LIVE" as const,
+    startPrice: { toString: () => "100" },
+    bidStep: { toString: () => "10" },
+  };
+  const reg = {
+    status: "APPROVED" as const,
+    depositPaid: true,
+  };
+  const top =
+    topAmount === null
+      ? null
+      : { amount: { toString: () => topAmount } };
+  return {
+    auctionProject: {
+      findUnique: vi.fn().mockResolvedValue(project),
+    },
+    auctionRegistration: {
+      findUnique: vi.fn().mockResolvedValue(reg),
+    },
+    auctionBid: {
+      findFirst: vi.fn().mockResolvedValue(top),
+      create: vi.fn().mockImplementation(({ data }: { data: { amount: Decimal } }) => ({
+        ...data,
+        amount: data.amount,
+      })),
+    },
+  };
+}
 
-  beforeAll(async () => {
-    const org = await prisma.organization.create({
-      data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
-    });
-    orgId = org.id;
-    const asset = await prisma.asset.create({
-      data: {
-        orgId,
-        type: "LAND",
-        name: "测试资产",
-        locationText: "测试",
-        status: "IDLE",
-      },
-    });
-    assetId = asset.id;
-    const user = await prisma.endUser.create({
-      data: {
-        phone: `199${Date.now().toString().slice(-8)}`,
-        passwordHash: "x",
-        name: "测试用户",
-      },
-    });
-    userId = user.id;
-    const project = await prisma.auctionProject.create({
-      data: {
-        code: `TAP${Date.now()}`,
-        assetId,
-        startPrice: new Decimal(100),
-        bidStep: new Decimal(10),
-        depositAmount: new Decimal(5),
-        startsAt: new Date(Date.now() - 1000),
-        endsAt: new Date(Date.now() + 86400000),
-        status: "LIVE",
-      },
-    });
-    projectId = project.id;
-    await prisma.auctionRegistration.create({
-      data: {
-        projectId,
-        endUserId: userId,
-        status: "APPROVED",
-        depositPaid: true,
-      },
-    });
-  });
-
-  afterAll(async () => {
-    await prisma.auctionBid.deleteMany({ where: { projectId } });
-    await prisma.auctionRegistration.deleteMany({ where: { projectId } });
-    await prisma.auctionProject.delete({ where: { id: projectId } });
-    await prisma.asset.delete({ where: { id: assetId } });
-    await prisma.endUser.delete({ where: { id: userId } });
-    await prisma.organization.delete({ where: { id: orgId } });
-    await prisma.$disconnect();
+describe("placeBidInTransaction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
   });
 
   it("accepts first bid at start price", async () => {
-    const bid = await placeBid({
+    const tx = makeTx({ topAmount: null });
+    const bid = await placeBidInTransaction(tx as never, {
       projectId,
-      endUserId: userId,
+      endUserId,
       amount: new Decimal(100),
     });
     expect(bid.amount.toString()).toBe("100");
+    expect(tx.auctionBid.create).toHaveBeenCalled();
   });
 
   it("rejects bid below min increment", async () => {
+    const tx = makeTx({ topAmount: "100" });
     await expect(
-      placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
+      placeBidInTransaction(tx as never, {
+        projectId,
+        endUserId,
+        amount: new Decimal(105),
+      }),
     ).rejects.toThrow();
+    expect(tx.auctionBid.create).not.toHaveBeenCalled();
   });
 });
