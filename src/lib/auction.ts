@@ -9,6 +9,20 @@ export async function getHighestBid(projectId: string) {
   return top?.amount ?? null;
 }
 
+/** 下一口有效出价下限：无历史出价时为起拍价，否则为当前最高价 + 加价幅度 */
+export function minNextBidAmount(params: {
+  startPrice: Decimal | string | number;
+  bidStep: Decimal | string | number;
+  highestBidAmount: Decimal | string | number | null;
+}): Decimal {
+  const start = new Decimal(params.startPrice.toString());
+  const step = new Decimal(params.bidStep.toString());
+  if (params.highestBidAmount == null) {
+    return start;
+  }
+  return new Decimal(params.highestBidAmount.toString()).plus(step.toString());
+}
+
 export async function placeBid(params: {
   projectId: string;
   endUserId: string;
@@ -30,9 +44,11 @@ export async function placeBid(params: {
       where: { projectId },
       orderBy: { amount: "desc" },
     });
-    const minNext = top
-      ? new Decimal(top.amount.toString()).plus(project.bidStep.toString())
-      : new Decimal(project.startPrice.toString());
+    const minNext = minNextBidAmount({
+      startPrice: project.startPrice,
+      bidStep: project.bidStep,
+      highestBidAmount: top?.amount ?? null,
+    });
     if (amount.lessThan(minNext)) {
       throw new Error(`出价需不低于 ${minNext.toFixed(2)}`);
     }

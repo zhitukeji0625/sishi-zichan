@@ -5,7 +5,9 @@ import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+const runDbIntegration = process.env.RUN_DB_INTEGRATION === "1";
+
+describe.skipIf(!runDbIntegration)("placeBid (integration, requires MySQL)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
