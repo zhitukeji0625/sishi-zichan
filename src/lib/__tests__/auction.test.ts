@@ -1,11 +1,34 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { minAmountForNextBid, placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+describe("minAmountForNextBid", () => {
+  it("uses start price when there is no prior bid", () => {
+    expect(
+      minAmountForNextBid({
+        startPrice: new Decimal(100),
+        bidStep: new Decimal(10),
+        highestAmount: null,
+      }).toString(),
+    ).toBe("100");
+  });
 
-describe("placeBid", () => {
+  it("uses highest plus step when there is a prior bid", () => {
+    expect(
+      minAmountForNextBid({
+        startPrice: new Decimal(100),
+        bidStep: new Decimal(10),
+        highestAmount: new Decimal(100),
+      }).toString(),
+    ).toBe("110");
+  });
+});
+
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
+
+describe.skipIf(!hasDatabaseUrl)("placeBid", () => {
+  const prisma = new PrismaClient();
   let orgId: string;
   let assetId: string;
   let projectId: string;
