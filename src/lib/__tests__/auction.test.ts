@@ -3,15 +3,17 @@ import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+const dbReachable = process.env.VITEST_DB_REACHABLE === "1";
 
-describe("placeBid", () => {
+describe.skipIf(!dbReachable)("placeBid", () => {
+  let prisma: PrismaClient | undefined;
   let orgId: string;
   let assetId: string;
   let projectId: string;
   let userId: string;
 
   beforeAll(async () => {
+    prisma = new PrismaClient();
     const org = await prisma.organization.create({
       data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
     });
@@ -58,6 +60,7 @@ describe("placeBid", () => {
   });
 
   afterAll(async () => {
+    if (!prisma) return;
     await prisma.auctionBid.deleteMany({ where: { projectId } });
     await prisma.auctionRegistration.deleteMany({ where: { projectId } });
     await prisma.auctionProject.delete({ where: { id: projectId } });
