@@ -24,6 +24,11 @@ export async function createAdminAction(formData: FormData) {
   const parsed = createSchema.safeParse(raw);
   if (!parsed.success) return { error: "表单数据无效" };
   const d = parsed.data;
+  const org = await prisma.organization.findUnique({ where: { id: d.orgId } });
+  if (!org) return { error: "组织不存在" };
+  if (!(await adminCanAccessOrg(admin.role, admin.orgId, d.orgId))) {
+    return { error: "无权在该组织创建管理员" };
+  }
   const exists = await prisma.adminUser.findUnique({ where: { phone: d.phone } });
   if (exists) return { error: "手机号已存在" };
   const passwordHash = await hashPassword(d.password);

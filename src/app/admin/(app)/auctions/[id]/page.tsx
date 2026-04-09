@@ -8,8 +8,9 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
   const { id } = await params;
   const admin = await getCurrentAdmin();
   if (!admin) return null;
-  const project = await prisma.auctionProject.findUnique({
-    where: { id },
+  const orgWhere = await orgFilterForAdmin(admin.role, admin.orgId);
+  const project = await prisma.auctionProject.findFirst({
+    where: { id, asset: orgWhere },
     include: {
       asset: { include: { org: true } },
       result: true,
