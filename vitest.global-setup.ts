@@ -24,7 +24,6 @@ export default async function globalSetup() {
       );
     }
     process.env.VITEST_SKIP_DB_TESTS = "1";
-    // eslint-disable-next-line no-console
     console.warn(
       "[vitest] 跳过数据库集成测试（无法连接 DATABASE_URL）。设置 VITEST_REQUIRE_DB=1 可强制失败。",
     );
