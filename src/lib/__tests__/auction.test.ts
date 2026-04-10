@@ -1,15 +1,54 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import {
+  placeBid,
+  computeMinimumNextBid,
+  assertBidNotBelowMinimum,
+} from "@/lib/auction";
 
-const prisma = new PrismaClient();
+describe("computeMinimumNextBid", () => {
+  it("uses start price when there is no prior bid", () => {
+    const min = computeMinimumNextBid({
+      highestBidAmount: null,
+      startPrice: new Decimal(100),
+      bidStep: new Decimal(10),
+    });
+    expect(min.toString()).toBe("100");
+  });
 
-describe("placeBid", () => {
-  let orgId: string;
-  let assetId: string;
-  let projectId: string;
-  let userId: string;
+  it("adds bid step to highest bid", () => {
+    const min = computeMinimumNextBid({
+      highestBidAmount: new Decimal(100),
+      startPrice: new Decimal(100),
+      bidStep: new Decimal(10),
+    });
+    expect(min.toString()).toBe("110");
+  });
+});
+
+describe("assertBidNotBelowMinimum", () => {
+  it("allows amount equal to minimum", () => {
+    expect(() =>
+      assertBidNotBelowMinimum(new Decimal(100), new Decimal(100)),
+    ).not.toThrow();
+  });
+
+  it("rejects amount below minimum", () => {
+    expect(() =>
+      assertBidNotBelowMinimum(new Decimal(105), new Decimal(110)),
+    ).toThrow(/出价需不低于/);
+  });
+});
+
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+
+describe.skipIf(!hasDatabaseUrl)("placeBid (integration)", () => {
+  const prisma = new PrismaClient();
+  let orgId: string | undefined;
+  let assetId: string | undefined;
+  let projectId: string | undefined;
+  let userId: string | undefined;
 
   beforeAll(async () => {
     const org = await prisma.organization.create({
@@ -58,19 +97,24 @@ describe("placeBid", () => {
   });
 
   afterAll(async () => {
-    await prisma.auctionBid.deleteMany({ where: { projectId } });
-    await prisma.auctionRegistration.deleteMany({ where: { projectId } });
-    await prisma.auctionProject.delete({ where: { id: projectId } });
-    await prisma.asset.delete({ where: { id: assetId } });
-    await prisma.endUser.delete({ where: { id: userId } });
-    await prisma.organization.delete({ where: { id: orgId } });
-    await prisma.$disconnect();
+    try {
+      if (projectId) {
+        await prisma.auctionBid.deleteMany({ where: { projectId } });
+        await prisma.auctionRegistration.deleteMany({ where: { projectId } });
+        await prisma.auctionProject.delete({ where: { id: projectId } });
+      }
+      if (assetId) await prisma.asset.delete({ where: { id: assetId } });
+      if (userId) await prisma.endUser.delete({ where: { id: userId } });
+      if (orgId) await prisma.organization.delete({ where: { id: orgId } });
+    } finally {
+      await prisma.$disconnect();
+    }
   });
 
   it("accepts first bid at start price", async () => {
     const bid = await placeBid({
-      projectId,
-      endUserId: userId,
+      projectId: projectId!,
+      endUserId: userId!,
       amount: new Decimal(100),
     });
     expect(bid.amount.toString()).toBe("100");
@@ -78,7 +122,11 @@ describe("placeBid", () => {
 
   it("rejects bid below min increment", async () => {
     await expect(
-      placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
+      placeBid({
+        projectId: projectId!,
+        endUserId: userId!,
+        amount: new Decimal(105),
+      }),
     ).rejects.toThrow();
   });
 });
