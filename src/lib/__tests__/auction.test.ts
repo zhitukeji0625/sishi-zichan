@@ -3,9 +3,10 @@ import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
+/** 需要可用 MySQL 与已迁移库；CI/无库环境默认跳过，本地可设 RUN_DB_TESTS=1 */
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+describe.skipIf(process.env.RUN_DB_TESTS !== "1")("placeBid (integration)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
