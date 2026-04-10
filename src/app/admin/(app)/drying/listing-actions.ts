@@ -1,6 +1,8 @@
 "use server";
 
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { DryingListingStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
@@ -36,13 +38,15 @@ export async function toggleDryingListingStatusAction(formData: FormData) {
   const admin = await getCurrentAdmin();
   if (!admin) return { error: "未登录" };
   const listingId = String(formData.get("listingId") ?? "");
-  const newStatus = String(formData.get("status") ?? "");
+  const newStatusRaw = String(formData.get("status") ?? "");
+  const statusParse = z.nativeEnum(DryingListingStatus).safeParse(newStatusRaw);
+  if (!statusParse.success) return { error: "状态无效" };
   const listing = await prisma.dryingFieldListing.findUnique({ where: { id: listingId }, include: { asset: true } });
   if (!listing) return { error: "不存在" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, listing.asset.orgId);
   if (!ok) return { error: "无权操作" };
-  await prisma.dryingFieldListing.update({ where: { id: listingId }, data: { status: newStatus as any } });
-  await writeAudit(admin.id, "ORG_UPDATE", JSON.stringify({ listingId, status: newStatus }));
+  await prisma.dryingFieldListing.update({ where: { id: listingId }, data: { status: statusParse.data } });
+  await writeAudit(admin.id, "ORG_UPDATE", JSON.stringify({ listingId, status: statusParse.data }));
   revalidatePath("/admin/drying");
   return { ok: true as const };
 }
