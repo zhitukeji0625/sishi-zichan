@@ -4,8 +4,9 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
+const skipIntegration = process.env.VITEST_DB_READY !== "1";
 
-describe("placeBid", () => {
+describe.skipIf(skipIntegration)("placeBid", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
