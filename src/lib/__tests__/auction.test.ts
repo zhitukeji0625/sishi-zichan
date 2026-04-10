@@ -6,10 +6,10 @@ import { placeBid } from "@/lib/auction";
 const prisma = new PrismaClient();
 
 describe("placeBid", () => {
-  let orgId: string;
-  let assetId: string;
-  let projectId: string;
-  let userId: string;
+  let orgId: string | undefined;
+  let assetId: string | undefined;
+  let projectId: string | undefined;
+  let userId: string | undefined;
 
   beforeAll(async () => {
     const org = await prisma.organization.create({
@@ -58,6 +58,10 @@ describe("placeBid", () => {
   });
 
   afterAll(async () => {
+    if (!projectId || !assetId || !userId || !orgId) {
+      await prisma.$disconnect();
+      return;
+    }
     await prisma.auctionBid.deleteMany({ where: { projectId } });
     await prisma.auctionRegistration.deleteMany({ where: { projectId } });
     await prisma.auctionProject.delete({ where: { id: projectId } });
@@ -69,8 +73,8 @@ describe("placeBid", () => {
 
   it("accepts first bid at start price", async () => {
     const bid = await placeBid({
-      projectId,
-      endUserId: userId,
+      projectId: projectId!,
+      endUserId: userId!,
       amount: new Decimal(100),
     });
     expect(bid.amount.toString()).toBe("100");
@@ -78,7 +82,11 @@ describe("placeBid", () => {
 
   it("rejects bid below min increment", async () => {
     await expect(
-      placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
+      placeBid({
+        projectId: projectId!,
+        endUserId: userId!,
+        amount: new Decimal(105),
+      }),
     ).rejects.toThrow();
   });
 });
