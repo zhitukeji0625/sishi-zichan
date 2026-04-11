@@ -28,11 +28,11 @@ sudo docker run -d --name mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATAB
 
 ### Lint
 
-`next lint` / `npx eslint` does NOT work out of the box due to a known ESLint 9 vs `eslint-config-next` compatibility issue. The README states: "构建阶段已跳过 ESLint". This is a known limitation.
+`npm run lint` runs `next lint`. Keep `eslint-config-next` on the same major/minor line as `next` (e.g. both 15.5.x); mismatch with eslint-config-next 16 caused a circular-config crash under ESLint 9.
 
 ### Testing
 
-- `npm run test` — runs Vitest (unit tests in `src/lib/__tests__/`)
+- `npm run test` — Vitest: pure unit tests always run; Prisma integration tests in `src/lib/__tests__/auction.test.ts` run only when `DATABASE_URL` is set (otherwise skipped).
 
 ### Demo accounts (from seed data)
 
