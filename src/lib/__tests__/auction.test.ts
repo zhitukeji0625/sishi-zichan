@@ -1,84 +1,78 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PrismaClient } from "@prisma/client";
+import { describe, it, expect } from "vitest";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { assertCanPlaceBid, minNextBidAmount } from "@/lib/auction-rules";
 
-const prisma = new PrismaClient();
-
-describe("placeBid", () => {
-  let orgId: string;
-  let assetId: string;
-  let projectId: string;
-  let userId: string;
-
-  beforeAll(async () => {
-    const org = await prisma.organization.create({
-      data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
-    });
-    orgId = org.id;
-    const asset = await prisma.asset.create({
-      data: {
-        orgId,
-        type: "LAND",
-        name: "测试资产",
-        locationText: "测试",
-        status: "IDLE",
-      },
-    });
-    assetId = asset.id;
-    const user = await prisma.endUser.create({
-      data: {
-        phone: `199${Date.now().toString().slice(-8)}`,
-        passwordHash: "x",
-        name: "测试用户",
-      },
-    });
-    userId = user.id;
-    const project = await prisma.auctionProject.create({
-      data: {
-        code: `TAP${Date.now()}`,
-        assetId,
-        startPrice: new Decimal(100),
-        bidStep: new Decimal(10),
-        depositAmount: new Decimal(5),
-        startsAt: new Date(Date.now() - 1000),
-        endsAt: new Date(Date.now() + 86400000),
-        status: "LIVE",
-      },
-    });
-    projectId = project.id;
-    await prisma.auctionRegistration.create({
-      data: {
-        projectId,
-        endUserId: userId,
-        status: "APPROVED",
-        depositPaid: true,
-      },
-    });
+describe("minNextBidAmount", () => {
+  it("uses start price when there is no prior bid", () => {
+    expect(
+      minNextBidAmount({
+        startPrice: "100",
+        bidStep: "10",
+        topBidAmount: null,
+      }).toString(),
+    ).toBe("100");
   });
 
-  afterAll(async () => {
-    await prisma.auctionBid.deleteMany({ where: { projectId } });
-    await prisma.auctionRegistration.deleteMany({ where: { projectId } });
-    await prisma.auctionProject.delete({ where: { id: projectId } });
-    await prisma.asset.delete({ where: { id: assetId } });
-    await prisma.endUser.delete({ where: { id: userId } });
-    await prisma.organization.delete({ where: { id: orgId } });
-    await prisma.$disconnect();
+  it("adds bid step to highest bid when present", () => {
+    expect(
+      minNextBidAmount({
+        startPrice: "100",
+        bidStep: "10",
+        topBidAmount: "100",
+      }).toString(),
+    ).toBe("110");
+  });
+});
+
+describe("assertCanPlaceBid", () => {
+  const liveProject = {
+    status: "LIVE" as const,
+    startPrice: "100",
+    bidStep: "10",
+  };
+  const approvedReg = { status: "APPROVED" as const, depositPaid: true };
+
+  it("accepts first bid at start price", () => {
+    expect(() =>
+      assertCanPlaceBid({
+        project: liveProject,
+        registration: approvedReg,
+        topBidAmount: null,
+        amount: new Decimal(100),
+      }),
+    ).not.toThrow();
   });
 
-  it("accepts first bid at start price", async () => {
-    const bid = await placeBid({
-      projectId,
-      endUserId: userId,
-      amount: new Decimal(100),
-    });
-    expect(bid.amount.toString()).toBe("100");
+  it("rejects bid below min increment", () => {
+    expect(() =>
+      assertCanPlaceBid({
+        project: liveProject,
+        registration: approvedReg,
+        topBidAmount: "100",
+        amount: new Decimal(105),
+      }),
+    ).toThrow();
   });
 
-  it("rejects bid below min increment", async () => {
-    await expect(
-      placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
-    ).rejects.toThrow();
+  it("rejects when project is not live", () => {
+    expect(() =>
+      assertCanPlaceBid({
+        project: { ...liveProject, status: "ENDED" },
+        registration: approvedReg,
+        topBidAmount: null,
+        amount: new Decimal(100),
+      }),
+    ).toThrow("竞拍未在进行中");
+  });
+
+  it("rejects when registration is missing or invalid", () => {
+    expect(() =>
+      assertCanPlaceBid({
+        project: liveProject,
+        registration: null,
+        topBidAmount: null,
+        amount: new Decimal(100),
+      }),
+    ).toThrow("无出价资格");
   });
 });
