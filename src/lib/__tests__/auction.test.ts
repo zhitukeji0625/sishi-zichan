@@ -1,11 +1,36 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { minBidAmount, placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+describe("minBidAmount", () => {
+  it("uses start price when there is no prior bid", () => {
+    const min = minBidAmount({
+      highestBidAmount: null,
+      startPrice: new Decimal(100),
+      bidStep: new Decimal(10),
+    });
+    expect(min.toString()).toBe("100");
+  });
 
-describe("placeBid", () => {
+  it("adds bid step to highest bid when present", () => {
+    const min = minBidAmount({
+      highestBidAmount: new Decimal(100),
+      startPrice: new Decimal(100),
+      bidStep: new Decimal(10),
+    });
+    expect(min.toString()).toBe("110");
+  });
+});
+
+const runIntegration =
+  process.env.RUN_INTEGRATION_TESTS === "1" &&
+  Boolean(process.env.DATABASE_URL?.trim());
+
+const integrationDescribe = runIntegration ? describe : describe.skip;
+
+integrationDescribe("placeBid (integration)", () => {
+  const prisma = new PrismaClient();
   let orgId: string;
   let assetId: string;
   let projectId: string;
