@@ -1,84 +1,94 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PrismaClient } from "@prisma/client";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+/** 内存状态模拟当前标的最领先出价（无需真实 MySQL，CI/本地均可跑） */
+const ctx = vi.hoisted(() => ({
+  topBid: null as { amount: Decimal } | null,
+}));
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    $transaction: async (fn: (tx: AuctionTx) => Promise<unknown>) =>
+      fn({
+        auctionProject: {
+          findUnique: async () => ({
+            id: "p-test",
+            status: "LIVE",
+            startPrice: new Decimal(100),
+            bidStep: new Decimal(10),
+          }),
+        },
+        auctionRegistration: {
+          findUnique: async () => ({
+            status: "APPROVED",
+            depositPaid: true,
+          }),
+        },
+        auctionBid: {
+          findFirst: async () => ctx.topBid,
+          create: async ({
+            data,
+          }: {
+            data: { projectId: string; endUserId: string; amount: Decimal };
+          }) => {
+            ctx.topBid = { amount: data.amount };
+            return { id: "bid-test", ...data };
+          },
+        },
+      }),
+  },
+}));
+
+type AuctionTx = {
+  auctionProject: {
+    findUnique: (args: unknown) => Promise<{
+      id: string;
+      status: string;
+      startPrice: Decimal;
+      bidStep: Decimal;
+    } | null>;
+  };
+  auctionRegistration: {
+    findUnique: (args: unknown) => Promise<{
+      status: string;
+      depositPaid: boolean;
+    } | null>;
+  };
+  auctionBid: {
+    findFirst: (args: unknown) => Promise<{ amount: Decimal } | null>;
+    create: (args: {
+      data: { projectId: string; endUserId: string; amount: Decimal };
+    }) => Promise<{ id: string; projectId: string; endUserId: string; amount: Decimal }>;
+  };
+};
 
 describe("placeBid", () => {
-  let orgId: string;
-  let assetId: string;
-  let projectId: string;
-  let userId: string;
-
-  beforeAll(async () => {
-    const org = await prisma.organization.create({
-      data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
-    });
-    orgId = org.id;
-    const asset = await prisma.asset.create({
-      data: {
-        orgId,
-        type: "LAND",
-        name: "测试资产",
-        locationText: "测试",
-        status: "IDLE",
-      },
-    });
-    assetId = asset.id;
-    const user = await prisma.endUser.create({
-      data: {
-        phone: `199${Date.now().toString().slice(-8)}`,
-        passwordHash: "x",
-        name: "测试用户",
-      },
-    });
-    userId = user.id;
-    const project = await prisma.auctionProject.create({
-      data: {
-        code: `TAP${Date.now()}`,
-        assetId,
-        startPrice: new Decimal(100),
-        bidStep: new Decimal(10),
-        depositAmount: new Decimal(5),
-        startsAt: new Date(Date.now() - 1000),
-        endsAt: new Date(Date.now() + 86400000),
-        status: "LIVE",
-      },
-    });
-    projectId = project.id;
-    await prisma.auctionRegistration.create({
-      data: {
-        projectId,
-        endUserId: userId,
-        status: "APPROVED",
-        depositPaid: true,
-      },
-    });
-  });
-
-  afterAll(async () => {
-    await prisma.auctionBid.deleteMany({ where: { projectId } });
-    await prisma.auctionRegistration.deleteMany({ where: { projectId } });
-    await prisma.auctionProject.delete({ where: { id: projectId } });
-    await prisma.asset.delete({ where: { id: assetId } });
-    await prisma.endUser.delete({ where: { id: userId } });
-    await prisma.organization.delete({ where: { id: orgId } });
-    await prisma.$disconnect();
+  beforeEach(() => {
+    ctx.topBid = null;
   });
 
   it("accepts first bid at start price", async () => {
     const bid = await placeBid({
-      projectId,
-      endUserId: userId,
+      projectId: "p-test",
+      endUserId: "u-test",
       amount: new Decimal(100),
     });
     expect(bid.amount.toString()).toBe("100");
   });
 
   it("rejects bid below min increment", async () => {
+    await placeBid({
+      projectId: "p-test",
+      endUserId: "u-test",
+      amount: new Decimal(100),
+    });
     await expect(
-      placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
+      placeBid({
+        projectId: "p-test",
+        endUserId: "u-test",
+        amount: new Decimal(105),
+      }),
     ).rejects.toThrow();
   });
 });
