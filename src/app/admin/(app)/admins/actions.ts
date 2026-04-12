@@ -24,6 +24,9 @@ export async function createAdminAction(formData: FormData) {
   const parsed = createSchema.safeParse(raw);
   if (!parsed.success) return { error: "表单数据无效" };
   const d = parsed.data;
+  if (!(await adminCanAccessOrg(admin.role, admin.orgId, d.orgId))) {
+    return { error: "无权在该单位创建管理员" };
+  }
   const exists = await prisma.adminUser.findUnique({ where: { phone: d.phone } });
   if (exists) return { error: "手机号已存在" };
   const passwordHash = await hashPassword(d.password);
@@ -42,6 +45,7 @@ export async function toggleAdminDisableAction(formData: FormData) {
   if (!admin || !isDivision(admin.role)) return;
   const target = await prisma.adminUser.findUnique({ where: { id: targetId } });
   if (!target || target.id === admin.id) return;
+  if (!(await adminCanAccessOrg(admin.role, admin.orgId, target.orgId))) return;
   await prisma.adminUser.update({
     where: { id: targetId },
     data: { disabled: disable },
