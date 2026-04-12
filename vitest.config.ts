@@ -6,6 +6,9 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    globalSetup: "./scripts/vitest-global-setup.ts",
+    setupFiles: ["./scripts/vitest-setup-env.ts"],
+    hookTimeout: 120_000,
   },
   resolve: {
     alias: {
