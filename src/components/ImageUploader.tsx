@@ -42,6 +42,7 @@ export function ImageUploader({ images, onChange, max = 6 }: Props) {
       <div className="flex flex-wrap gap-2">
         {images.map((url, i) => (
           <div key={i} className="group relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200">
+            {/* eslint-disable-next-line @next/next/no-img-element -- preview of user-selected uploads */}
             <img src={url} alt="" className="h-full w-full object-cover" />
             <button
               type="button"
