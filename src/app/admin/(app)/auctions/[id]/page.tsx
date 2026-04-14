@@ -2,8 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
-import { orgFilterForAdmin } from "@/lib/admin-scope";
-
 export default async function AdminAuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const admin = await getCurrentAdmin();
