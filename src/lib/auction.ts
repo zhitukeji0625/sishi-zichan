@@ -1,5 +1,15 @@
+import type { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
+
+type TransactionClient = Omit<
+  PrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends" | "$use"
+>;
+
+type DbWithTransaction = {
+  $transaction: <R>(fn: (tx: TransactionClient) => Promise<R>) => Promise<R>;
+};
 
 export async function getHighestBid(projectId: string) {
   const top = await prisma.auctionBid.findFirst({
@@ -9,13 +19,16 @@ export async function getHighestBid(projectId: string) {
   return top?.amount ?? null;
 }
 
-export async function placeBid(params: {
-  projectId: string;
-  endUserId: string;
-  amount: Decimal;
-}) {
+export async function placeBid(
+  params: {
+    projectId: string;
+    endUserId: string;
+    amount: Decimal;
+  },
+  db: DbWithTransaction = prisma,
+) {
   const { projectId, endUserId, amount } = params;
-  return prisma.$transaction(async (tx) => {
+  return db.$transaction(async (tx) => {
     const project = await tx.auctionProject.findUnique({ where: { id: projectId } });
     if (!project || project.status !== "LIVE") {
       throw new Error("竞拍未在进行中");
