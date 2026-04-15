@@ -5,7 +5,10 @@ import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+/** 需要可连通的 MySQL/MariaDB（见 README）；CI 无数据库时默认跳过。 */
+const runIntegration = process.env.RUN_DB_INTEGRATION === "1";
+
+describe.skipIf(!runIntegration)("placeBid (integration)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
