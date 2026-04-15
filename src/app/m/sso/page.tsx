@@ -6,19 +6,19 @@ import { useRouter, useSearchParams } from "next/navigation";
 function SsoInner() {
   const router = useRouter();
   const search = useSearchParams();
-  const [msg, setMsg] = useState("正在验证第三方票据…");
+  const token = search.get("token");
+  const [msg, setMsg] = useState(() =>
+    token ? "正在验证第三方票据…" : "缺少 token 参数",
+  );
 
   useEffect(() => {
-    const token = search.get("token");
-    if (!token) {
-      setMsg("缺少 token 参数");
-      return;
-    }
+    const t = search.get("token");
+    if (!t) return;
     (async () => {
       const res = await fetch("/api/auth/third-party", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token: t }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
