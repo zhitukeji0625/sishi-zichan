@@ -1,17 +1,31 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { getMinNextBidAmount, placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+describe("getMinNextBidAmount", () => {
+  it("uses start price when there is no prior bid", () => {
+    const project = { startPrice: new Decimal(100), bidStep: new Decimal(10) };
+    expect(getMinNextBidAmount(project, null).toString()).toBe("100");
+  });
 
-describe("placeBid", () => {
+  it("requires highest bid plus step when bids exist", () => {
+    const project = { startPrice: new Decimal(100), bidStep: new Decimal(10) };
+    expect(getMinNextBidAmount(project, new Decimal(100)).toString()).toBe("110");
+  });
+});
+
+const prismaUrl = process.env.DATABASE_URL;
+const prisma = prismaUrl ? new PrismaClient() : null;
+
+describe.skipIf(!prismaUrl)("placeBid (integration)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
   let userId: string;
 
   beforeAll(async () => {
+    if (!prisma) throw new Error("Prisma client missing");
     const org = await prisma.organization.create({
       data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
     });
@@ -58,6 +72,7 @@ describe("placeBid", () => {
   });
 
   afterAll(async () => {
+    if (!prisma) return;
     await prisma.auctionBid.deleteMany({ where: { projectId } });
     await prisma.auctionRegistration.deleteMany({ where: { projectId } });
     await prisma.auctionProject.delete({ where: { id: projectId } });
