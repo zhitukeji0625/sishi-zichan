@@ -1,6 +1,20 @@
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 
+/** 下一笔有效出价的最低金额（无历史出价时为起拍价，否则为当前最高价 + 加价幅度）。 */
+export function minimumNextBidAmount(
+  startPrice: Decimal | string,
+  bidStep: Decimal | string,
+  highestBidAmount: Decimal | string | null | undefined,
+): Decimal {
+  const start = new Decimal(startPrice.toString());
+  const step = new Decimal(bidStep.toString());
+  if (highestBidAmount == null || highestBidAmount === undefined) {
+    return start;
+  }
+  return new Decimal(highestBidAmount.toString()).plus(step);
+}
+
 export async function getHighestBid(projectId: string) {
   const top = await prisma.auctionBid.findFirst({
     where: { projectId },
@@ -30,9 +44,11 @@ export async function placeBid(params: {
       where: { projectId },
       orderBy: { amount: "desc" },
     });
-    const minNext = top
-      ? new Decimal(top.amount.toString()).plus(project.bidStep.toString())
-      : new Decimal(project.startPrice.toString());
+    const minNext = minimumNextBidAmount(
+      project.startPrice,
+      project.bidStep,
+      top?.amount ?? null,
+    );
     if (amount.lessThan(minNext)) {
       throw new Error(`出价需不低于 ${minNext.toFixed(2)}`);
     }
