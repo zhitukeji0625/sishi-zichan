@@ -1,0 +1,8 @@
+{
+  "name": "sishi-zichan",
+  "private": true,
+  "description": "四师资产租赁：功能需求与完整性检查脚本",
+  "scripts": {
+    "check:features": "node scripts/check-feature-completeness.mjs"
+  }
+}
