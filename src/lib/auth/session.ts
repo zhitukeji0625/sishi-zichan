@@ -15,12 +15,6 @@ function cookieSecure() {
   return process.env.NODE_ENV === "production";
 }
 
-function secret() {
-  const s = process.env.SESSION_SECRET;
-  if (!s || s.length < 16) throw new Error("SESSION_SECRET must be set (min 16 chars)");
-  return new TextEncoder().encode(s);
-}
-
 export function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
