@@ -1,13 +1,14 @@
 {
   "name": "workspace",
   "version": "1.0.0",
-  "description": "",
+  "description": "四师资产租赁：Next.js 应用与功能完整性检查",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "check:features": "node scripts/check-feature-completeness.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:push": "prisma db push",
