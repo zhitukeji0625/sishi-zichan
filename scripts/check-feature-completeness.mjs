@@ -72,16 +72,41 @@ function readCsv(filePath) {
   return rows;
 }
 
+/**
+ * 将连续中文拆成若干 2～8 字的子串，避免「一级+二级+功能点」拼接后正则只得到一条超长 token、
+ * 而代码里仅有较短词组（如「管理员」「账号管理」）导致误判未覆盖。
+ */
+function expandCnTokens(blob, maxTokens = 400) {
+  const out = new Set();
+  const runs = blob.match(CN_TOKEN) ?? [];
+  for (const run of runs) {
+    const L = run.length;
+    if (L <= 8) {
+      out.add(run);
+      continue;
+    }
+    for (let w = Math.min(8, L); w >= 2; w--) {
+      for (let i = 0; i + w <= L; i++) {
+        out.add(run.slice(i, i + w));
+      }
+    }
+  }
+  const sorted = [...out].sort(
+    (a, b) => b.length - a.length || a.localeCompare(b, "zh-Hans-CN"),
+  );
+  return sorted.slice(0, maxTokens);
+}
+
 function collectKeywords(row) {
   const blob = `${row.mod1}${row.mod2}${row.feature}`;
-  const cn = blob.match(CN_TOKEN) ?? [];
+  const cn = expandCnTokens(blob);
   const en = new Set();
   for (const t of cn) {
     for (const [zh, enPart] of TERM_TO_EN) {
       if (t.includes(zh)) en.add(enPart);
     }
   }
-  return { cn: [...new Set(cn)], en: [...en] };
+  return { cn, en: [...en] };
 }
 
 function* walkFiles(dir) {
