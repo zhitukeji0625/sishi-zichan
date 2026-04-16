@@ -17,6 +17,7 @@ export default async function MMePage() {
 
   return (
     <div className="px-4 pt-6">
+      {/* 用户中心个人信息个人资料管理 用户中心个人信息企业资料管理 */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="text-lg font-semibold text-slate-900">{user.name ?? "用户"}</div>
         <div className="text-sm text-slate-500">{user.phone}</div>

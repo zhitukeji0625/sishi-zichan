@@ -13,6 +13,7 @@ export default async function MHomePage() {
 
   return (
     <div className="px-4 pt-6">
+      {/* 首页导航入口首页导航 */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h1 className="text-lg font-semibold text-slate-900">四师资产租赁</h1>
         <p className="mt-1 text-sm text-slate-500">
