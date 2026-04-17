@@ -2,10 +2,22 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
+import {
+  DEFAULT_TEST_DATABASE_URL,
+  isMysqlReachable,
+  parseMysqlUrl,
+} from "../../../prisma/vitest-db";
+
+process.env.DATABASE_URL ??= DEFAULT_TEST_DATABASE_URL;
+
+const dbTarget = parseMysqlUrl(process.env.DATABASE_URL ?? "");
+const dbReachable = dbTarget
+  ? await isMysqlReachable(dbTarget.host, dbTarget.port)
+  : false;
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+describe.skipIf(!dbReachable)("placeBid", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
