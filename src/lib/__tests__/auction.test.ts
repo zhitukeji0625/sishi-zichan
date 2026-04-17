@@ -4,8 +4,9 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
 
-describe("placeBid", () => {
+(hasDatabaseUrl ? describe : describe.skip)("placeBid (integration)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
