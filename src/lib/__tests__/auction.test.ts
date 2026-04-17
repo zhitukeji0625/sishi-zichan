@@ -1,11 +1,69 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { placeBid, validateAuctionBidAmount } from "@/lib/auction";
+
+describe("validateAuctionBidAmount", () => {
+  const startPrice = new Decimal(100);
+  const bidStep = new Decimal(10);
+  const okReg = { status: "APPROVED", depositPaid: true };
+
+  it("accepts first bid at start price", () => {
+    expect(() =>
+      validateAuctionBidAmount({
+        projectStatus: "LIVE",
+        startPrice,
+        bidStep,
+        registration: okReg,
+        topBidAmount: null,
+        amount: new Decimal(100),
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects bid below min increment after a top bid", () => {
+    expect(() =>
+      validateAuctionBidAmount({
+        projectStatus: "LIVE",
+        startPrice,
+        bidStep,
+        registration: okReg,
+        topBidAmount: new Decimal(100),
+        amount: new Decimal(105),
+      }),
+    ).toThrow();
+  });
+
+  it("rejects when project is not live", () => {
+    expect(() =>
+      validateAuctionBidAmount({
+        projectStatus: "ENDED",
+        startPrice,
+        bidStep,
+        registration: okReg,
+        topBidAmount: null,
+        amount: new Decimal(100),
+      }),
+    ).toThrow("竞拍未在进行中");
+  });
+
+  it("rejects without approved registration or deposit", () => {
+    expect(() =>
+      validateAuctionBidAmount({
+        projectStatus: "LIVE",
+        startPrice,
+        bidStep,
+        registration: { status: "APPROVED", depositPaid: false },
+        topBidAmount: null,
+        amount: new Decimal(100),
+      }),
+    ).toThrow("无出价资格");
+  });
+});
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+describe.skipIf(!process.env.DATABASE_URL)("placeBid (integration)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
