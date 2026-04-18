@@ -1,0 +1,5 @@
+# 仅用于本地/CI 集成测试：将 MySQL 暴露到宿主机，便于 Prisma 从主机运行 vitest。
+services:
+  mysql:
+    ports:
+      - "3307:3306"
