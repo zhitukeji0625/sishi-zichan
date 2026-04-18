@@ -63,17 +63,18 @@ function readCsv(filePath) {
   const rows = [];
   for (const line of lines) {
     if (line.startsWith("=") || line.includes("========")) continue;
-    const parts = line.split(",");
-    if (parts.length < 6) continue;
-    const [system, role, mod1, mod2, feature] = parts.map((s) => s.trim());
+    const parts = line.split(",").map((s) => s.trim());
+    if (parts.length < 5) continue;
+    const [system, role, mod1, mod2, feature] = parts;
+    const description = parts.length > 5 ? parts.slice(5).join(",") : "";
     if (!feature) continue;
-    rows.push({ system, role, mod1, mod2, feature, raw: line });
+    rows.push({ system, role, mod1, mod2, feature, description, raw: line });
   }
   return rows;
 }
 
 function collectKeywords(row) {
-  const blob = `${row.mod1}${row.mod2}${row.feature}`;
+  const blob = `${row.mod1}${row.mod2}${row.feature}${row.description ?? ""}`;
   const cn = blob.match(CN_TOKEN) ?? [];
   const en = new Set();
   for (const t of cn) {
