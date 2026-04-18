@@ -9,6 +9,7 @@ import { registerAuctionAction } from "../actions";
 import { payAuctionDepositAction } from "../pay-actions";
 import { createAuctionContractAction, payAuctionRentAction } from "../../contract/sign-actions";
 import { BidForm } from "./BidForm";
+import { parseImageUrls } from "@/lib/imagesJson";
 
 export default async function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -72,6 +73,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
     ENDED: { label: "已结束", cls: "status-ended" },
   };
   const st = statusInfo[project.status] ?? { label: project.status, cls: "status-ended" };
+  const imgs = parseImageUrls(project.asset.imagesJson);
 
   return (
     <div className="animate-fade-in">
@@ -87,21 +89,17 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="relative -mt-6 px-4 space-y-4">
-        {(() => {
-          try {
-            const imgs = project.asset.imagesJson ? JSON.parse(project.asset.imagesJson) : [];
-            if (imgs.length === 0) return null;
-            return (
-              <div className="card-elevated-lg overflow-hidden animate-slide-up">
-                <div className="flex gap-2 overflow-x-auto p-3">
-                  {imgs.map((url: string, i: number) => (
-                    <img key={i} src={url} alt="" className="h-40 w-60 shrink-0 rounded-xl object-cover" />
-                  ))}
-                </div>
-              </div>
-            );
-          } catch { return null; }
-        })()}
+        {imgs.length > 0 && (
+          <div className="card-elevated-lg overflow-hidden animate-slide-up">
+            <div className="flex gap-2 overflow-x-auto p-3">
+              {imgs.map((url, i) => (
+                // 动态 JSON 中的任意 URL，使用原生 img 避免为上传域名配置 next/image
+                // eslint-disable-next-line @next/next/no-img-element -- 同上
+                <img key={i} src={url} alt="" className="h-40 w-60 shrink-0 rounded-xl object-cover" />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Price info card */}
         <div className="card-elevated-lg p-5 animate-slide-up">
