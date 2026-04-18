@@ -10,8 +10,6 @@ import path from "node:path";
 const ROOT = process.cwd();
 const DEFAULT_CSV = path.join(ROOT, "spec", "feature-requirements.csv");
 
-const CN_TOKEN = /[\u4e00-\u9fff]{2,}/g;
-
 const TERM_TO_EN = [
   ["竞拍", "auction"],
   ["晒场", "drying"],
@@ -30,12 +28,15 @@ const TERM_TO_EN = [
   ["审核", "review"],
   ["组织", "org"],
   ["权限", "role"],
+  ["角色", "role"],
   ["日志", "log"],
   ["配置", "config"],
   ["导入", "import"],
   ["导出", "export"],
   ["验证码", "otp"],
   ["短信", "sms"],
+  ["手机", "sms"],
+  ["账号", "account"],
   ["实名", "verif"],
   ["保证金", "deposit"],
   ["租金", "rent"],
@@ -43,6 +44,23 @@ const TERM_TO_EN = [
   ["出价", "bid"],
   ["农行", "abc"],
   ["第三方", "third-party"],
+  ["签署", "contract"],
+  ["电子", "contract"],
+  ["导航", "nav"],
+  ["首页", "home"],
+  ["用户", "user"],
+  ["企业", "org"],
+  ["个人", "profile"],
+  ["资料", "profile"],
+  ["列表", "list"],
+  ["设置", "config"],
+  ["操作", "log"],
+  ["架构", "org"],
+  ["批量", "import"],
+  ["富文本", "asset"],
+  ["模板", "config"],
+  ["回调", "pay"],
+  ["商户", "pay"],
   ["jwt", "jwt"],
 ];
 
@@ -65,20 +83,32 @@ function readCsv(filePath) {
     if (line.startsWith("=") || line.includes("========")) continue;
     const parts = line.split(",");
     if (parts.length < 6) continue;
-    const [system, role, mod1, mod2, feature] = parts.map((s) => s.trim());
+    const system = parts[0].trim();
+    const role = parts[1].trim();
+    const mod1 = parts[2].trim();
+    const mod2 = parts[3].trim();
+    const feature = parts[4].trim();
+    const description =
+      parts.length > 6 ? parts.slice(5).join(",").trim() : parts[5].trim();
     if (!feature) continue;
-    rows.push({ system, role, mod1, mod2, feature, raw: line });
+    rows.push({ system, role, mod1, mod2, feature, description, raw: line });
   }
   return rows;
 }
 
 function collectKeywords(row) {
-  const blob = `${row.mod1}${row.mod2}${row.feature}`;
-  const cn = blob.match(CN_TOKEN) ?? [];
+  const blob = `${row.mod1}${row.mod2}${row.feature}${row.description ?? ""}`;
+  const cn = [];
   const en = new Set();
-  for (const t of cn) {
-    for (const [zh, enPart] of TERM_TO_EN) {
-      if (t.includes(zh)) en.add(enPart);
+  for (const [zh, enPart] of TERM_TO_EN) {
+    const asciiKey = /^[a-z0-9-]+$/i.test(zh);
+    if (asciiKey) {
+      if (blob.toLowerCase().includes(zh.toLowerCase())) en.add(enPart);
+      continue;
+    }
+    if (blob.includes(zh)) {
+      cn.push(zh);
+      en.add(enPart);
     }
   }
   return { cn: [...new Set(cn)], en: [...en] };
