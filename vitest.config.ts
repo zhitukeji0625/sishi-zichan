@@ -1,6 +1,14 @@
-import "dotenv/config";
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { config as loadEnv } from "dotenv";
 import { defineConfig } from "vitest/config";
-import path from "path";
+
+const envTest = path.resolve(__dirname, ".env.test");
+if (existsSync(envTest)) {
+  loadEnv({ path: envTest });
+} else {
+  loadEnv();
+}
 
 export default defineConfig({
   test: {
