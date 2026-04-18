@@ -73,15 +73,20 @@ function readCsv(filePath) {
 }
 
 function collectKeywords(row) {
-  const blob = `${row.mod1}${row.mod2}${row.feature}`;
-  const cn = blob.match(CN_TOKEN) ?? [];
+  // 分别扫描各级字段，避免拼接后整段被正则当成单一超长词元而无法命中代码里的短语文本
+  const cnSet = new Set();
+  for (const part of [row.mod1, row.mod2, row.feature]) {
+    if (!part) continue;
+    for (const t of part.match(CN_TOKEN) ?? []) cnSet.add(t);
+  }
+  const cn = [...cnSet];
   const en = new Set();
   for (const t of cn) {
     for (const [zh, enPart] of TERM_TO_EN) {
       if (t.includes(zh)) en.add(enPart);
     }
   }
-  return { cn: [...new Set(cn)], en: [...en] };
+  return { cn, en: [...en] };
 }
 
 function* walkFiles(dir) {
