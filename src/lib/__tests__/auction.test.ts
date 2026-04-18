@@ -3,20 +3,22 @@ import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+const databaseUrl = process.env.DATABASE_URL;
+const prisma = databaseUrl ? new PrismaClient() : null;
 
-describe("placeBid", () => {
+describe.skipIf(!databaseUrl)("placeBid (integration)", () => {
+  const db = prisma!;
   let orgId: string;
   let assetId: string;
   let projectId: string;
   let userId: string;
 
   beforeAll(async () => {
-    const org = await prisma.organization.create({
+    const org = await db.organization.create({
       data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
     });
     orgId = org.id;
-    const asset = await prisma.asset.create({
+    const asset = await db.asset.create({
       data: {
         orgId,
         type: "LAND",
@@ -26,7 +28,7 @@ describe("placeBid", () => {
       },
     });
     assetId = asset.id;
-    const user = await prisma.endUser.create({
+    const user = await db.endUser.create({
       data: {
         phone: `199${Date.now().toString().slice(-8)}`,
         passwordHash: "x",
@@ -34,7 +36,7 @@ describe("placeBid", () => {
       },
     });
     userId = user.id;
-    const project = await prisma.auctionProject.create({
+    const project = await db.auctionProject.create({
       data: {
         code: `TAP${Date.now()}`,
         assetId,
@@ -47,7 +49,7 @@ describe("placeBid", () => {
       },
     });
     projectId = project.id;
-    await prisma.auctionRegistration.create({
+    await db.auctionRegistration.create({
       data: {
         projectId,
         endUserId: userId,
@@ -58,13 +60,13 @@ describe("placeBid", () => {
   });
 
   afterAll(async () => {
-    await prisma.auctionBid.deleteMany({ where: { projectId } });
-    await prisma.auctionRegistration.deleteMany({ where: { projectId } });
-    await prisma.auctionProject.delete({ where: { id: projectId } });
-    await prisma.asset.delete({ where: { id: assetId } });
-    await prisma.endUser.delete({ where: { id: userId } });
-    await prisma.organization.delete({ where: { id: orgId } });
-    await prisma.$disconnect();
+    await db.auctionBid.deleteMany({ where: { projectId } });
+    await db.auctionRegistration.deleteMany({ where: { projectId } });
+    await db.auctionProject.delete({ where: { id: projectId } });
+    await db.asset.delete({ where: { id: assetId } });
+    await db.endUser.delete({ where: { id: userId } });
+    await db.organization.delete({ where: { id: orgId } });
+    await db.$disconnect();
   });
 
   it("accepts first bid at start price", async () => {
