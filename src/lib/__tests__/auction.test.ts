@@ -5,7 +5,10 @@ import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+/** 集成测试需可连通的 MySQL（见 .env.example）；无 DATABASE_URL 时跳过以免本地/CI 裸跑失败 */
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
+
+describe.skipIf(!hasDatabaseUrl)("placeBid", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
