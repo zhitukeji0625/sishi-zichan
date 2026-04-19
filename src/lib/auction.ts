@@ -1,3 +1,4 @@
+import type { AuctionRegistration } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 
@@ -7,6 +8,24 @@ export async function getHighestBid(projectId: string) {
     orderBy: { amount: "desc" },
   });
   return top?.amount ?? null;
+}
+
+/** 当前场次最低可接受出价（无历史出价时为起拍价，否则为当前最高价加加价幅度） */
+export function minRequiredBidAmount(params: {
+  startPrice: Decimal;
+  bidStep: Decimal;
+  highestBidAmount: Decimal | null;
+}): Decimal {
+  const { startPrice, bidStep, highestBidAmount } = params;
+  return highestBidAmount
+    ? new Decimal(highestBidAmount.toString()).plus(bidStep.toString())
+    : new Decimal(startPrice.toString());
+}
+
+export function assertBidRegistration(reg: AuctionRegistration | null) {
+  if (!reg || reg.status !== "APPROVED" || !reg.depositPaid) {
+    throw new Error("无出价资格，请完成报名与保证金");
+  }
 }
 
 export async function placeBid(params: {
@@ -23,16 +42,16 @@ export async function placeBid(params: {
     const reg = await tx.auctionRegistration.findUnique({
       where: { projectId_endUserId: { projectId, endUserId } },
     });
-    if (!reg || reg.status !== "APPROVED" || !reg.depositPaid) {
-      throw new Error("无出价资格，请完成报名与保证金");
-    }
+    assertBidRegistration(reg);
     const top = await tx.auctionBid.findFirst({
       where: { projectId },
       orderBy: { amount: "desc" },
     });
-    const minNext = top
-      ? new Decimal(top.amount.toString()).plus(project.bidStep.toString())
-      : new Decimal(project.startPrice.toString());
+    const minNext = minRequiredBidAmount({
+      startPrice: project.startPrice,
+      bidStep: project.bidStep,
+      highestBidAmount: top ? new Decimal(top.amount.toString()) : null,
+    });
     if (amount.lessThan(minNext)) {
       throw new Error(`出价需不低于 ${minNext.toFixed(2)}`);
     }
