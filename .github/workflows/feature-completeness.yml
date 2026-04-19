@@ -1,0 +1,15 @@
+name: Feature completeness
+
+on:
+  push:
+    branches: [main, "cursor/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run feature completeness script
+        run: npm run check:features
