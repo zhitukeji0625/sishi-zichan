@@ -1,11 +1,32 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { getMinNextBidAmount, placeBid } from "@/lib/auction";
+
+describe("getMinNextBidAmount", () => {
+  it("首笔出价为起拍价", () => {
+    const min = getMinNextBidAmount({
+      startPrice: new Decimal(100),
+      bidStep: new Decimal(10),
+      highestBidAmount: null,
+    });
+    expect(min.toString()).toBe("100");
+  });
+
+  it("已有最高价时为最高价加加价幅度", () => {
+    const min = getMinNextBidAmount({
+      startPrice: new Decimal(100),
+      bidStep: new Decimal(10),
+      highestBidAmount: new Decimal(100),
+    });
+    expect(min.toString()).toBe("110");
+  });
+});
 
 const prisma = new PrismaClient();
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
 
-describe("placeBid", () => {
+describe.skipIf(!hasDatabaseUrl)("placeBid（集成，需 DATABASE_URL）", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
