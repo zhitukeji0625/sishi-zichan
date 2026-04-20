@@ -5,7 +5,8 @@ import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+/** 需 MySQL：设置 SISHI_TEST_DB=1 且配置 DATABASE_URL（见 .env.test 与 npm run test:integration） */
+describe.skipIf(process.env.SISHI_TEST_DB !== "1")("placeBid (integration)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
