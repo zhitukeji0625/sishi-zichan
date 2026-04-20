@@ -72,16 +72,29 @@ function readCsv(filePath) {
   return rows;
 }
 
+function cjkRuns(text) {
+  if (!text) return [];
+  return String(text)
+    .split(/[^\u4e00-\u9fff]+/)
+    .filter((s) => s.length >= 2);
+}
+
 function collectKeywords(row) {
   const blob = `${row.mod1}${row.mod2}${row.feature}`;
-  const cn = blob.match(CN_TOKEN) ?? [];
-  const en = new Set();
-  for (const t of cn) {
-    for (const [zh, enPart] of TERM_TO_EN) {
-      if (t.includes(zh)) en.add(enPart);
+  const cnSet = new Set();
+  for (const part of [row.mod1, row.mod2, row.feature]) {
+    for (const run of cjkRuns(part)) {
+      cnSet.add(run);
+      for (const t of run.match(CN_TOKEN) ?? []) {
+        if (t.length >= 2) cnSet.add(t);
+      }
     }
   }
-  return { cn: [...new Set(cn)], en: [...en] };
+  const en = new Set();
+  for (const [zh, enPart] of TERM_TO_EN) {
+    if (blob.includes(zh)) en.add(enPart);
+  }
+  return { cn: [...cnSet], en: [...en] };
 }
 
 function* walkFiles(dir) {
