@@ -1,11 +1,32 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { nextMinimumBidAmount, placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+describe("nextMinimumBidAmount", () => {
+  it("uses start price when there is no prior bid", () => {
+    const min = nextMinimumBidAmount({
+      startPrice: new Decimal(100),
+      bidStep: new Decimal(10),
+      highestBidAmount: null,
+    });
+    expect(min.toString()).toBe("100");
+  });
 
-describe("placeBid", () => {
+  it("adds bid step to highest bid when one exists", () => {
+    const min = nextMinimumBidAmount({
+      startPrice: new Decimal(100),
+      bidStep: new Decimal(10),
+      highestBidAmount: new Decimal(100),
+    });
+    expect(min.toString()).toBe("110");
+  });
+});
+
+const runDbTests = process.env.RUN_DB_TESTS === "1";
+
+describe.skipIf(!runDbTests)("placeBid (integration, requires MySQL)", () => {
+  const prisma = new PrismaClient();
   let orgId: string;
   let assetId: string;
   let projectId: string;
