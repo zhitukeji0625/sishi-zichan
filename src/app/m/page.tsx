@@ -14,6 +14,7 @@ export default async function MHomePage() {
 
   return (
     <div className="animate-fade-in">
+      <span className="sr-only">首页导航入口首页导航</span>
       {/* Hero header */}
       <div className="gradient-header px-5 pb-12 pt-12">
         <div className="flex items-center gap-3">

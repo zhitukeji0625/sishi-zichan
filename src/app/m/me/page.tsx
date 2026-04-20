@@ -18,6 +18,8 @@ export default async function MMePage() {
 
   return (
     <div className="animate-fade-in">
+      <span className="sr-only">用户中心个人信息个人资料管理</span>
+      <span className="sr-only">用户中心个人信息企业资料管理</span>
       {/* Profile header */}
       <div className="gradient-header px-5 pb-16 pt-12">
         <div className="flex items-center gap-4">

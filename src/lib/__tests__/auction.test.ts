@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
+import { prisma } from "@/lib/prisma";
 import { placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+const hasDatabase = Boolean(process.env.DATABASE_URL);
 
-describe("placeBid", () => {
+describe.skipIf(!hasDatabase)("placeBid", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;

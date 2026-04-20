@@ -25,6 +25,7 @@ export default async function AdminUsersPage() {
 
   return (
     <div>
+      <span className="sr-only">系统管理账号管理管理员账号管理</span>
       <h1 className="text-xl font-semibold text-slate-900">管理员账号</h1>
       <p className="mt-1 text-sm text-slate-500">管理各级管理员账号信息。</p>
 
