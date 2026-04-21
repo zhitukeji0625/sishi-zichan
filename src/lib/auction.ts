@@ -9,6 +9,21 @@ export async function getHighestBid(projectId: string) {
   return top?.amount ?? null;
 }
 
+/**
+ * 纯函数：根据当前最高价与项目规则计算「下一口」最低可接受出价。
+ * 便于在无数据库环境下做单测。
+ */
+export function minimumNextBidAmount(params: {
+  startPrice: Decimal;
+  bidStep: Decimal;
+  highestBidAmount: Decimal | null;
+}): Decimal {
+  const { startPrice, bidStep, highestBidAmount } = params;
+  return highestBidAmount
+    ? new Decimal(highestBidAmount.toString()).plus(bidStep.toString())
+    : new Decimal(startPrice.toString());
+}
+
 export async function placeBid(params: {
   projectId: string;
   endUserId: string;
@@ -30,9 +45,11 @@ export async function placeBid(params: {
       where: { projectId },
       orderBy: { amount: "desc" },
     });
-    const minNext = top
-      ? new Decimal(top.amount.toString()).plus(project.bidStep.toString())
-      : new Decimal(project.startPrice.toString());
+    const minNext = minimumNextBidAmount({
+      startPrice: project.startPrice,
+      bidStep: project.bidStep,
+      highestBidAmount: top ? new Decimal(top.amount.toString()) : null,
+    });
     if (amount.lessThan(minNext)) {
       throw new Error(`出价需不低于 ${minNext.toFixed(2)}`);
     }
