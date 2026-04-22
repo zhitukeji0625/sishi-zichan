@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
-import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { getDictMap } from "@/lib/dict";
 
 export default async function AdminAuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
