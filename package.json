@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest run",
+    "test": "sh -c 'export DATABASE_URL=\"${DATABASE_URL:-mysql://root:root@127.0.0.1:3306/sishi}\"; prisma db push && vitest run'",
     "test:watch": "vitest",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
