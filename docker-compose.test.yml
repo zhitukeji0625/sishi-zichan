@@ -1,0 +1,6 @@
+# 本地 / CI 集成测试：将 MySQL 暴露到宿主机，供 Vitest 连接。
+# 用法：docker compose -f docker-compose.yml -f docker-compose.test.yml up -d mysql
+services:
+  mysql:
+    ports:
+      - "3307:3306"
