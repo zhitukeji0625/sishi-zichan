@@ -5,7 +5,10 @@ import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim());
+const describeIntegration = hasDatabaseUrl ? describe : describe.skip;
+
+describeIntegration("placeBid (integration, requires DATABASE_URL)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
