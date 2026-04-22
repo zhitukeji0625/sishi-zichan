@@ -5,7 +5,11 @@ import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+const describeDb = process.env.DATABASE_URL
+  ? describe
+  : describe.skip;
+
+describeDb("placeBid", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
