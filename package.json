@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
+    "test:ci": "docker compose -f docker-compose.test.yml up -d --wait && DATABASE_URL=mysql://root:root@127.0.0.1:13306/sishi_test npx prisma db push && npm test && docker compose -f docker-compose.test.yml down -v",
     "test:watch": "vitest",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
