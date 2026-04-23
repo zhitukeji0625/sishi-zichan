@@ -1,0 +1,10 @@
+[project]
+name = "sishi-zichan"
+version = "0.1.0"
+description = "Placeholder package for sishi-zichan"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sishi_zichan*"]
