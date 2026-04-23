@@ -2,5 +2,8 @@ node_modules
 # Keep environment variables out of version control
 .env
 
+# Local MariaDB datadir (e.g. CI/agent ephemeral DB)
+.mariadb-data
+
 /generated/prisma
 .next
