@@ -1,11 +1,70 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import {
+  placeBid,
+  assertBidMeetsMinimum,
+  getMinimumNextBidAmount,
+} from "@/lib/auction";
 
-const prisma = new PrismaClient();
+describe("getMinimumNextBidAmount / assertBidMeetsMinimum", () => {
+  it("first bid must be at least start price", () => {
+    expect(
+      getMinimumNextBidAmount({
+        startPrice: "100",
+        bidStep: "10",
+        highestBidAmount: null,
+      }).toString(),
+    ).toBe("100");
+    expect(() =>
+      assertBidMeetsMinimum({
+        amount: new Decimal(100),
+        startPrice: "100",
+        bidStep: "10",
+        highestBidAmount: null,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertBidMeetsMinimum({
+        amount: new Decimal(99),
+        startPrice: "100",
+        bidStep: "10",
+        highestBidAmount: null,
+      }),
+    ).toThrow();
+  });
 
-describe("placeBid", () => {
+  it("subsequent bid must beat highest by bid step", () => {
+    expect(
+      getMinimumNextBidAmount({
+        startPrice: "100",
+        bidStep: "10",
+        highestBidAmount: "100",
+      }).toString(),
+    ).toBe("110");
+    expect(() =>
+      assertBidMeetsMinimum({
+        amount: new Decimal(105),
+        startPrice: "100",
+        bidStep: "10",
+        highestBidAmount: "100",
+      }),
+    ).toThrow();
+    expect(() =>
+      assertBidMeetsMinimum({
+        amount: new Decimal(110),
+        startPrice: "100",
+        bidStep: "10",
+        highestBidAmount: "100",
+      }),
+    ).not.toThrow();
+  });
+});
+
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+
+describe.skipIf(!hasDatabaseUrl)("placeBid (integration)", () => {
+  const prisma = new PrismaClient();
   let orgId: string;
   let assetId: string;
   let projectId: string;
