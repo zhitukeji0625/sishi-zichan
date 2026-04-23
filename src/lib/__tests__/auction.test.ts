@@ -5,7 +5,9 @@ import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+const runDbTests = Boolean(process.env.DATABASE_URL);
+
+describe.skipIf(!runDbTests)("placeBid (MySQL)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
