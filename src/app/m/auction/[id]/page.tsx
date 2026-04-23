@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
-import { getHighestBid } from "@/lib/auction";
+import { getHighestBid, nextMinimumBidAmount } from "@/lib/auction";
+import { parseAssetImagesJson } from "@/lib/asset-images";
 import { format } from "date-fns";
 import { ChevronLeft } from "lucide-react";
 import { registerAuctionAction } from "../actions";
@@ -72,6 +74,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
     ENDED: { label: "已结束", cls: "status-ended" },
   };
   const st = statusInfo[project.status] ?? { label: project.status, cls: "status-ended" };
+  const galleryUrls = parseAssetImagesJson(project.asset.imagesJson);
 
   return (
     <div className="animate-fade-in">
@@ -87,21 +90,15 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="relative -mt-6 px-4 space-y-4">
-        {(() => {
-          try {
-            const imgs = project.asset.imagesJson ? JSON.parse(project.asset.imagesJson) : [];
-            if (imgs.length === 0) return null;
-            return (
-              <div className="card-elevated-lg overflow-hidden animate-slide-up">
-                <div className="flex gap-2 overflow-x-auto p-3">
-                  {imgs.map((url: string, i: number) => (
-                    <img key={i} src={url} alt="" className="h-40 w-60 shrink-0 rounded-xl object-cover" />
-                  ))}
-                </div>
-              </div>
-            );
-          } catch { return null; }
-        })()}
+        {galleryUrls.length > 0 && (
+          <div className="card-elevated-lg overflow-hidden animate-slide-up">
+            <div className="flex gap-2 overflow-x-auto p-3">
+              {galleryUrls.map((url, i) => (
+                <img key={i} src={url} alt="" className="h-40 w-60 shrink-0 rounded-xl object-cover" />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Price info card */}
         <div className="card-elevated-lg p-5 animate-slide-up">
@@ -193,10 +190,12 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
             </form>
           )}
           {user && reg?.status === "APPROVED" && reg.depositPaid && project.status === "LIVE" && (() => {
-            const minNext = top
-              ? Number(top.toString()) + Number(project.bidStep.toString())
-              : Number(project.startPrice.toString());
-            return <BidForm projectId={projectId} minBid={minNext} />;
+            const minNext = nextMinimumBidAmount({
+              highestBidAmount: top ? new Decimal(top.toString()) : null,
+              startPrice: new Decimal(project.startPrice.toString()),
+              bidStep: new Decimal(project.bidStep.toString()),
+            });
+            return <BidForm projectId={projectId} minBid={Number(minNext.toString())} />;
           })()}
           {isWinner && !existingContract && (
             <form action={goToContract}>
