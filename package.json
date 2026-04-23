@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:validate": "node -e \"require('dotenv').config({ path: '.env.example' }); const { spawnSync } = require('child_process'); process.exit(spawnSync('npx', ['prisma', 'validate'], { stdio: 'inherit', env: process.env }).status ?? 1)\""
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
