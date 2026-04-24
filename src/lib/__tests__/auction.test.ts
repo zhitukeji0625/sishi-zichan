@@ -3,9 +3,13 @@ import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
+const dbAvailable = Boolean(
+  (globalThis as { __SISHI_DB_AVAILABLE__?: boolean }).__SISHI_DB_AVAILABLE__,
+);
+
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+describe.skipIf(!dbAvailable)("placeBid", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
