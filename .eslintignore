@@ -1,0 +1,9 @@
+node_modules
+next-env.d.ts
+.next
+out
+dist
+coverage
+*.config.js
+*.config.mjs
+*.config.ts
