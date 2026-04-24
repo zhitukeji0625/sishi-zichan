@@ -4,8 +4,9 @@ import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
+const runIntegration = process.env.RUN_INTEGRATION_TESTS === "1";
 
-describe("placeBid", () => {
+describe.skipIf(!runIntegration)("placeBid (integration)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
