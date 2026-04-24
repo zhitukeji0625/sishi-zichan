@@ -96,6 +96,8 @@ docker compose up -d --build
 npm run test
 ```
 
+未配置 `DATABASE_URL` 时，依赖数据库的集成用例会自动跳过（便于 CI 只做编译检查）。要跑完整出价集成测试：先配置 `.env` 中的 `DATABASE_URL`，执行 `npx prisma db push`，再执行 `npm run test`。
+
 ## 说明
 
 - CSV 需求中的全部能力已分阶段落在数据模型与路由中；当前界面实现了核心闭环（资产录入、发拍、报名审核、保证金模拟、出价、公告、晒场预约与审核、消息、订单列表）。合同 PDF、农行真实 SDK、OCR/人脸、大屏监控、报表导出等需对接外部服务或二期扩展。
