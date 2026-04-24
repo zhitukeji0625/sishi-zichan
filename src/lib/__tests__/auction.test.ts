@@ -58,12 +58,16 @@ describe("placeBid", () => {
   });
 
   afterAll(async () => {
+    if (!projectId) {
+      await prisma.$disconnect();
+      return;
+    }
     await prisma.auctionBid.deleteMany({ where: { projectId } });
     await prisma.auctionRegistration.deleteMany({ where: { projectId } });
     await prisma.auctionProject.delete({ where: { id: projectId } });
-    await prisma.asset.delete({ where: { id: assetId } });
-    await prisma.endUser.delete({ where: { id: userId } });
-    await prisma.organization.delete({ where: { id: orgId } });
+    if (assetId) await prisma.asset.delete({ where: { id: assetId } });
+    if (userId) await prisma.endUser.delete({ where: { id: userId } });
+    if (orgId) await prisma.organization.delete({ where: { id: orgId } });
     await prisma.$disconnect();
   });
 
