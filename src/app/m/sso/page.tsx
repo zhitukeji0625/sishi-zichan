@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function SsoInner() {
   const router = useRouter();
   const search = useSearchParams();
-  const [msg, setMsg] = useState("正在验证第三方票据…");
+  const initialMsg = useMemo(() => {
+    return search.get("token") ? "正在验证第三方票据…" : "缺少 token 参数";
+  }, [search]);
+  const [msg, setMsg] = useState(initialMsg);
 
   useEffect(() => {
     const token = search.get("token");
-    if (!token) {
-      setMsg("缺少 token 参数");
-      return;
-    }
+    if (!token) return;
     (async () => {
       const res = await fetch("/api/auth/third-party", {
         method: "POST",
