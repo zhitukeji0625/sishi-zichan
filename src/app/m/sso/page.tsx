@@ -11,7 +11,7 @@ function SsoInner() {
   useEffect(() => {
     const token = search.get("token");
     if (!token) {
-      setMsg("缺少 token 参数");
+      queueMicrotask(() => setMsg("缺少 token 参数"));
       return;
     }
     (async () => {
