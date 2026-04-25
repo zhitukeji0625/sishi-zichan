@@ -1,11 +1,45 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { computeMinNextBid, placeBid } from "@/lib/auction";
 
+async function isDatabaseReachable(): Promise<boolean> {
+  if (!process.env.DATABASE_URL) return false;
+  const client = new PrismaClient();
+  try {
+    await client.$queryRaw`SELECT 1`;
+    return true;
+  } catch {
+    return false;
+  } finally {
+    await client.$disconnect().catch(() => {});
+  }
+}
+
+const dbReachable = await isDatabaseReachable();
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+describe("computeMinNextBid", () => {
+  it("first bid floor is start price", () => {
+    const min = computeMinNextBid({
+      highestAmount: null,
+      startPrice: new Decimal(100),
+      bidStep: new Decimal(10),
+    });
+    expect(min.toString()).toBe("100");
+  });
+
+  it("after a top bid, floor is top plus step", () => {
+    const min = computeMinNextBid({
+      highestAmount: new Decimal(100),
+      startPrice: new Decimal(100),
+      bidStep: new Decimal(10),
+    });
+    expect(min.toString()).toBe("110");
+  });
+});
+
+describe.skipIf(!dbReachable)("placeBid", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
