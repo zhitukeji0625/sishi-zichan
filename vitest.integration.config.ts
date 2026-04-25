@@ -6,8 +6,8 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    // 集成测试需可连 MySQL/MariaDB；默认 CI 只跑纯单元测试
-    exclude: ["**/node_modules/**", "**/*.integration.test.ts"],
+    include: ["**/*.integration.test.ts"],
+    exclude: ["**/node_modules/**"],
   },
   resolve: {
     alias: {
