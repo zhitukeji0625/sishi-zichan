@@ -1,0 +1,6 @@
+# 与 docker-compose.yml 叠加使用，为本地/CI 测试暴露 MySQL 端口。
+# 用法: docker compose -f docker-compose.yml -f docker-compose.test.yml up -d mysql
+services:
+  mysql:
+    ports:
+      - "127.0.0.1:3307:3306"
