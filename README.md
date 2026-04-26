@@ -96,6 +96,15 @@ docker compose up -d --build
 npm run test
 ```
 
+默认仅运行**不依赖数据库**的单元测试（如出价规则）。需 MySQL/MariaDB 的集成测试：
+
+```bash
+npm run test:db:up          # 启动 docker-compose.test.yml 中的测试库（端口 3307）
+npx prisma db push          # 使用仓库根目录 .env.test 中的 DATABASE_URL
+npm run test:integration    # RUN_INTEGRATION_TESTS=1 下运行 *.integration.test.ts
+npm run test:db:down        # 可选：停止并删除测试卷
+```
+
 ## 说明
 
 - CSV 需求中的全部能力已分阶段落在数据模型与路由中；当前界面实现了核心闭环（资产录入、发拍、报名审核、保证金模拟、出价、公告、晒场预约与审核、消息、订单列表）。合同 PDF、农行真实 SDK、OCR/人脸、大屏监控、报表导出等需对接外部服务或二期扩展。
