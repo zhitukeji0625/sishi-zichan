@@ -1,0 +1,6 @@
+# 可选叠加：把 MySQL 映射到宿主机，便于本地 Prisma / Vitest 集成测试。
+# 用法：docker compose -f docker-compose.yml -f docker-compose.test.yml up -d mysql
+services:
+  mysql:
+    ports:
+      - "${MYSQL_TEST_PORT:-3307}:3306"

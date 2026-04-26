@@ -5,7 +5,9 @@ import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+describe.skipIf(!process.env.DATABASE_URL)(
+  "placeBid (integration, needs .env.test + MySQL)",
+  () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
@@ -81,4 +83,5 @@ describe("placeBid", () => {
       placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
     ).rejects.toThrow();
   });
-});
+  },
+);
