@@ -5,7 +5,11 @@ import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+/** 需真实 MySQL/MariaDB 与可用 DATABASE_URL；未设置时跳过（CI 与无库环境仍可通过 npm test）。 */
+const runDbIntegration =
+  process.env.RUN_DB_TESTS === "1" && Boolean(process.env.DATABASE_URL);
+
+describe.skipIf(!runDbIntegration)("placeBid (database)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
