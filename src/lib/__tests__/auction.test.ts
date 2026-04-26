@@ -1,84 +1,85 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PrismaClient } from "@prisma/client";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+const mocks = vi.hoisted(() => {
+  const tx = {
+    auctionProject: { findUnique: vi.fn() },
+    auctionRegistration: { findUnique: vi.fn() },
+    auctionBid: { findFirst: vi.fn(), create: vi.fn() },
+  };
+  return {
+    tx,
+    prisma: {
+      $transaction: vi.fn(
+        (callback: (t: typeof tx) => Promise<unknown>) => callback(tx),
+      ),
+    },
+  };
+});
+
+vi.mock("@/lib/prisma", () => ({ prisma: mocks.prisma }));
 
 describe("placeBid", () => {
-  let orgId: string;
-  let assetId: string;
-  let projectId: string;
-  let userId: string;
+  const projectId = "proj-1";
+  const endUserId = "user-1";
 
-  beforeAll(async () => {
-    const org = await prisma.organization.create({
-      data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
-    });
-    orgId = org.id;
-    const asset = await prisma.asset.create({
-      data: {
-        orgId,
-        type: "LAND",
-        name: "测试资产",
-        locationText: "测试",
-        status: "IDLE",
-      },
-    });
-    assetId = asset.id;
-    const user = await prisma.endUser.create({
-      data: {
-        phone: `199${Date.now().toString().slice(-8)}`,
-        passwordHash: "x",
-        name: "测试用户",
-      },
-    });
-    userId = user.id;
-    const project = await prisma.auctionProject.create({
-      data: {
-        code: `TAP${Date.now()}`,
-        assetId,
-        startPrice: new Decimal(100),
-        bidStep: new Decimal(10),
-        depositAmount: new Decimal(5),
-        startsAt: new Date(Date.now() - 1000),
-        endsAt: new Date(Date.now() + 86400000),
-        status: "LIVE",
-      },
-    });
-    projectId = project.id;
-    await prisma.auctionRegistration.create({
-      data: {
-        projectId,
-        endUserId: userId,
-        status: "APPROVED",
-        depositPaid: true,
-      },
-    });
-  });
+  const liveProject = {
+    id: projectId,
+    status: "LIVE" as const,
+    startPrice: new Decimal(100),
+    bidStep: new Decimal(10),
+  };
 
-  afterAll(async () => {
-    await prisma.auctionBid.deleteMany({ where: { projectId } });
-    await prisma.auctionRegistration.deleteMany({ where: { projectId } });
-    await prisma.auctionProject.delete({ where: { id: projectId } });
-    await prisma.asset.delete({ where: { id: assetId } });
-    await prisma.endUser.delete({ where: { id: userId } });
-    await prisma.organization.delete({ where: { id: orgId } });
-    await prisma.$disconnect();
+  const approvedReg = {
+    status: "APPROVED" as const,
+    depositPaid: true,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.prisma.$transaction.mockImplementation((callback) =>
+      callback(mocks.tx),
+    );
   });
 
   it("accepts first bid at start price", async () => {
-    const bid = await placeBid({
+    mocks.tx.auctionProject.findUnique.mockResolvedValue(liveProject);
+    mocks.tx.auctionRegistration.findUnique.mockResolvedValue(approvedReg);
+    mocks.tx.auctionBid.findFirst.mockResolvedValue(null);
+    mocks.tx.auctionBid.create.mockResolvedValue({
+      id: "bid-1",
       projectId,
-      endUserId: userId,
+      endUserId,
       amount: new Decimal(100),
     });
+
+    const bid = await placeBid({
+      projectId,
+      endUserId,
+      amount: new Decimal(100),
+    });
+
     expect(bid.amount.toString()).toBe("100");
+    expect(mocks.tx.auctionBid.create).toHaveBeenCalledWith({
+      data: { projectId, endUserId, amount: expect.any(Decimal) },
+    });
   });
 
   it("rejects bid below min increment", async () => {
+    mocks.tx.auctionProject.findUnique.mockResolvedValue(liveProject);
+    mocks.tx.auctionRegistration.findUnique.mockResolvedValue(approvedReg);
+    mocks.tx.auctionBid.findFirst.mockResolvedValue({
+      id: "prev",
+      projectId,
+      endUserId: "other",
+      amount: new Decimal(100),
+    });
+
     await expect(
-      placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
-    ).rejects.toThrow();
+      placeBid({ projectId, endUserId, amount: new Decimal(105) }),
+    ).rejects.toThrow(/出价需不低于/);
+
+    expect(mocks.tx.auctionBid.create).not.toHaveBeenCalled();
   });
 });
