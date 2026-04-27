@@ -2,10 +2,17 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
+import { isPrismaDatabaseReachable } from "./db-available";
 
-const prisma = new PrismaClient();
+let prismaDatabaseReachable = false;
+try {
+  prismaDatabaseReachable = await isPrismaDatabaseReachable();
+} catch {
+  prismaDatabaseReachable = false;
+}
 
-describe("placeBid", () => {
+describe.skipIf(!prismaDatabaseReachable)("placeBid (integration)", () => {
+  const prisma = new PrismaClient();
   let orgId: string;
   let assetId: string;
   let projectId: string;
