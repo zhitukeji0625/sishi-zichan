@@ -2,10 +2,13 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
+import { isIntegrationDbAvailable } from "./db-available";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+const integrationDbReady = await isIntegrationDbAvailable();
+
+describe.skipIf(!integrationDbReady)("placeBid", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
