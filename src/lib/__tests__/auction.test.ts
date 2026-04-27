@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
+import { prisma } from "@/lib/prisma";
 
-const prisma = new PrismaClient();
+/** 需要本地 MySQL/MariaDB 与 `npx prisma db push`；未设置时跳过以免 CI 无库失败 */
+const runDbTests = process.env.RUN_DB_TESTS === "1";
 
-describe("placeBid", () => {
+describe.skipIf(!runDbTests)("placeBid (database)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
