@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
-import { isDivision, adminCanAccessOrg } from "@/lib/rbac";
+import { isDivision } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 import { hashPassword } from "@/lib/auth/password";
 import { AdminRole } from "@prisma/client";
