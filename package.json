@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:push": "prisma db push",
+    "db:validate": "DATABASE_URL=\"${DATABASE_URL:-mysql://root:root@127.0.0.1:3306/sishi}\" prisma validate",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio"
   },
