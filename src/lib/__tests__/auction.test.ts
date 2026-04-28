@@ -5,7 +5,9 @@ import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+const hasDb = Boolean(process.env.DATABASE_URL);
+
+describe.skipIf(!hasDb)("placeBid (integration)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
@@ -76,7 +78,12 @@ describe("placeBid", () => {
     expect(bid.amount.toString()).toBe("100");
   });
 
-  it("rejects bid below min increment", async () => {
+  it("rejects bid below min increment after first bid", async () => {
+    await placeBid({
+      projectId,
+      endUserId: userId,
+      amount: new Decimal(100),
+    });
     await expect(
       placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
     ).rejects.toThrow();
