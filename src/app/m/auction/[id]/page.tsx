@@ -73,6 +73,29 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
   };
   const st = statusInfo[project.status] ?? { label: project.status, cls: "status-ended" };
 
+  let imageUrls: string[] = [];
+  if (project.asset.imagesJson) {
+    try {
+      const parsed: unknown = JSON.parse(project.asset.imagesJson);
+      if (Array.isArray(parsed) && parsed.every((u) => typeof u === "string")) {
+        imageUrls = parsed;
+      }
+    } catch {
+      imageUrls = [];
+    }
+  }
+  const gallerySection =
+    imageUrls.length > 0 ? (
+      <div className="card-elevated-lg overflow-hidden animate-slide-up">
+        <div className="flex gap-2 overflow-x-auto p-3">
+          {imageUrls.map((url, i) => (
+            // eslint-disable-next-line @next/next/no-img-element -- 竞拍详情图为动态上传 URL
+            <img key={i} src={url} alt="" className="h-40 w-60 shrink-0 rounded-xl object-cover" />
+          ))}
+        </div>
+      </div>
+    ) : null;
+
   return (
     <div className="animate-fade-in">
       <div className="gradient-header px-5 pb-12 pt-8">
@@ -87,21 +110,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="relative -mt-6 px-4 space-y-4">
-        {(() => {
-          try {
-            const imgs = project.asset.imagesJson ? JSON.parse(project.asset.imagesJson) : [];
-            if (imgs.length === 0) return null;
-            return (
-              <div className="card-elevated-lg overflow-hidden animate-slide-up">
-                <div className="flex gap-2 overflow-x-auto p-3">
-                  {imgs.map((url: string, i: number) => (
-                    <img key={i} src={url} alt="" className="h-40 w-60 shrink-0 rounded-xl object-cover" />
-                  ))}
-                </div>
-              </div>
-            );
-          } catch { return null; }
-        })()}
+        {gallerySection}
 
         {/* Price info card */}
         <div className="card-elevated-lg p-5 animate-slide-up">
