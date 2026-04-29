@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Image from "next/image";
 import { Upload, X } from "lucide-react";
 
 interface Props {
@@ -42,7 +43,7 @@ export function ImageUploader({ images, onChange, max = 6 }: Props) {
       <div className="flex flex-wrap gap-2">
         {images.map((url, i) => (
           <div key={i} className="group relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200">
-            <img src={url} alt="" className="h-full w-full object-cover" />
+            <Image src={url} alt="" fill unoptimized className="object-cover" sizes="80px" />
             <button
               type="button"
               onClick={() => remove(i)}
