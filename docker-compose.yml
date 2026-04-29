@@ -5,7 +5,9 @@ services:
     environment:
       MARIADB_ROOT_PASSWORD: root
       MARIADB_DATABASE: sishi
-    # 不映射到宿主机，仅容器网络内访问，降低公网暴露风险
+    # 供本机运行 Vitest / prisma CLI：仅绑定 loopback，不对外网监听
+    ports:
+      - "127.0.0.1:3306:3306"
     expose:
       - "3306"
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
