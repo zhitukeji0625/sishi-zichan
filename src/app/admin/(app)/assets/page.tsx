@@ -48,16 +48,22 @@ export default async function AdminAssetsPage() {
                 <td className="px-4 py-3"><Link href={`/admin/assets/${a.id}`} className="text-blue-700 hover:underline">{a.name}</Link></td>
                 <td className="px-4 py-3">
                   {(() => {
+                    let thumb: string | null = null;
                     try {
                       const imgs = a.imagesJson ? JSON.parse(a.imagesJson) : [];
-                      return imgs.length > 0 ? (
-                        <img src={imgs[0]} alt="" className="h-10 w-10 rounded-lg object-cover" />
-                      ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                          <Package className="h-4 w-4" />
-                        </div>
-                      );
-                    } catch { return <div className="h-10 w-10 rounded-lg bg-slate-100" />; }
+                      thumb =
+                        Array.isArray(imgs) && typeof imgs[0] === "string" ? imgs[0] : null;
+                    } catch {
+                      thumb = null;
+                    }
+                    return thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- 动态上传 URL
+                      <img src={thumb} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+                        <Package className="h-4 w-4" />
+                      </div>
+                    );
                   })()}
                 </td>
                 <td className="px-4 py-3 text-slate-600">{typeMap[a.type] ?? a.type}</td>
