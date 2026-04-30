@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, startTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function SsoInner() {
@@ -11,7 +11,7 @@ function SsoInner() {
   useEffect(() => {
     const token = search.get("token");
     if (!token) {
-      setMsg("缺少 token 参数");
+      startTransition(() => setMsg("缺少 token 参数"));
       return;
     }
     (async () => {
