@@ -1,17 +1,22 @@
+import { config as loadTestEnv } from "dotenv";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+/** 需要本机/CI 已启动 MySQL（见 docker-compose.test.yml），并设置 RUN_DB_TESTS=1 */
+const runIntegration = process.env.RUN_DB_TESTS === "1";
 
-describe("placeBid", () => {
+describe.skipIf(!runIntegration)("placeBid (integration)", () => {
+  let prisma!: PrismaClient;
   let orgId: string;
   let assetId: string;
   let projectId: string;
   let userId: string;
 
   beforeAll(async () => {
+    loadTestEnv({ path: ".env.test" });
+    prisma = new PrismaClient();
     const org = await prisma.organization.create({
       data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
     });
