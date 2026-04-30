@@ -1,84 +1,77 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { PrismaClient } from "@prisma/client";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
 
-const prisma = new PrismaClient();
+const { state } = vi.hoisted(() => ({
+  state: { bids: [] as { amount: Decimal }[] },
+}));
 
-describe("placeBid", () => {
-  let orgId: string;
-  let assetId: string;
-  let projectId: string;
-  let userId: string;
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    $transaction: async <T>(fn: (tx: Tx) => Promise<T>) => fn(createTx()),
+  },
+}));
 
-  beforeAll(async () => {
-    const org = await prisma.organization.create({
-      data: { name: "测试组织", code: `T${Date.now()}`, level: "COMPANY" },
-    });
-    orgId = org.id;
-    const asset = await prisma.asset.create({
-      data: {
-        orgId,
-        type: "LAND",
-        name: "测试资产",
-        locationText: "测试",
-        status: "IDLE",
-      },
-    });
-    assetId = asset.id;
-    const user = await prisma.endUser.create({
-      data: {
-        phone: `199${Date.now().toString().slice(-8)}`,
-        passwordHash: "x",
-        name: "测试用户",
-      },
-    });
-    userId = user.id;
-    const project = await prisma.auctionProject.create({
-      data: {
-        code: `TAP${Date.now()}`,
-        assetId,
+type Tx = ReturnType<typeof createTx>;
+
+function createTx() {
+  return {
+    auctionProject: {
+      findUnique: async () => ({
+        id: "project-1",
+        status: "LIVE" as const,
         startPrice: new Decimal(100),
         bidStep: new Decimal(10),
-        depositAmount: new Decimal(5),
-        startsAt: new Date(Date.now() - 1000),
-        endsAt: new Date(Date.now() + 86400000),
-        status: "LIVE",
-      },
-    });
-    projectId = project.id;
-    await prisma.auctionRegistration.create({
-      data: {
-        projectId,
-        endUserId: userId,
-        status: "APPROVED",
+      }),
+    },
+    auctionRegistration: {
+      findUnique: async () => ({
+        projectId: "project-1",
+        endUserId: "user-1",
+        status: "APPROVED" as const,
         depositPaid: true,
+      }),
+    },
+    auctionBid: {
+      findFirst: async () => {
+        if (state.bids.length === 0) return null;
+        let top = state.bids[0];
+        for (const b of state.bids) {
+          if (b.amount.greaterThan(top.amount)) top = b;
+        }
+        return { amount: top.amount };
       },
-    });
-  });
+      create: async ({ data }: { data: { projectId: string; endUserId: string; amount: Decimal } }) => {
+        state.bids.push({ amount: data.amount });
+        return { ...data, id: `bid-${state.bids.length}` };
+      },
+    },
+  };
+}
 
-  afterAll(async () => {
-    await prisma.auctionBid.deleteMany({ where: { projectId } });
-    await prisma.auctionRegistration.deleteMany({ where: { projectId } });
-    await prisma.auctionProject.delete({ where: { id: projectId } });
-    await prisma.asset.delete({ where: { id: assetId } });
-    await prisma.endUser.delete({ where: { id: userId } });
-    await prisma.organization.delete({ where: { id: orgId } });
-    await prisma.$disconnect();
+import { placeBid } from "@/lib/auction";
+
+describe("placeBid", () => {
+  beforeEach(() => {
+    state.bids = [];
   });
 
   it("accepts first bid at start price", async () => {
     const bid = await placeBid({
-      projectId,
-      endUserId: userId,
+      projectId: "project-1",
+      endUserId: "user-1",
       amount: new Decimal(100),
     });
     expect(bid.amount.toString()).toBe("100");
   });
 
   it("rejects bid below min increment", async () => {
+    await placeBid({
+      projectId: "project-1",
+      endUserId: "user-1",
+      amount: new Decimal(100),
+    });
     await expect(
-      placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
+      placeBid({ projectId: "project-1", endUserId: "user-1", amount: new Decimal(105) }),
     ).rejects.toThrow();
   });
 });
