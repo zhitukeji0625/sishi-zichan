@@ -28,7 +28,7 @@ sudo docker run -d --name mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATAB
 
 ### Lint
 
-`next lint` / `npx eslint` does NOT work out of the box due to a known ESLint 9 vs `eslint-config-next` compatibility issue. The README states: "构建阶段已跳过 ESLint". This is a known limitation.
+- `npm run lint` — ESLint 9 flat 配置（`eslint.config.mjs`，合并 `eslint-config-next` 的 core-web-vitals 与 typescript）
 
 ### Testing
 

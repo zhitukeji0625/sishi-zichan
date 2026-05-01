@@ -99,4 +99,4 @@ npm run test
 ## 说明
 
 - CSV 需求中的全部能力已分阶段落在数据模型与路由中；当前界面实现了核心闭环（资产录入、发拍、报名审核、保证金模拟、出价、公告、晒场预约与审核、消息、订单列表）。合同 PDF、农行真实 SDK、OCR/人脸、大屏监控、报表导出等需对接外部服务或二期扩展。
-- 构建阶段已跳过 ESLint（`eslint-config-next` 与 ESLint 9 存在兼容性问题时避免阻塞交付）；可在本地升级配置后重新开启。
+- 本地可用 `npm run lint`（ESLint 9 flat + `eslint-config-next`）；生产构建仍跳过 ESLint（`next.config.ts` 中 `eslint.ignoreDuringBuilds`），以免 CI 与本地规则差异阻塞部署。
