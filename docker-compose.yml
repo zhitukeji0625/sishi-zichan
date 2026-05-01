@@ -1,0 +1,48 @@
+services:
+  mysql:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: sishi
+    # 不映射到宿主机，仅容器网络内访问，降低公网暴露风险
+    expose:
+      - "3306"
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DATABASE_URL: mysql://root:root@mysql:3306/sishi
+    restart: unless-stopped
+    ports:
+      # 默认 19084：宝塔 Apache 对外 18084 反代到本机 19084 时与此一致
+      - "${APP_PORT:-19084}:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: mysql://root:root@mysql:3306/sishi
+      # 当前为 HTTP（:18084）；若全站 HTTPS 请改为 "true"
+      COOKIE_SECURE: "false"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      - upload-data:/app/data
+    command: >
+      sh -c "
+      npx prisma db push --accept-data-loss &&
+      npm run db:seed &&
+      npm start
+      "
+
+volumes:
+  upload-data:
