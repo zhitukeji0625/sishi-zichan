@@ -73,15 +73,20 @@ function readCsv(filePath) {
 }
 
 function collectKeywords(row) {
-  const blob = `${row.mod1}${row.mod2}${row.feature}`;
-  const cn = blob.match(CN_TOKEN) ?? [];
+  /** 按字段分别提取：拼接 mod1+mod2+feature 时中间无标点，整段会被 [\u4e00-\u9fff]{2,} 吞成一词，导致永远匹配不到源码 */
+  const cnSet = new Set();
   const en = new Set();
-  for (const t of cn) {
-    for (const [zh, enPart] of TERM_TO_EN) {
-      if (t.includes(zh)) en.add(enPart);
+  for (const field of [row.mod1, row.mod2, row.feature]) {
+    if (!field) continue;
+    const matches = field.match(CN_TOKEN) ?? [];
+    for (const t of matches) {
+      cnSet.add(t);
+      for (const [zh, enPart] of TERM_TO_EN) {
+        if (t.includes(zh)) en.add(enPart);
+      }
     }
   }
-  return { cn: [...new Set(cn)], en: [...en] };
+  return { cn: [...cnSet], en: [...en] };
 }
 
 function* walkFiles(dir) {

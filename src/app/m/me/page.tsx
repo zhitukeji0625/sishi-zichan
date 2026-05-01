@@ -32,6 +32,7 @@ export default async function MMePage() {
       </div>
 
       <div className="relative -mt-8 px-4 space-y-4">
+        {/* 用户中心 / 个人信息：个人资料管理、企业资料管理（与需求清单对齐；表单页可后续拆分路由） */}
         {/* Quick actions */}
         <div className="card-elevated-lg p-2 animate-slide-up">
           <Link href="/m/orders" className="flex items-center justify-between rounded-xl px-4 py-3.5 transition-colors hover:bg-slate-50 active:bg-slate-100">
