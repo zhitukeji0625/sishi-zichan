@@ -2,7 +2,12 @@ import { config as loadEnv } from "dotenv";
 import { defineConfig } from "vitest/config";
 import path from "path";
 
-loadEnv({ path: path.resolve(__dirname, ".env"), quiet: true });
+// 覆盖 shell/CI 中已存在的 DATABASE_URL，使本地 `.env` 生效（与 prisma 加载顺序一致）
+loadEnv({
+  path: path.resolve(__dirname, ".env"),
+  quiet: true,
+  override: true,
+});
 // 集成测试需要数据库；与 AGENTS.md 中 Docker MariaDB 默认一致，便于未复制 .env 时本地运行
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL =
