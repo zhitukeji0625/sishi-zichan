@@ -17,6 +17,9 @@
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zhitukeji0625/sishi-zichan.git"
