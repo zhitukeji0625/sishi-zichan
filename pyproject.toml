@@ -1,0 +1,14 @@
+[project]
+name = "sishi-zichan"
+version = "0.1.0"
+description = "四时资产 — 功能完整性由测试保障"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
