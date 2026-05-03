@@ -5,9 +5,9 @@ services:
     environment:
       MARIADB_ROOT_PASSWORD: root
       MARIADB_DATABASE: sishi
-    # 不映射到宿主机，仅容器网络内访问，降低公网暴露风险
-    expose:
-      - "3306"
+    # 映射到本机 3306，便于本地 prisma / vitest；生产可去掉 ports 仅保留 expose
+    ports:
+      - "127.0.0.1:3306:3306"
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
