@@ -10,6 +10,28 @@ import { payAuctionDepositAction } from "../pay-actions";
 import { createAuctionContractAction, payAuctionRentAction } from "../../contract/sign-actions";
 import { BidForm } from "./BidForm";
 
+function AssetImageGallery({ imagesJson }: { imagesJson: string | null }) {
+  let imgs: string[] = [];
+  if (imagesJson) {
+    try {
+      const parsed = JSON.parse(imagesJson);
+      imgs = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return null;
+    }
+  }
+  if (imgs.length === 0) return null;
+  return (
+    <div className="card-elevated-lg overflow-hidden animate-slide-up">
+      <div className="flex gap-2 overflow-x-auto p-3">
+        {imgs.map((url: string, i: number) => (
+          <img key={i} src={url} alt="" className="h-40 w-60 shrink-0 rounded-xl object-cover" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default async function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await getCurrentEndUser();
@@ -87,21 +109,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="relative -mt-6 px-4 space-y-4">
-        {(() => {
-          try {
-            const imgs = project.asset.imagesJson ? JSON.parse(project.asset.imagesJson) : [];
-            if (imgs.length === 0) return null;
-            return (
-              <div className="card-elevated-lg overflow-hidden animate-slide-up">
-                <div className="flex gap-2 overflow-x-auto p-3">
-                  {imgs.map((url: string, i: number) => (
-                    <img key={i} src={url} alt="" className="h-40 w-60 shrink-0 rounded-xl object-cover" />
-                  ))}
-                </div>
-              </div>
-            );
-          } catch { return null; }
-        })()}
+        <AssetImageGallery imagesJson={project.asset.imagesJson} />
 
         {/* Price info card */}
         <div className="card-elevated-lg p-5 animate-slide-up">
