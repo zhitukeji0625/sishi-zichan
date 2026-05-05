@@ -6,12 +6,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 function SsoInner() {
   const router = useRouter();
   const search = useSearchParams();
-  const [msg, setMsg] = useState("正在验证第三方票据…");
+  const [msg, setMsg] = useState(() =>
+    search.get("token") ? "正在验证第三方票据…" : "缺少 token 参数",
+  );
 
   useEffect(() => {
     const token = search.get("token");
     if (!token) {
-      setMsg("缺少 token 参数");
       return;
     }
     (async () => {
