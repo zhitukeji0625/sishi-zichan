@@ -1,0 +1,7 @@
+"""sishi-zichan 核心包。"""
+
+from sishi_zichan.portfolio import Asset, Portfolio
+
+__all__ = ["Asset", "Portfolio", "__version__"]
+
+__version__ = "0.1.0"
