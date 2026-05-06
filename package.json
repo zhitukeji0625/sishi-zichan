@@ -28,6 +28,9 @@
     "url": "https://github.com/zhitukeji0625/sishi-zichan/issues"
   },
   "homepage": "https://github.com/zhitukeji0625/sishi-zichan#readme",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "dependencies": {
     "@prisma/client": "6.19.3",
     "@types/node": "^25.5.0",
