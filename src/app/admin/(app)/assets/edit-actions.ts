@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
-import { AssetType, AssetStatus } from "@prisma/client";
+import { AssetStatus } from "@prisma/client";
 
 const updateSchema = z.object({
   name: z.string().min(1),
