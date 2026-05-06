@@ -1,7 +1,6 @@
 """功能完整性：公开 API、生命周期与错误语义。"""
 
 import importlib
-import inspect
 
 import pytest
 
