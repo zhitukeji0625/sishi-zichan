@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "test:db": "docker compose up -d mysql && sh -c 'i=0; until docker compose exec -T mysql healthcheck.sh --connect --innodb_initialized 2>/dev/null; do i=$((i+1)); if [ \"$i\" -gt 40 ]; then echo \"mysql not ready\"; exit 1; fi; sleep 2; done' && DATABASE_URL=mysql://root:root@127.0.0.1:3307/sishi npx prisma db push && npm test",
+    "test:db": "bash scripts/test-db.sh",
     "test:watch": "vitest",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
