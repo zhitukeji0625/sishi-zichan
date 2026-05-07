@@ -5,7 +5,15 @@ import { placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 
-describe("placeBid", () => {
+let dbUp = false;
+try {
+  await prisma.$connect();
+  dbUp = true;
+} catch {
+  await prisma.$disconnect().catch(() => undefined);
+}
+
+describe.skipIf(!dbUp)("placeBid", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
