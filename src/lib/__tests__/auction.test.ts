@@ -1,7 +1,60 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { placeBid, validateBidRules } from "@/lib/auction";
+
+describe("validateBidRules", () => {
+  const liveProject = {
+    status: "LIVE",
+    startPrice: new Decimal("100"),
+    bidStep: new Decimal("10"),
+  };
+  const approvedReg = { status: "APPROVED", depositPaid: true as boolean };
+
+  it("accepts first bid at start price", () => {
+    expect(() =>
+      validateBidRules({
+        project: liveProject,
+        registration: approvedReg,
+        highestBidAmount: null,
+        amount: new Decimal("100"),
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects bid below minimum next amount when prior bid exists", () => {
+    expect(() =>
+      validateBidRules({
+        project: liveProject,
+        registration: approvedReg,
+        highestBidAmount: new Decimal("100"),
+        amount: new Decimal("105"),
+      }),
+    ).toThrow();
+  });
+
+  it("rejects when project is not LIVE", () => {
+    expect(() =>
+      validateBidRules({
+        project: { ...liveProject, status: "ENDED" },
+        registration: approvedReg,
+        highestBidAmount: null,
+        amount: new Decimal("100"),
+      }),
+    ).toThrow("竞拍未在进行中");
+  });
+
+  it("rejects when registration missing", () => {
+    expect(() =>
+      validateBidRules({
+        project: liveProject,
+        registration: null,
+        highestBidAmount: null,
+        amount: new Decimal("100"),
+      }),
+    ).toThrow("无出价资格");
+  });
+});
 
 const prisma = new PrismaClient();
 
