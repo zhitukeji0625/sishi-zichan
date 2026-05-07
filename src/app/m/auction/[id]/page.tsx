@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
@@ -103,7 +104,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
           <div className="card-elevated-lg overflow-hidden animate-slide-up">
             <div className="flex gap-2 overflow-x-auto p-3">
               {imageUrls.map((url, i) => (
-                <img key={i} src={url} alt="" className="h-40 w-60 shrink-0 rounded-xl object-cover" />
+                <Image key={i} src={url} alt="" width={240} height={160} className="h-40 w-60 shrink-0 rounded-xl object-cover" />
               ))}
             </div>
           </div>

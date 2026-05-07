@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
@@ -51,7 +52,7 @@ export default async function AdminAssetsPage() {
                     try {
                       const imgs = a.imagesJson ? JSON.parse(a.imagesJson) : [];
                       return imgs.length > 0 ? (
-                        <img src={imgs[0]} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                        <Image src={imgs[0]} alt="" width={40} height={40} className="h-10 w-10 rounded-lg object-cover" />
                       ) : (
                         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
                           <Package className="h-4 w-4" />
