@@ -30,8 +30,8 @@ function portOpen(host, port, timeoutMs) {
 async function ensureMysql() {
   const open = await portOpen("127.0.0.1", 3307, 2000);
   if (open) return;
-  console.log("启动测试数据库 (docker compose -f docker-compose.test.yml)…");
-  execSync("docker compose -f docker-compose.test.yml up -d --wait", {
+  console.log("启动测试数据库 (sudo docker compose -f docker-compose.test.yml)…");
+  execSync("sudo docker compose -f docker-compose.test.yml up -d --wait", {
     cwd: root,
     stdio: "inherit",
   });
