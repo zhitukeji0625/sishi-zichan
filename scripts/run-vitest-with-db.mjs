@@ -1,4 +1,5 @@
 import { execSync, spawnSync } from "node:child_process";
+import { accessSync, constants as fsConstants } from "node:fs";
 import { createConnection } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,34 @@ dotenv.config({ path: path.join(root, ".env.test") });
 if (!process.env.DATABASE_URL) {
   console.error("缺少 DATABASE_URL：请确认存在 .env.test");
   process.exit(1);
+}
+
+function dockerSocketReady() {
+  try {
+    accessSync("/var/run/docker.sock", fsConstants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureDockerDaemon() {
+  if (dockerSocketReady()) return;
+  console.log("未检测到 Docker socket，尝试启动 dockerd…");
+  execSync("sudo sh -c 'nohup dockerd > /tmp/dockerd.log 2>&1 &'", {
+    stdio: "inherit",
+  });
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 1000));
+    if (dockerSocketReady()) {
+      console.log("Docker daemon 已就绪");
+      return;
+    }
+  }
+  throw new Error(
+    "无法在 45s 内启动 Docker。请手动执行：sudo nohup dockerd > /tmp/dockerd.log 2>&1 &",
+  );
 }
 
 function portOpen(host, port, timeoutMs) {
@@ -37,6 +66,7 @@ async function ensureMysql() {
   });
 }
 
+await ensureDockerDaemon();
 await ensureMysql();
 
 execSync("npx prisma db push", {
