@@ -1,10 +1,25 @@
 "use server";
 
+import type { DryingListingStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+
+const DRYING_LISTING_STATUSES: DryingListingStatus[] = [
+  "OPERATING",
+  "MAINTENANCE",
+  "PAUSED",
+  "OFFLINE",
+];
+
+function parseDryingListingStatus(raw: string): DryingListingStatus | null {
+  for (const s of DRYING_LISTING_STATUSES) {
+    if (s === raw) return s;
+  }
+  return null;
+}
 
 export async function createDryingListingAction(formData: FormData) {
   const admin = await getCurrentAdmin();
@@ -41,7 +56,9 @@ export async function toggleDryingListingStatusAction(formData: FormData) {
   if (!listing) return { error: "不存在" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, listing.asset.orgId);
   if (!ok) return { error: "无权操作" };
-  await prisma.dryingFieldListing.update({ where: { id: listingId }, data: { status: newStatus as any } });
+  const status = parseDryingListingStatus(newStatus);
+  if (!status) return { error: "无效状态" };
+  await prisma.dryingFieldListing.update({ where: { id: listingId }, data: { status } });
   await writeAudit(admin.id, "ORG_UPDATE", JSON.stringify({ listingId, status: newStatus }));
   revalidatePath("/admin/drying");
   return { ok: true as const };
