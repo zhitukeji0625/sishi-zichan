@@ -27,28 +27,55 @@ function portOpen(host, port, timeoutMs) {
   });
 }
 
-async function ensureMysql() {
-  const open = await portOpen("127.0.0.1", 3307, 2000);
-  if (open) return;
-  console.log("启动测试数据库 (sudo docker compose -f docker-compose.test.yml)…");
-  execSync("sudo docker compose -f docker-compose.test.yml up -d --wait", {
-    cwd: root,
-    stdio: "inherit",
-  });
+function dockerComposeUp() {
+  const commands = [
+    "docker compose -f docker-compose.test.yml up -d --wait",
+    "sudo docker compose -f docker-compose.test.yml up -d --wait",
+  ];
+  for (const cmd of commands) {
+    try {
+      execSync(cmd, { cwd: root, stdio: "inherit" });
+      return true;
+    } catch {
+      // try next command
+    }
+  }
+  return false;
 }
 
-await ensureMysql();
+async function ensureMysql() {
+  const open = await portOpen("127.0.0.1", 3307, 2000);
+  if (open) return true;
+  console.log("启动测试数据库 (docker compose -f docker-compose.test.yml)…");
+  return dockerComposeUp();
+}
 
-execSync("npx prisma db push", {
-  cwd: root,
-  stdio: "inherit",
-  env: { ...process.env },
-});
+const dbReady = await ensureMysql();
+
+if (dbReady) {
+  execSync("npx prisma db push", {
+    cwd: root,
+    stdio: "inherit",
+    env: { ...process.env },
+  });
+} else {
+  console.warn(
+    "未能连接 127.0.0.1:3307 且无法通过 Docker 启动测试库；跳过 prisma db push，仅运行不依赖 MySQL 的测试。",
+  );
+}
+
+const vitestEnv = dbReady
+  ? { ...process.env }
+  : (() => {
+      const env = { ...process.env };
+      delete env.DATABASE_URL;
+      return env;
+    })();
 
 const result = spawnSync("npx", ["vitest", "run"], {
   cwd: root,
   stdio: "inherit",
-  env: { ...process.env },
+  env: vitestEnv,
 });
 
 process.exit(result.status ?? 1);
