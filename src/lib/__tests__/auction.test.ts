@@ -24,9 +24,26 @@ describe("minRequiredBidAmount", () => {
 });
 
 const prisma = new PrismaClient();
-const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
 
-describe.skipIf(!hasDatabaseUrl)("placeBid（需 DATABASE_URL）", () => {
+async function isAuctionDbReachable(): Promise<boolean> {
+  if (!process.env.DATABASE_URL?.trim()) return false;
+  try {
+    await prisma.$connect();
+    await prisma.$queryRaw`SELECT 1`;
+    return true;
+  } catch {
+    try {
+      await prisma.$disconnect();
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }
+}
+
+const auctionDbReachable = await isAuctionDbReachable();
+
+describe.skipIf(!auctionDbReachable)("placeBid（需 DATABASE_URL）", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
