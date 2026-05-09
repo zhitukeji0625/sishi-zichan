@@ -1,0 +1,13 @@
+{
+  "name": "sishi-zichan",
+  "version": "0.1.0",
+  "private": true,
+  "description": "私事資產 / personal asset tracking stub",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
