@@ -21,6 +21,11 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
   });
   if (!project) notFound();
 
+  const orgWhere = await orgFilterForAdmin(admin.role, admin.orgId);
+  if ("orgId" in orgWhere && orgWhere.orgId?.in) {
+    if (!orgWhere.orgId.in.includes(project.asset.orgId)) notFound();
+  }
+
   const auctionStatusMap = await getDictMap("auction_status");
   const assetTypeMap = await getDictMap("asset_type");
   const regStatusMap = await getDictMap("registration_status");
