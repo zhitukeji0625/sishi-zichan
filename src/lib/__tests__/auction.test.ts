@@ -23,10 +23,24 @@ describe("minRequiredBidAmount", () => {
   });
 });
 
-const prisma = new PrismaClient();
-const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+async function isDatabaseReachable(): Promise<boolean> {
+  if (!process.env.DATABASE_URL) return false;
+  const client = new PrismaClient();
+  try {
+    await client.$queryRaw`SELECT 1`;
+    return true;
+  } catch {
+    return false;
+  } finally {
+    await client.$disconnect().catch(() => {});
+  }
+}
 
-describe.skipIf(!hasDatabaseUrl)("placeBid（需 DATABASE_URL）", () => {
+/** 仅有 DATABASE_URL 但服务未启动时仍跳过，避免 `npm test` 在无库环境失败 */
+const databaseReachable = await isDatabaseReachable();
+
+describe.skipIf(!databaseReachable)("placeBid（需 DATABASE_URL）", () => {
+  const prisma = new PrismaClient();
   let orgId: string;
   let assetId: string;
   let projectId: string;
