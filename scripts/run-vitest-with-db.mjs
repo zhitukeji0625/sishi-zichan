@@ -27,14 +27,35 @@ function portOpen(host, port, timeoutMs) {
   });
 }
 
+function startTestMysql() {
+  const cmd =
+    "docker compose -f docker-compose.test.yml up -d --wait";
+  try {
+    execSync(cmd, { cwd: root, stdio: "inherit", shell: true });
+    return;
+  } catch {
+    console.log("docker compose 失败，尝试 sudo docker compose…");
+  }
+  execSync(`sudo ${cmd}`, {
+    cwd: root,
+    stdio: "inherit",
+    shell: true,
+  });
+}
+
 async function ensureMysql() {
   const open = await portOpen("127.0.0.1", 3307, 2000);
   if (open) return;
-  console.log("启动测试数据库 (sudo docker compose -f docker-compose.test.yml)…");
-  execSync("sudo docker compose -f docker-compose.test.yml up -d --wait", {
-    cwd: root,
-    stdio: "inherit",
-  });
+  console.log("启动测试数据库 (docker compose -f docker-compose.test.yml)…");
+  try {
+    startTestMysql();
+  } catch {
+    console.error(
+      "无法启动测试数据库：请确认 Docker 守护进程已运行，且具备 docker compose 权限。\n" +
+        "可手动执行：docker compose -f docker-compose.test.yml up -d --wait",
+    );
+    process.exit(1);
+  }
 }
 
 await ensureMysql();
