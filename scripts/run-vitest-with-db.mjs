@@ -27,14 +27,30 @@ function portOpen(host, port, timeoutMs) {
   });
 }
 
+function startComposeTestDb() {
+  const args = ["compose", "-f", "docker-compose.test.yml", "up", "-d", "--wait"];
+  const trySpawn = (cmd, cmdArgs) =>
+    spawnSync(cmd, cmdArgs, { cwd: root, stdio: "inherit", env: { ...process.env } });
+
+  let result = trySpawn("docker", args);
+  if (result.status === 0) return;
+
+  result = trySpawn("sudo", ["docker", ...args]);
+  if (result.status === 0) return;
+
+  console.error(
+    "无法启动测试数据库：127.0.0.1:3307 不可达，且 `docker compose` / `sudo docker compose` 均失败。\n" +
+      "请在本机启动 Docker 后重试，或手动执行：docker compose -f docker-compose.test.yml up -d --wait\n" +
+      "若数据库已在其他地址运行，请在 .env.test 中设置 DATABASE_URL。",
+  );
+  process.exit(1);
+}
+
 async function ensureMysql() {
   const open = await portOpen("127.0.0.1", 3307, 2000);
   if (open) return;
-  console.log("启动测试数据库 (sudo docker compose -f docker-compose.test.yml)…");
-  execSync("sudo docker compose -f docker-compose.test.yml up -d --wait", {
-    cwd: root,
-    stdio: "inherit",
-  });
+  console.log("启动测试数据库 (docker compose -f docker-compose.test.yml)…");
+  startComposeTestDb();
 }
 
 await ensureMysql();
