@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "cursor/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  repo-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify repository baseline
+        run: |
+          set -euo pipefail
+          test -f README.md
+          test -s README.md
+          grep -q 'sishi-zichan' README.md
