@@ -4,6 +4,7 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { Plus, Package } from "lucide-react";
 import { getDictMap } from "@/lib/dict";
+import { parseAssetImageUrls } from "@/lib/images-json";
 
 export default async function AdminAssetsPage() {
   const admin = await getCurrentAdmin();
@@ -48,16 +49,17 @@ export default async function AdminAssetsPage() {
                 <td className="px-4 py-3"><Link href={`/admin/assets/${a.id}`} className="text-blue-700 hover:underline">{a.name}</Link></td>
                 <td className="px-4 py-3">
                   {(() => {
-                    try {
-                      const imgs = a.imagesJson ? JSON.parse(a.imagesJson) : [];
-                      return imgs.length > 0 ? (
-                        <img src={imgs[0]} alt="" className="h-10 w-10 rounded-lg object-cover" />
-                      ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                          <Package className="h-4 w-4" />
-                        </div>
-                      );
-                    } catch { return <div className="h-10 w-10 rounded-lg bg-slate-100" />; }
+                    const imgs = parseAssetImageUrls(a.imagesJson);
+                    return imgs.length > 0 ? (
+                      <div className="h-10 w-10 overflow-hidden rounded-lg">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- 用户上传缩略图 */}
+                        <img src={imgs[0]} alt="" className="h-10 w-10 object-cover" />
+                      </div>
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+                        <Package className="h-4 w-4" />
+                      </div>
+                    );
                   })()}
                 </td>
                 <td className="px-4 py-3 text-slate-600">{typeMap[a.type] ?? a.type}</td>
