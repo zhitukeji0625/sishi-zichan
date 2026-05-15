@@ -3,10 +3,20 @@ import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
-const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
 const prisma = new PrismaClient();
 
-describe.skipIf(!hasDatabaseUrl)("placeBid (integration)", () => {
+/** 仅有 DATABASE_URL 但库未启动时，skipIf(URL) 仍会跑套件并在 beforeAll 失败；先探测连通性 */
+let dbReachable = false;
+if (process.env.DATABASE_URL) {
+  try {
+    await prisma.$connect();
+    dbReachable = true;
+  } catch {
+    await prisma.$disconnect().catch(() => {});
+  }
+}
+
+describe.skipIf(!dbReachable)("placeBid (integration)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
