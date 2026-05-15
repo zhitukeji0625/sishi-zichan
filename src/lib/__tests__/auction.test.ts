@@ -3,10 +3,13 @@ import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { placeBid } from "@/lib/auction";
 
-const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+/** 需真实 MySQL/MariaDB（与 DATABASE_URL 一致）；未设置时跳过以免 CI/本地无库失败 */
+const runDbIntegration =
+  process.env.RUN_DB_INTEGRATION === "1" ||
+  process.env.RUN_DB_INTEGRATION === "true";
 const prisma = new PrismaClient();
 
-describe.skipIf(!hasDatabaseUrl)("placeBid (integration)", () => {
+describe.skipIf(!runDbIntegration)("placeBid (integration)", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
