@@ -5,3 +5,7 @@ node_modules
 /generated/prisma
 /data/uploads/
 .next
+
+# Python tests (repository completeness checks)
+__pycache__/
+*.py[cod]
