@@ -5,6 +5,18 @@ import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { Plus, Package } from "lucide-react";
 import { getDictMap } from "@/lib/dict";
 
+function firstImageFromJson(imagesJson: string | null): string | null {
+  if (!imagesJson) return null;
+  try {
+    const v = JSON.parse(imagesJson) as unknown;
+    if (!Array.isArray(v)) return null;
+    const first = v.find((x): x is string => typeof x === "string" && x.length > 0);
+    return first ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function AdminAssetsPage() {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
@@ -43,28 +55,27 @@ export default async function AdminAssetsPage() {
             </tr>
           </thead>
           <tbody>
-            {assets.map((a) => (
+            {assets.map((a) => {
+              const thumb = firstImageFromJson(a.imagesJson);
+              return (
               <tr key={a.id} className="border-b border-slate-50 last:border-0">
                 <td className="px-4 py-3"><Link href={`/admin/assets/${a.id}`} className="text-blue-700 hover:underline">{a.name}</Link></td>
                 <td className="px-4 py-3">
-                  {(() => {
-                    try {
-                      const imgs = a.imagesJson ? JSON.parse(a.imagesJson) : [];
-                      return imgs.length > 0 ? (
-                        <img src={imgs[0]} alt="" className="h-10 w-10 rounded-lg object-cover" />
-                      ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                          <Package className="h-4 w-4" />
-                        </div>
-                      );
-                    } catch { return <div className="h-10 w-10 rounded-lg bg-slate-100" />; }
-                  })()}
+                  {thumb ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- 动态上传 URL
+                    <img src={thumb} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
+                      <Package className="h-4 w-4" />
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3 text-slate-600">{typeMap[a.type] ?? a.type}</td>
                 <td className="px-4 py-3 text-slate-600">{a.org.name}</td>
                 <td className="px-4 py-3 text-slate-600">{statusMap[a.status] ?? a.status}</td>
               </tr>
-            ))}
+            );
+            })}
             {assets.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
