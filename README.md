@@ -93,8 +93,11 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install   # 首次克隆或 CI 需先安装依赖，否则无法找到 vitest
 npm run test
 ```
+
+- `src/lib/__tests__/auction.test.ts` 为数据库集成测试：需 MariaDB/MySQL 可连（`DATABASE_URL`；未配置 `.env` 时 Vitest 默认尝试 `mysql://root:root@127.0.0.1:3306/sishi`，见 `vitest.config.ts`）。无法连接时会跳过用例并打印提示；在 CI 中若要强制跑通，请设置 `VITEST_REQUIRE_DB=1` 并启动数据库、执行 `npx prisma db push`。
 
 ## 说明
 
