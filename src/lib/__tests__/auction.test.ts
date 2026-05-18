@@ -59,13 +59,18 @@ describe.skipIf(skipDb)("placeBid", () => {
   });
 
   afterAll(async () => {
-    await prisma.auctionBid.deleteMany({ where: { projectId } });
-    await prisma.auctionRegistration.deleteMany({ where: { projectId } });
-    await prisma.auctionProject.delete({ where: { id: projectId } });
-    await prisma.asset.delete({ where: { id: assetId } });
-    await prisma.endUser.delete({ where: { id: userId } });
-    await prisma.organization.delete({ where: { id: orgId } });
-    await prisma.$disconnect();
+    try {
+      if (projectId) {
+        await prisma.auctionBid.deleteMany({ where: { projectId } });
+        await prisma.auctionRegistration.deleteMany({ where: { projectId } });
+        await prisma.auctionProject.delete({ where: { id: projectId } });
+      }
+      if (assetId) await prisma.asset.delete({ where: { id: assetId } });
+      if (userId) await prisma.endUser.delete({ where: { id: userId } });
+      if (orgId) await prisma.organization.delete({ where: { id: orgId } });
+    } finally {
+      await prisma.$disconnect().catch(() => {});
+    }
   });
 
   it("accepts first bid at start price", async () => {
