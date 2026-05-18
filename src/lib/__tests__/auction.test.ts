@@ -1,7 +1,32 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { computeMinimumNextBid, placeBid } from "@/lib/auction";
+
+describe("computeMinimumNextBid", () => {
+  const start = new Decimal(100);
+  const step = new Decimal(10);
+
+  it("无历史出价时为起拍价", () => {
+    expect(
+      computeMinimumNextBid({
+        highestBidAmount: null,
+        startPrice: start,
+        bidStep: step,
+      }).toString(),
+    ).toBe("100");
+  });
+
+  it("有最高价时为最高价加价幅", () => {
+    expect(
+      computeMinimumNextBid({
+        highestBidAmount: new Decimal(100),
+        startPrice: start,
+        bidStep: step,
+      }).toString(),
+    ).toBe("110");
+  });
+});
 
 const prisma = new PrismaClient();
 const skipDb = process.env.VITEST_SKIP_DB_TESTS === "1";
