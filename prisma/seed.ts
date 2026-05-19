@@ -3,10 +3,173 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** 与 Prisma 枚举及前端 getDict* 使用的 categoryCode 对齐；每次 seed 执行均 upsert，补全新库或升级后的字典表。 */
+async function seedBuiltInDicts() {
+  const categories: Array<{
+    code: string;
+    name: string;
+    description?: string;
+    items: Array<{ value: string; label: string; sortOrder: number }>;
+  }> = [
+    {
+      code: "asset_type",
+      name: "资产类型",
+      items: [
+        { value: "WORKSHOP", label: "厂房/车间", sortOrder: 0 },
+        { value: "MACHINERY", label: "农业机械", sortOrder: 1 },
+        { value: "FACILITY", label: "设施用房", sortOrder: 2 },
+        { value: "LAND", label: "耕地/地块", sortOrder: 3 },
+        { value: "DRYING_FIELD", label: "晒场", sortOrder: 4 },
+        { value: "OTHER", label: "其他", sortOrder: 5 },
+      ],
+    },
+    {
+      code: "asset_status",
+      name: "资产状态",
+      items: [
+        { value: "IDLE", label: "闲置", sortOrder: 0 },
+        { value: "IN_USE", label: "使用中", sortOrder: 1 },
+        { value: "MAINTENANCE", label: "维护中", sortOrder: 2 },
+      ],
+    },
+    {
+      code: "org_level",
+      name: "组织层级",
+      items: [
+        { value: "DIVISION", label: "师级", sortOrder: 0 },
+        { value: "REGIMENT", label: "团级", sortOrder: 1 },
+        { value: "COMPANY", label: "连队级", sortOrder: 2 },
+      ],
+    },
+    {
+      code: "admin_role",
+      name: "管理员角色",
+      items: [
+        { value: "DIVISION_ADMIN", label: "师管理员", sortOrder: 0 },
+        { value: "REGIMENT_ADMIN", label: "团管理员", sortOrder: 1 },
+        { value: "COMPANY_ADMIN", label: "连管理员", sortOrder: 2 },
+      ],
+    },
+    {
+      code: "announcement_status",
+      name: "公告状态",
+      items: [
+        { value: "DRAFT", label: "草稿", sortOrder: 0 },
+        { value: "PENDING_REVIEW", label: "待审核", sortOrder: 1 },
+        { value: "PUBLISHED", label: "已发布", sortOrder: 2 },
+        { value: "WITHDRAWN", label: "已撤回", sortOrder: 3 },
+      ],
+    },
+    {
+      code: "registration_status",
+      name: "报名审核状态",
+      items: [
+        { value: "PENDING", label: "待审核", sortOrder: 0 },
+        { value: "APPROVED", label: "已通过", sortOrder: 1 },
+        { value: "REJECTED", label: "已拒绝", sortOrder: 2 },
+      ],
+    },
+    {
+      code: "auction_status",
+      name: "竞拍项目状态",
+      items: [
+        { value: "DRAFT", label: "草稿", sortOrder: 0 },
+        { value: "SCHEDULED", label: "已排期", sortOrder: 1 },
+        { value: "LIVE", label: "竞拍中", sortOrder: 2 },
+        { value: "ENDED", label: "已结束", sortOrder: 3 },
+        { value: "CANCELLED", label: "已取消", sortOrder: 4 },
+      ],
+    },
+    {
+      code: "drying_listing_status",
+      name: "晒场挂牌状态",
+      items: [
+        { value: "OPERATING", label: "运营中", sortOrder: 0 },
+        { value: "MAINTENANCE", label: "维护中", sortOrder: 1 },
+        { value: "PAUSED", label: "已暂停", sortOrder: 2 },
+        { value: "OFFLINE", label: "已下线", sortOrder: 3 },
+      ],
+    },
+    {
+      code: "reservation_status",
+      name: "预约/订单状态",
+      items: [
+        { value: "PENDING_REVIEW", label: "待审核", sortOrder: 0 },
+        { value: "APPROVED", label: "已通过", sortOrder: 1 },
+        { value: "REJECTED", label: "已拒绝", sortOrder: 2 },
+        { value: "PENDING_PAYMENT", label: "待支付", sortOrder: 3 },
+        { value: "PAID", label: "已支付", sortOrder: 4 },
+        { value: "CONTRACT_PENDING", label: "待签约", sortOrder: 5 },
+        { value: "ACTIVE", label: "履约中", sortOrder: 6 },
+        { value: "CANCELLED", label: "已取消", sortOrder: 7 },
+        { value: "COMPLETED", label: "已完成", sortOrder: 8 },
+      ],
+    },
+    {
+      code: "payment_purpose",
+      name: "支付用途",
+      items: [
+        { value: "AUCTION_DEPOSIT", label: "竞拍保证金", sortOrder: 0 },
+        { value: "AUCTION_RENT", label: "竞拍租金", sortOrder: 1 },
+        { value: "DRYING_DEPOSIT", label: "晒场保证金", sortOrder: 2 },
+        { value: "DRYING_RENT", label: "晒场租金", sortOrder: 3 },
+      ],
+    },
+    {
+      code: "payment_status",
+      name: "支付状态",
+      items: [
+        { value: "PENDING", label: "待支付", sortOrder: 0 },
+        { value: "SUCCESS", label: "支付成功", sortOrder: 1 },
+        { value: "FAILED", label: "支付失败", sortOrder: 2 },
+        { value: "REFUNDED", label: "已退款", sortOrder: 3 },
+      ],
+    },
+  ];
+
+  for (const cat of categories) {
+    const category = await prisma.dictCategory.upsert({
+      where: { code: cat.code },
+      create: {
+        code: cat.code,
+        name: cat.name,
+        description: cat.description ?? null,
+        builtIn: true,
+      },
+      update: {
+        name: cat.name,
+        description: cat.description ?? undefined,
+        builtIn: true,
+      },
+    });
+    for (const item of cat.items) {
+      await prisma.dictItem.upsert({
+        where: {
+          categoryId_value: { categoryId: category.id, value: item.value },
+        },
+        create: {
+          categoryId: category.id,
+          value: item.value,
+          label: item.label,
+          sortOrder: item.sortOrder,
+          enabled: true,
+        },
+        update: {
+          label: item.label,
+          sortOrder: item.sortOrder,
+          enabled: true,
+        },
+      });
+    }
+  }
+}
+
 async function main() {
+  await seedBuiltInDicts();
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    console.log("Seed skipped: demo data already present (built-in dicts were synced).");
     return;
   }
 
