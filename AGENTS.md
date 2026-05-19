@@ -28,11 +28,12 @@ sudo docker run -d --name mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATAB
 
 ### Lint
 
-`next lint` / `npx eslint` does NOT work out of the box due to a known ESLint 9 vs `eslint-config-next` compatibility issue. The README states: "构建阶段已跳过 ESLint". This is a known limitation.
+本地校验：`npm run lint`（`next lint`）或 `npx eslint .` 均可；仓库使用 `eslint.config.mjs` 中的 **扁平配置**（`eslint-config-next` 的 `core-web-vitals` + `typescript`）。`next.config.ts` 里 `eslint.ignoreDuringBuilds: true` 表示 **`next build` 不跑 ESLint**（加快构建；CI 可单独跑 lint）。
 
 ### Testing
 
-- `npm run test` — runs Vitest (unit tests in `src/lib/__tests__/`)
+- `npm run test` — Vitest（`src/lib/__tests__/`）。需先 `npm install`。
+- 含数据库的集成测试默认在 **无法连接 `DATABASE_URL`** 时跳过；设置 `VITEST_REQUIRE_DB=1` 可在 CI 中强制要求数据库可用。详见 `vitest.global-setup.ts`。
 
 ### Demo accounts (from seed data)
 

@@ -93,10 +93,13 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
 ```
+
+集成测试依赖 MariaDB/MySQL（默认连接串见 `vitest.config.ts`）。未启动数据库时相关用例会自动跳过；本地跑全量可启动 Docker 中的 `mariadb` 后执行 `npx prisma db push`，或在 CI 中设置 `VITEST_REQUIRE_DB=1` 强制校验。
 
 ## 说明
 
 - CSV 需求中的全部能力已分阶段落在数据模型与路由中；当前界面实现了核心闭环（资产录入、发拍、报名审核、保证金模拟、出价、公告、晒场预约与审核、消息、订单列表）。合同 PDF、农行真实 SDK、OCR/人脸、大屏监控、报表导出等需对接外部服务或二期扩展。
-- 构建阶段已跳过 ESLint（`eslint-config-next` 与 ESLint 9 存在兼容性问题时避免阻塞交付）；可在本地升级配置后重新开启。
+- 本地代码风格：`npm run lint` 或 `npx eslint .`。`next build` 为加快交付默认不跑 ESLint（见 `next.config.ts`）；流水线中建议单独执行 lint。
