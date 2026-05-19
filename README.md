@@ -96,6 +96,14 @@ docker compose up -d --build
 npm run test
 ```
 
+Vitest 会尝试连接数据库（未配置 `.env` 时默认 `mysql://root:root@127.0.0.1:3306/sishi`，与 `vitest.config.ts` 一致）。若当前无法连接 MySQL/MariaDB，**出价相关的集成测试会自动跳过**，命令仍返回成功。在 CI 或需要强制跑通数据库用例时：
+
+```bash
+VITEST_REQUIRE_DB=1 npm run test
+```
+
+运行 `npx prisma db push`、`npm run db:seed` 时需在环境中提供 `DATABASE_URL`（通常由根目录 `.env` 提供，可从 `.env.example` 复制）。
+
 ## 说明
 
 - CSV 需求中的全部能力已分阶段落在数据模型与路由中；当前界面实现了核心闭环（资产录入、发拍、报名审核、保证金模拟、出价、公告、晒场预约与审核、消息、订单列表）。合同 PDF、农行真实 SDK、OCR/人脸、大屏监控、报表导出等需对接外部服务或二期扩展。

@@ -32,7 +32,7 @@ sudo docker run -d --name mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATAB
 
 ### Testing
 
-- `npm run test` — runs Vitest (unit tests in `src/lib/__tests__/`)
+- `npm run test` — runs Vitest (integration tests in `src/lib/__tests__/`). If MySQL/MariaDB is unreachable, DB-dependent tests are skipped unless `VITEST_REQUIRE_DB=1` is set (then the run fails fast).
 
 ### Demo accounts (from seed data)
 
@@ -54,6 +54,7 @@ Copy `.env.example` to `.env`. For local dev with Docker MariaDB, set `DATABASE_
 
 ### Gotchas
 
+- If `sudo docker start mariadb` fails with a containerd `mkdir ... io.containerd.runtime.v2.task` / “file exists” error, remove the stale container and recreate: `sudo docker rm -f mariadb` then run the `docker run ... mariadb:11` command from the Database section above.
 - Docker daemon must be started manually: `sudo nohup dockerd > /tmp/dockerd.log 2>&1 &`
 - Docker in this VM requires `fuse-overlayfs` storage driver and `iptables-legacy` (already configured in `/etc/docker/daemon.json`).
 - The `.env` file is gitignored. You must create it from `.env.example` if it doesn't exist.
