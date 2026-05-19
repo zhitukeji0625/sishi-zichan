@@ -1,4 +1,6 @@
 node_modules
+# TypeScript incremental build (tsc / IDE)
+*.tsbuildinfo
 # Keep environment variables out of version control
 .env
 
