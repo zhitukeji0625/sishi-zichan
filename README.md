@@ -92,6 +92,12 @@ docker compose up -d --build
 
 ## 测试
 
+先安装依赖：`npm install`。
+
+Vitest 用例在 `src/lib/__tests__/`。其中 `placeBid` 等为**数据库集成测试**，需可用的 MySQL/MariaDB（`DATABASE_URL` 与 `.env` 一致；本地可参考 `AGENTS.md` 启动 Docker MariaDB，并执行 `npx prisma db push`）。若启动测试时连不上库，相关用例会**自动跳过**并在控制台输出提示。
+
+在 CI 或本地希望「无库即失败」时，可设置 `VITEST_REQUIRE_DB=1`。
+
 ```bash
 npm run test
 ```
