@@ -92,9 +92,15 @@ docker compose up -d --build
 
 ## 测试
 
+单元与集成测试使用 [Vitest](https://vitest.dev/)。竞拍出价等用例依赖 MySQL/MariaDB；请先 `npm install` 并配置可连接的 `DATABASE_URL`（与 `vitest.config.ts` 中本地 Docker 默认一致时可省略），再执行 `npx prisma db push`。
+
 ```bash
-npm run test
+npm install
+npm run test       # 数据库不可用时跳过 DB 集成用例
+npm run test:ci    # CI：要求数据库可用，否则失败（需与 schema 同步）
 ```
+
+若 `docker start mariadb` 报 containerd「file exists」类错误，可先 `docker rm -f mariadb` 后按 `AGENTS.md` 重新创建容器。
 
 ## 说明
 
