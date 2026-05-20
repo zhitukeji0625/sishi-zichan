@@ -1,10 +1,30 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { computeMinNextBid, placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 const skipDb = process.env.VITEST_SKIP_DB_TESTS === "1";
+
+describe("computeMinNextBid", () => {
+  it("无历史出价时为起拍价", () => {
+    const min = computeMinNextBid({
+      highestAmount: null,
+      startPrice: "100",
+      bidStep: "10",
+    });
+    expect(min.toString()).toBe("100");
+  });
+
+  it("有历史出价时为最高价加加价幅度", () => {
+    const min = computeMinNextBid({
+      highestAmount: "100",
+      startPrice: "100",
+      bidStep: "10",
+    });
+    expect(min.toString()).toBe("110");
+  });
+});
 
 describe.skipIf(skipDb)("placeBid", () => {
   let orgId: string;
