@@ -32,7 +32,7 @@ sudo docker run -d --name mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATAB
 
 ### Testing
 
-- `npm run test` — runs Vitest (unit tests in `src/lib/__tests__/`)
+- `npm run test` — runs Vitest (integration tests in `src/lib/__tests__/`, need MariaDB for full run; without DB tests are skipped unless `VITEST_REQUIRE_DB=1`)
 
 ### Demo accounts (from seed data)
 

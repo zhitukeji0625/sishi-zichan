@@ -92,6 +92,10 @@ docker compose up -d --build
 
 ## 测试
 
+先安装依赖：`npm ci` 或 `npm install`。
+
+`npm run test` 使用 Vitest；`src/lib/__tests__/` 中含依赖数据库的集成用例（默认连接 `vitest.config.ts` 中的本地 MariaDB：`mysql://root:root@127.0.0.1:3306/sishi`，与 AGENTS.md 中 Docker 示例一致）。若无法连接数据库，相关用例会**自动跳过**，整条测试命令仍返回成功。在 CI 中若要强制要求数据库，可设置 `VITEST_REQUIRE_DB=1`，此时库不可用将直接失败。
+
 ```bash
 npm run test
 ```
