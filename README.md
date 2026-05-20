@@ -93,7 +93,14 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install   # 首次克隆后需安装依赖，否则会出现 vitest 未找到
 npm run test
+```
+
+与出价相关的集成测试会连接数据库：若未配置 `.env`，Vitest 会尝试默认连接串 `mysql://root:root@127.0.0.1:3306/sishi`（与 AGENTS.md 中 Docker MariaDB 一致）。**本机 3306 无可用库时**相关用例会自动跳过，并在控制台提示；若要在 CI 或本地强制要求数据库可用，请执行：
+
+```bash
+npm run test:ci
 ```
 
 ## 说明
