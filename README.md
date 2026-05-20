@@ -93,8 +93,11 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install   # 首次克隆或未安装依赖时必需，否则测试脚本无法启动
 npm run test
 ```
+
+数据库集成测试默认连接 `mysql://root:root@127.0.0.1:3306/sishi`（与上文 Docker MariaDB 一致）；若库不可用会自动跳过，设置 `VITEST_REQUIRE_DB=1` 可强制要求数据库。
 
 ## 说明
 
