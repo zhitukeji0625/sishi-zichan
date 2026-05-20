@@ -92,9 +92,14 @@ docker compose up -d --build
 
 ## 测试
 
+先执行 `npm install`（确保 `node_modules` 中存在 `vitest`）。
+
 ```bash
 npm run test
 ```
+
+`src/lib/__tests__/auction.test.ts` 为 **MySQL/MariaDB 集成测试**：`vitest.config.ts` 在未配置 `.env` 时会默认使用 `mysql://root:root@127.0.0.1:3306/sishi`（与 AGENTS.md 中 Docker MariaDB 一致）。数据库不可达时，相关用例会 **自动跳过** 并在控制台提示；本地或 CI 需跑通全部用例时，请先启动数据库并执行 `npx prisma db push`，再运行 `npm run test`。  
+若希望在数据库不可用时 **直接失败**（例如 CI 防漏跑），可设置环境变量：`VITEST_REQUIRE_DB=1 npm run test`。
 
 ## 说明
 
