@@ -93,8 +93,12 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
 ```
+
+- 测试基于 Vitest；`src/lib/__tests__/auction.test.ts` 中的竞拍出价用例会连接 `DATABASE_URL` 指向的 MySQL/MariaDB，建议先配置 `.env`（或导出同名环境变量）并执行 `npx prisma db push`。
+- 若数据库不可达，上述用例会**自动跳过**（控制台会提示），`npm run test` 仍会以成功退出。在 CI 或本地若要**强制**跑通数据库用例，可设置 `VITEST_REQUIRE_DB=1`（无可用库时命令会失败）。
 
 ## 说明
 
