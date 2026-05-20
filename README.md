@@ -93,8 +93,12 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
 ```
+
+- 无可用 `DATABASE_URL` 时，集成用例会跳过（控制台会提示）；本地可先按上文启动 MariaDB 并执行 `npx prisma db push`。
+- 需强制跑通数据库用例（例如 CI 已配好库）：`npm run test:db`。
 
 ## 说明
 
