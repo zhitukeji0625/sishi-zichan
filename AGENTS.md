@@ -32,7 +32,9 @@ sudo docker run -d --name mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATAB
 
 ### Testing
 
-- `npm run test` — runs Vitest (unit tests in `src/lib/__tests__/`)
+- `npm run test` — runs Vitest (integration tests in `src/lib/__tests__/`, require MySQL/MariaDB)
+- If the database is unreachable, DB-backed tests are **skipped** and the command still exits 0. Set `VITEST_REQUIRE_DB=1` to fail fast when the DB is required (for example in CI).
+- Default test `DATABASE_URL` when `.env` is missing: `mysql://root:root@127.0.0.1:3306/sishi` (see `vitest.config.ts`).
 
 ### Demo accounts (from seed data)
 
