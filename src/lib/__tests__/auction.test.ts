@@ -1,10 +1,40 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { getMinNextBidAmount, placeBid } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 const skipDb = process.env.VITEST_SKIP_DB_TESTS === "1";
+
+describe("getMinNextBidAmount", () => {
+  it("无出价时为起拍价", () => {
+    const m = getMinNextBidAmount({
+      startPrice: new Decimal("100"),
+      bidStep: new Decimal("10"),
+      highestBidAmount: null,
+    });
+    expect(m.toString()).toBe("100");
+  });
+
+  it("有最高出价时为最高 + 加价幅度", () => {
+    const m = getMinNextBidAmount({
+      startPrice: new Decimal("100"),
+      bidStep: new Decimal("10"),
+      highestBidAmount: new Decimal("100"),
+    });
+    expect(m.toString()).toBe("110");
+  });
+
+  it("小数运算与 JS Number 加法一致但无浮点误差", () => {
+    const m = getMinNextBidAmount({
+      startPrice: new Decimal("0.1"),
+      bidStep: new Decimal("0.2"),
+      highestBidAmount: new Decimal("0.1"),
+    });
+    expect(m.toString()).toBe("0.3");
+    expect(Number(0.1) + Number(0.2)).not.toBe(0.3);
+  });
+});
 
 describe.skipIf(skipDb)("placeBid", () => {
   let orgId: string;

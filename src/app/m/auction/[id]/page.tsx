@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
-import { getHighestBid } from "@/lib/auction";
+import { getHighestBid, getMinNextBidAmount } from "@/lib/auction";
 import { format } from "date-fns";
 import { ChevronLeft } from "lucide-react";
 import { registerAuctionAction } from "../actions";
@@ -200,10 +200,14 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
             </form>
           )}
           {user && reg?.status === "APPROVED" && reg.depositPaid && project.status === "LIVE" && (() => {
-            const minNext = top
-              ? Number(top.toString()) + Number(project.bidStep.toString())
-              : Number(project.startPrice.toString());
-            return <BidForm projectId={projectId} minBid={minNext} />;
+            const minNext = getMinNextBidAmount({
+              startPrice: project.startPrice,
+              bidStep: project.bidStep,
+              highestBidAmount: top,
+            });
+            return (
+              <BidForm projectId={projectId} minBid={Number(minNext.toFixed(2))} />
+            );
           })()}
           {isWinner && !existingContract && (
             <form action={goToContract}>
