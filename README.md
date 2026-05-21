@@ -93,8 +93,11 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
 ```
+
+集成测试依赖可连接的 MySQL/MariaDB（未配置 `.env` 时 Vitest 默认尝试 `mysql://root:root@127.0.0.1:3306/sishi`，与 `vitest.config.ts` 一致）。若数据库不可用，相关用例会被跳过且 `npm run test` 仍成功退出。CI 或需要强制验收数据库逻辑时，使用 `npm run test:ci`（设置 `VITEST_REQUIRE_DB=1`，无库则失败）。
 
 ## 说明
 
