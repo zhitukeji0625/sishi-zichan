@@ -93,8 +93,11 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
 ```
+
+未配置或无法连接 `DATABASE_URL` 时，竞拍相关的数据库集成测试会自动跳过；若要在 CI 或本地强制要求数据库可用，可设置 `VITEST_REQUIRE_DB=1`（详见 `vitest.global-setup.ts`）。
 
 ## 说明
 
