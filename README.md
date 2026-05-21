@@ -93,8 +93,13 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
 ```
+
+- 使用 [Vitest](https://vitest.dev/)，用例在 `src/lib/__tests__/`。
+- 竞拍相关用例会连 `DATABASE_URL`（与 Prisma 一致）。未配置或数据库不可达时，全局设置会跳过这些用例并打印提示；**CI 或本地要强制跑通**请启动 MariaDB/MySQL、执行 `npx prisma db push`（并保证 `.env` 或环境中的 `DATABASE_URL` 正确），再执行：`VITEST_REQUIRE_DB=1 npm run test`。
+- `vitest.config.ts` 在未设置 `DATABASE_URL` 时会默认 `mysql://root:root@127.0.0.1:3306/sishi`，与 AGENTS.md 中 Docker MariaDB 示例一致；Prisma CLI（`db push` / `migrate`）仍需你在 shell 或 `.env` 中显式提供 `DATABASE_URL`。
 
 ## 说明
 
