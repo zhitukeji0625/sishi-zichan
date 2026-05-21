@@ -92,9 +92,13 @@ docker compose up -d --build
 
 ## 测试
 
+首次克隆或清理过 `node_modules` 后，请先执行 `npm install`，再运行：
+
 ```bash
 npm run test
 ```
+
+`src/lib/__tests__/` 中含依赖数据库的用例：若无法连接 `DATABASE_URL`（Vitest 在未配置 `.env` 时会尝试与 [AGENTS.md](./AGENTS.md) 一致的本地 Docker 默认串 `mysql://root:root@127.0.0.1:3306/sishi`），相关用例会自动跳过并在控制台提示。CI 或本地若要**强制**在有库环境下跑通这些用例，可设置 `VITEST_REQUIRE_DB=1`（无库时命令将失败而非跳过）。
 
 ## 说明
 
