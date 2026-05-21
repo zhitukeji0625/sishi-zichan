@@ -92,9 +92,14 @@ docker compose up -d --build
 
 ## 测试
 
+先安装依赖（未执行 `npm install` 时会出现 `vitest: not found`）：
+
 ```bash
+npm install
 npm run test
 ```
+
+`src/lib/__tests__` 中的竞拍出价等为**数据库集成测试**：需本机可连的 `DATABASE_URL`（与 `.env` / `vitest.config.ts` 默认一致时指向 `127.0.0.1:3306/sishi`）。库不可用时相关用例会自动跳过；在 CI 中若要强制跑通，请启动数据库并设置 `VITEST_REQUIRE_DB=1`。
 
 ## 说明
 
