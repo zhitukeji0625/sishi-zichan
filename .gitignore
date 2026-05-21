@@ -1,4 +1,6 @@
 node_modules
+# TypeScript incremental（本地生成，勿入库）
+*.tsbuildinfo
 # Keep environment variables out of version control
 .env
 
