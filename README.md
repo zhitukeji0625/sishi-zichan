@@ -93,7 +93,14 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
+```
+
+Vitest 会尝试连接 `DATABASE_URL`（未配置时默认 `mysql://root:root@127.0.0.1:3306/sishi`，与本地 Docker MariaDB 一致）。若数据库未启动，竞拍相关的集成用例会被跳过，命令仍成功退出。启动 MariaDB 并执行 `npx prisma db push` 后，可用下面命令强制要求数据库并跑通全部用例：
+
+```bash
+npm run test:db
 ```
 
 ## 说明
