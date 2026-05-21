@@ -92,9 +92,17 @@ docker compose up -d --build
 
 ## 测试
 
+首次克隆后请先安装依赖（否则会出现 `vitest: not found`）：
+
+```bash
+npm ci
+```
+
 ```bash
 npm run test
 ```
+
+未启动 MySQL/MariaDB 时，出价相关的集成测试会自动跳过；在 CI 或本地若要**强制**要求数据库可用，可设置 `VITEST_REQUIRE_DB=1`（连接失败则整条测试命令退出非零）。
 
 ## 说明
 
