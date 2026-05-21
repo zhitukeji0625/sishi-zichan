@@ -33,6 +33,7 @@ sudo docker run -d --name mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATAB
 ### Testing
 
 - `npm run test` — runs Vitest (unit tests in `src/lib/__tests__/`)
+- DB-backed tests require a reachable `DATABASE_URL` (see `.env` / `vitest.config.ts` default). If the DB is unavailable, those tests are skipped unless `VITEST_REQUIRE_DB=1` is set (then the run fails fast in `vitest.global-setup.ts`).
 
 ### Demo accounts (from seed data)
 
@@ -58,3 +59,4 @@ Copy `.env.example` to `.env`. For local dev with Docker MariaDB, set `DATABASE_
 - Docker in this VM requires `fuse-overlayfs` storage driver and `iptables-legacy` (already configured in `/etc/docker/daemon.json`).
 - The `.env` file is gitignored. You must create it from `.env.example` if it doesn't exist.
 - The `prisma` `package.json#prisma` config is deprecated but functional; Prisma may warn about it.
+- If `sudo docker start mariadb` fails with containerd errors such as `mkdir ... io.containerd.runtime.v2.task ... file exists`, remove the broken container and recreate it: `sudo docker rm -f mariadb` then run the `docker run ... mariadb:11` command from the Database section above.

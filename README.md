@@ -92,7 +92,10 @@ docker compose up -d --build
 
 ## 测试
 
+先执行 `npm install`（否则会出现 `vitest: not found`）。`src/lib/__tests__/` 中的竞拍相关用例为数据库集成测试：需可用的 MySQL/MariaDB，且 `DATABASE_URL` 与 `npx prisma db push` 所用一致（未配置 `.env` 时 Vitest 会默认尝试 `mysql://root:root@127.0.0.1:3306/sishi`，见 `vitest.config.ts`）。若无法连库，相关用例会**自动跳过**；在 CI 中若要**强制**连库失败即报错，可设置 `VITEST_REQUIRE_DB=1`。
+
 ```bash
+npm install
 npm run test
 ```
 
