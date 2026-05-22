@@ -96,6 +96,8 @@ docker compose up -d --build
 npm run test
 ```
 
+集成测试依赖 MariaDB（`vitest.config.ts` 在未设置 `DATABASE_URL` 时会默认连接 `127.0.0.1:3306/sishi`）。若无法连库，相关用例会跳过并打印警告；在已启动数据库的 CI 或本地可执行 `npm run test:ci`，通过 `VITEST_REQUIRE_DB=1` 在无库时直接失败，避免静默跳过。
+
 ## 说明
 
 - CSV 需求中的全部能力已分阶段落在数据模型与路由中；当前界面实现了核心闭环（资产录入、发拍、报名审核、保证金模拟、出价、公告、晒场预约与审核、消息、订单列表）。合同 PDF、农行真实 SDK、OCR/人脸、大屏监控、报表导出等需对接外部服务或二期扩展。
