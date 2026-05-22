@@ -96,6 +96,9 @@ docker compose up -d --build
 npm run test
 ```
 
+- 集成测试依赖 MariaDB（默认尝试 `mysql://root:root@127.0.0.1:3306/sishi`，与 `vitest.config.ts` 一致）。无库时会跳过数据库用例；本地强制失败可设 `VITEST_REQUIRE_DB=1`。
+- `main` 分支的 Push/PR 会在 GitHub Actions（`.github/workflows/ci.yml`）中启动 MariaDB 服务并跑通 `prisma db push`、测试与 `next build`。
+
 ## 说明
 
 - CSV 需求中的全部能力已分阶段落在数据模型与路由中；当前界面实现了核心闭环（资产录入、发拍、报名审核、保证金模拟、出价、公告、晒场预约与审核、消息、订单列表）。合同 PDF、农行真实 SDK、OCR/人脸、大屏监控、报表导出等需对接外部服务或二期扩展。
