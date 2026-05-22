@@ -32,7 +32,7 @@ sudo docker run -d --name mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATAB
 
 ### Testing
 
-- `npm run test` — runs Vitest (unit tests in `src/lib/__tests__/`)
+- `npm run test` — runs Vitest (`src/lib/__tests__/`). DB-backed cases skip if MariaDB is unreachable; use `npm run test:integration` after `prisma db push` to require a live database.
 
 ### Demo accounts (from seed data)
 

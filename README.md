@@ -96,6 +96,9 @@ docker compose up -d --build
 npm run test
 ```
 
+- 默认会尝试连接 `DATABASE_URL`（未配置时与 `vitest.config.ts` 中本地 Docker 默认一致）。若 **MariaDB 未启动**，与出价相关的集成用例会 **自动跳过**，`npm run test` 仍返回成功。
+- 跑通全部用例：先按上文启动数据库并执行 `npx prisma db push`，再执行 `npm run test:integration`（等价于设置 `VITEST_REQUIRE_DB=1`，数据库不可用时命令会失败）。
+
 ## 说明
 
 - CSV 需求中的全部能力已分阶段落在数据模型与路由中；当前界面实现了核心闭环（资产录入、发拍、报名审核、保证金模拟、出价、公告、晒场预约与审核、消息、订单列表）。合同 PDF、农行真实 SDK、OCR/人脸、大屏监控、报表导出等需对接外部服务或二期扩展。
