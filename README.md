@@ -92,8 +92,17 @@ docker compose up -d --build
 
 ## 测试
 
+首次克隆或清理 `node_modules` 后需先执行 `npm install`，否则测试命令不可用。
+
 ```bash
+npm install
 npm run test
+```
+
+集成测试（`src/lib/__tests__`）依赖可连接的 `DATABASE_URL`（与本地 MariaDB 一致时可不设 `.env`，见 `vitest.config.ts` 默认连接串）。无数据库时会跳过相关用例且仍返回成功；在 CI 中若要强制必须有库，可执行：
+
+```bash
+VITEST_REQUIRE_DB=1 npm run test
 ```
 
 ## 说明
