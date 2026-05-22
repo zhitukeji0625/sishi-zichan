@@ -93,8 +93,12 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
 ```
+
+- 默认：若本机无法连接 `DATABASE_URL`（见 `vitest.config.ts` 中的默认 `mysql://root:root@127.0.0.1:3306/sishi`），会**跳过**数据库集成测试并打印提示。
+- 跑全量用例：先启动数据库并执行 `npx prisma db push`，再执行 `npm run test:ci`（等价于设置 `VITEST_REQUIRE_DB=1`，数据库不可用时直接失败）。
 
 ## 说明
 
