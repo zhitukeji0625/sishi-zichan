@@ -93,8 +93,12 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install   # 首次克隆后需安装依赖，否则无法找到 vitest
 npm run test
 ```
+
+- 竞拍 `placeBid` 等为**数据库集成测试**（Vitest + Prisma）。若 MariaDB/MySQL 未启动或无法连接，用例会**自动跳过**（控制台会提示）；本地可先按 `AGENTS.md` 启动数据库并执行 `npx prisma db push`。
+- 强制要求数据库就绪（适合 CI）：`VITEST_REQUIRE_DB=1 npm run test`，库不可用时命令非零退出。
 
 ## 说明
 
