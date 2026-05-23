@@ -10,9 +10,10 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "test:ci": "export VITEST_REQUIRE_DB=1; vitest run",
+    "db:push": "export DATABASE_URL=\"${DATABASE_URL:-mysql://root:root@127.0.0.1:3306/sishi}\"; prisma db push",
+    "db:seed": "export DATABASE_URL=\"${DATABASE_URL:-mysql://root:root@127.0.0.1:3306/sishi}\"; tsx prisma/seed.ts",
+    "db:studio": "export DATABASE_URL=\"${DATABASE_URL:-mysql://root:root@127.0.0.1:3306/sishi}\"; prisma studio"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

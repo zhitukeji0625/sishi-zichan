@@ -93,8 +93,11 @@ docker compose up -d --build
 ## 测试
 
 ```bash
-npm run test
+npm run test       # 默认：无数据库时跳过集成用例（见 vitest.global-setup.ts）
+npm run test:ci    # CI / 本地需跑全量：要求可连接的 DATABASE_URL（未设置时与 vitest 默认一致：Docker MariaDB）
 ```
+
+数据库未启动时，`npm run test` 会打印警告并跳过 `placeBid` 等需库的用例；合并前建议在已 `db:push` 的环境执行 `npm run test:ci`。
 
 ## 说明
 
