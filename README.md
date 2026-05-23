@@ -96,6 +96,8 @@ docker compose up -d --build
 npm run test
 ```
 
+Vitest 会加载 `vitest.config.ts` 中的默认 `DATABASE_URL`（与 AGENTS.md 中 Docker MariaDB 一致）。若本机无法连接数据库，竞拍相关的集成测试会被跳过并在控制台提示；本地请先 `npx prisma db push`（或 `npm run db:push`）再跑测试。CI 若要求「无库即失败」，可设置 `VITEST_REQUIRE_DB=1 npm run test`。
+
 ## 说明
 
 - CSV 需求中的全部能力已分阶段落在数据模型与路由中；当前界面实现了核心闭环（资产录入、发拍、报名审核、保证金模拟、出价、公告、晒场预约与审核、消息、订单列表）。合同 PDF、农行真实 SDK、OCR/人脸、大屏监控、报表导出等需对接外部服务或二期扩展。
