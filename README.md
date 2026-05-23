@@ -92,9 +92,14 @@ docker compose up -d --build
 
 ## 测试
 
+先安装依赖（否则会出现 `vitest: not found`）：
+
 ```bash
+npm install
 npm run test
 ```
+
+`src/lib/__tests__/` 中的拍卖出价等为 **数据库集成测试**：需能连接 `DATABASE_URL`（未配置时 Vitest 会沿用 `mysql://root:root@127.0.0.1:3306/sishi`，与本地 Docker MariaDB 一致）。若库不可达，相关用例会 **自动跳过**；在 CI 中若要强制跑通数据库用例，可设置 `VITEST_REQUIRE_DB=1`，并启动 MariaDB 后执行 `npx prisma db push`。
 
 ## 说明
 
