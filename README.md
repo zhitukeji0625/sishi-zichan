@@ -92,8 +92,17 @@ docker compose up -d --build
 
 ## 测试
 
+先安装依赖并配置数据库（与「配置」中 `DATABASE_URL` 一致；未启动数据库时集成用例会跳过，不会失败）：
+
 ```bash
+npm install
 npm run test
+```
+
+在 CI 或本地希望「无库即失败」时：
+
+```bash
+VITEST_REQUIRE_DB=1 npm run test
 ```
 
 ## 说明
