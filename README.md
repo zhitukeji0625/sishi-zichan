@@ -92,6 +92,8 @@ docker compose up -d --build
 
 ## 测试
 
+需先执行 `npm install`（否则可能出现 `vitest: not found`）。`npm run test` 中的集成用例需能连接 `DATABASE_URL` 指向的 MySQL/MariaDB；未配置 `.env` 时 Vitest 会尝试 `vitest.config.ts` 中的默认连接串（与 AGENTS.md 里本地 Docker MariaDB 一致）。若数据库不可达，相关用例会自动跳过；CI 若要强制要求数据库可用，可设置环境变量 `VITEST_REQUIRE_DB=1`。
+
 ```bash
 npm run test
 ```
