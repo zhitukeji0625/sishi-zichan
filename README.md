@@ -92,9 +92,15 @@ docker compose up -d --build
 
 ## 测试
 
+单元与集成测试使用 [Vitest](https://vitest.dev/)，出价逻辑含依赖数据库的用例（需本机可连的 MySQL/MariaDB，与 `vitest.config.ts` 中默认 `DATABASE_URL` 一致，例如 `mysql://root:root@127.0.0.1:3306/sishi`）。
+
 ```bash
+npm install
+npx prisma db push   # 首次或 schema 变更后
 npm run test
 ```
+
+若数据库未启动，相关用例会自动跳过（退出码仍为 0）。在 CI 或需要强制校验数据库时，可设置环境变量 `VITEST_REQUIRE_DB=1`，此时连不上库会使测试失败。
 
 ## 说明
 
