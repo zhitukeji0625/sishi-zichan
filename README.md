@@ -92,9 +92,15 @@ docker compose up -d --build
 
 ## 测试
 
+单元与集成测试使用 [Vitest](https://vitest.dev/)。请先执行 `npm install`。
+
 ```bash
 npm run test
 ```
+
+- 默认会尝试连接 `DATABASE_URL`（未配置 `.env` 时，Vitest 使用与 `AGENTS.md` 一致的本地串：`mysql://root:root@127.0.0.1:3306/sishi`）。**数据库不可用时**，竞拍相关的集成用例会跳过，命令仍返回成功（便于无 Docker 的环境拉代码即跑）。
+- 跑全量用例：启动 MariaDB/MySQL 后执行 `npx prisma db push`，再运行 `npm run test`。
+- CI 或本地希望「无库即失败」时：`npm run test:require-db`（等价于设置 `VITEST_REQUIRE_DB=1`）。
 
 ## 说明
 
