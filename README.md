@@ -93,6 +93,15 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install   # 首次克隆后需安装依赖，否则找不到 vitest
+npm run test
+```
+
+默认会尝试连接 `DATABASE_URL`（未配置时与 `vitest.config.ts` 中本地 Docker 一致：`mysql://root:root@127.0.0.1:3306/sishi`）。若数据库未启动，会**跳过** `src/lib/__tests__/auction.test.ts` 等集成用例并打印提示。CI 或本地需强制跑通数据库测试时：
+
+```bash
+export DATABASE_URL="mysql://root:root@127.0.0.1:3306/sishi"  # 或你的 .env
+export VITEST_REQUIRE_DB=1
 npm run test
 ```
 
