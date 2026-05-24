@@ -93,8 +93,13 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
 ```
+
+- 集成用例（`src/lib/__tests__/auction.test.ts`）依赖可连接的 `DATABASE_URL`。未配置或数据库不可达时，Vitest 会**跳过**相关用例并在控制台提示；这与 `vitest.global-setup.ts` 行为一致。
+- 与 `AGENTS.md` 中 Docker MariaDB 一致时，可在 `.env` 中设置：`DATABASE_URL="mysql://root:root@127.0.0.1:3306/sishi"`，并执行 `npx prisma db push` 后再运行 `npm run test`，应看到 2 条用例通过。
+- CI 需强制数据库可用时：设置环境变量 `VITEST_REQUIRE_DB=1`，数据库不可连时进程以非零退出码失败。
 
 ## 说明
 
