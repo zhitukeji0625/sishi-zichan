@@ -93,7 +93,15 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
+```
+
+- 未配置数据库或 MariaDB 未启动时，集成用例会**自动跳过**（退出码仍为 0），避免克隆仓库后首次 `npm run test` 直接失败。
+- 已启动数据库并 `npx prisma db push` 后，若要**强制**跑通含数据库的用例（适合 CI），请执行：
+
+```bash
+npm run test:integration
 ```
 
 ## 说明
