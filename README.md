@@ -93,8 +93,12 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install   # 首次克隆后需安装依赖，否则无法找到 vitest
 npm run test
 ```
+
+- 默认会尝试连接 `DATABASE_URL`（未配置 `.env` 时与 `vitest.config.ts` 中本地 Docker MariaDB 默认串一致）。数据库不可用时，竞拍相关的**集成用例会自动跳过**，`npm run test` 仍返回成功。
+- CI 或本地希望「无库即失败」时：`VITEST_REQUIRE_DB=1 npm run test`。
 
 ## 说明
 

@@ -7,10 +7,10 @@ const prisma = new PrismaClient();
 const skipDb = process.env.VITEST_SKIP_DB_TESTS === "1";
 
 describe.skipIf(skipDb)("placeBid", () => {
-  let orgId: string;
-  let assetId: string;
-  let projectId: string;
-  let userId: string;
+  let orgId: string | undefined;
+  let assetId: string | undefined;
+  let projectId: string | undefined;
+  let userId: string | undefined;
 
   beforeAll(async () => {
     const org = await prisma.organization.create({
@@ -59,27 +59,36 @@ describe.skipIf(skipDb)("placeBid", () => {
   });
 
   afterAll(async () => {
-    await prisma.auctionBid.deleteMany({ where: { projectId } });
-    await prisma.auctionRegistration.deleteMany({ where: { projectId } });
-    await prisma.auctionProject.delete({ where: { id: projectId } });
-    await prisma.asset.delete({ where: { id: assetId } });
-    await prisma.endUser.delete({ where: { id: userId } });
-    await prisma.organization.delete({ where: { id: orgId } });
-    await prisma.$disconnect();
+    try {
+      if (projectId) {
+        await prisma.auctionBid.deleteMany({ where: { projectId } });
+        await prisma.auctionRegistration.deleteMany({ where: { projectId } });
+        await prisma.auctionProject.delete({ where: { id: projectId } });
+      }
+      if (assetId) await prisma.asset.delete({ where: { id: assetId } });
+      if (userId) await prisma.endUser.delete({ where: { id: userId } });
+      if (orgId) await prisma.organization.delete({ where: { id: orgId } });
+    } finally {
+      await prisma.$disconnect();
+    }
   });
 
   it("accepts first bid at start price", async () => {
+    expect(projectId).toBeDefined();
+    expect(userId).toBeDefined();
     const bid = await placeBid({
-      projectId,
-      endUserId: userId,
+      projectId: projectId!,
+      endUserId: userId!,
       amount: new Decimal(100),
     });
     expect(bid.amount.toString()).toBe("100");
   });
 
   it("rejects bid below min increment", async () => {
+    expect(projectId).toBeDefined();
+    expect(userId).toBeDefined();
     await expect(
-      placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
+      placeBid({ projectId: projectId!, endUserId: userId!, amount: new Decimal(105) }),
     ).rejects.toThrow();
   });
 });
