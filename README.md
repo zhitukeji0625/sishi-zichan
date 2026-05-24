@@ -96,6 +96,15 @@ docker compose up -d --build
 npm run test
 ```
 
+Vitest 会在启动时探测 `DATABASE_URL`（未配置时默认尝试 `mysql://root:root@127.0.0.1:3306/sishi`，与本地 Docker MariaDB 一致）。若数据库不可用，数据库相关用例会**自动跳过**，`npm run test` 仍返回成功。  
+在 CI 或需要强制跑通全部用例时，请先启动 MariaDB 并执行 `npx prisma db push`，再运行：
+
+```bash
+VITEST_REQUIRE_DB=1 npm run test
+```
+
+若数据库不可用，上述命令会失败并提示检查连接与迁移。
+
 ## 说明
 
 - CSV 需求中的全部能力已分阶段落在数据模型与路由中；当前界面实现了核心闭环（资产录入、发拍、报名审核、保证金模拟、出价、公告、晒场预约与审核、消息、订单列表）。合同 PDF、农行真实 SDK、OCR/人脸、大屏监控、报表导出等需对接外部服务或二期扩展。
