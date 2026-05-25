@@ -1,4 +1,6 @@
 node_modules
+# TypeScript incremental cache (local; avoid churn in git status)
+*.tsbuildinfo
 # Keep environment variables out of version control
 .env
 
