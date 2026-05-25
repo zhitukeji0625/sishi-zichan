@@ -2,6 +2,9 @@ node_modules
 # Keep environment variables out of version control
 .env
 
+# TypeScript incremental cache (should not be versioned)
+*.tsbuildinfo
+
 /generated/prisma
 /data/uploads/
 .next
