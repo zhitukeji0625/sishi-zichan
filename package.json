@@ -8,11 +8,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "test": "npx vitest run",
+    "test:watch": "npx vitest",
+    "db:push": "sh scripts/with-local-db-url.sh prisma db push",
+    "db:seed": "sh scripts/with-local-db-url.sh tsx prisma/seed.ts",
+    "db:studio": "sh scripts/with-local-db-url.sh prisma studio"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
