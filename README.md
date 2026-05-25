@@ -9,7 +9,7 @@ Next.js 15 + MySQL（Prisma）+ 移动端 H5 + 后台管理。涵盖组织权限
 
 ## 配置
 
-复制 `.env.example` 为 `.env`，设置 `DATABASE_URL`、`SESSION_SECRET`、`THIRD_PARTY_JWT_SECRET`。
+复制 `.env.example` 为 `.env`，按需调整 `SESSION_SECRET`、`THIRD_PARTY_JWT_SECRET`（`DATABASE_URL` 默认与 AGENTS.md 中 Docker MariaDB 一致）。
 
 ## 数据库
 
