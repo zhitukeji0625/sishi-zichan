@@ -93,8 +93,18 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
 ```
+
+- 默认 `npm run test` 在未启动数据库时会**跳过**依赖 MySQL 的集成用例（避免本地无 Docker 时直接失败），控制台会提示跳过原因。
+- 校验完整测试（含出价 `placeBid` 等数据库集成）：先按上文启动 MariaDB、`npx prisma db push`，再执行：
+
+```bash
+npm run test:ci
+```
+
+（等价于设置环境变量 `VITEST_REQUIRE_DB=1`。）
 
 ## 说明
 
