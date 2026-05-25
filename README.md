@@ -93,8 +93,12 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
 ```
+
+- 默认会尝试连接 `DATABASE_URL`（未配置 `.env` 时与 `vitest.config.ts` 一致，为本地 Docker：`mysql://root:root@127.0.0.1:3306/sishi`）。**数据库不可用时相关用例会被跳过**，`npm run test` 仍返回成功，便于无库环境快速检查。
+- 需**强制跑通**含数据库的集成测试时：先启动 MariaDB 并执行 `npx prisma db push`，再运行 `npm run test:db`（等价于设置环境变量 `VITEST_REQUIRE_DB=1`）。
 
 ## 说明
 
