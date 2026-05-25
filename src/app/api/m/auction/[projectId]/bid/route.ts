@@ -12,15 +12,28 @@ export async function POST(
   const { projectId } = await params;
   const body = await req.json().catch(() => null);
   const raw = body?.amount;
-  const amount = typeof raw === "number" ? raw : typeof raw === "string" ? parseFloat(raw) : NaN;
-  if (!Number.isFinite(amount) || amount <= 0) {
+  let amountDec: Decimal;
+  try {
+    if (typeof raw === "string") {
+      const s = raw.trim();
+      if (!s) throw new Error("empty");
+      amountDec = new Decimal(s);
+    } else if (typeof raw === "number" && Number.isFinite(raw)) {
+      amountDec = new Decimal(raw);
+    } else {
+      throw new Error("invalid type");
+    }
+  } catch {
+    return NextResponse.json({ error: "出价金额无效" }, { status: 400 });
+  }
+  if (amountDec.lte(0)) {
     return NextResponse.json({ error: "出价金额无效" }, { status: 400 });
   }
   try {
     const bid = await placeBid({
       projectId,
       endUserId: user.id,
-      amount: new Decimal(amount),
+      amount: amountDec,
     });
     return NextResponse.json({ ok: true, bidId: bid.id });
   } catch (e) {

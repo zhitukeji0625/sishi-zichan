@@ -17,7 +17,8 @@ export function BidForm({ projectId, minBid }: { projectId: string; minBid: numb
     const res = await fetch(`/api/m/auction/${projectId}/bid`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: parseFloat(amount) }),
+      // 字符串 + 服务端 Decimal，避免 JSON number / parseFloat 的二进制浮点误差
+      body: JSON.stringify({ amount: amount.trim() }),
     });
     setLoading(false);
     const j = await res.json().catch(() => ({}));
