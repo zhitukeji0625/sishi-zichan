@@ -5,3 +5,5 @@ node_modules
 /generated/prisma
 /data/uploads/
 .next
+# TypeScript incremental build cache (local only)
+*.tsbuildinfo
