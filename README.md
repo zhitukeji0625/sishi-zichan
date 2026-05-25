@@ -93,8 +93,13 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
 ```
+
+- 单元与集成测试使用 [Vitest](https://vitest.dev/)，竞拍出价等用例会连 `DATABASE_URL` 指向的 MySQL/MariaDB。
+- 若数据库未启动，相关用例会自动跳过（控制台会提示）；本地或 CI 要**强制**跑通数据库用例时：`VITEST_REQUIRE_DB=1 npm run test`。
+- 与 `AGENTS.md` 一致时，可用 Docker 启动 MariaDB（`root` / `root`，库名 `sishi`），再执行 `npx prisma db push` 后运行测试。
 
 ## 说明
 
