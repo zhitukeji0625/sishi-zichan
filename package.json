@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "pretest": "node -e \"require.resolve('vitest/package.json')\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:push": "prisma db push",

@@ -92,6 +92,8 @@ docker compose up -d --build
 
 ## 测试
 
+需先执行 `npm install`。`npm run test` 使用 Vitest；`src/lib/__tests__/` 中含依赖数据库的集成用例。未配置 `.env` 时测试会默认尝试连接 `mysql://root:root@127.0.0.1:3306/sishi`（与 `vitest.config.ts` 一致）。数据库未启动时相关用例会自动跳过；若要在 CI 或本地强制要求数据库可用，可设置环境变量 `VITEST_REQUIRE_DB=1`。
+
 ```bash
 npm run test
 ```

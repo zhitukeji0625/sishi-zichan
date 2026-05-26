@@ -32,7 +32,9 @@ sudo docker run -d --name mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATAB
 
 ### Testing
 
-- `npm run test` — runs Vitest (unit tests in `src/lib/__tests__/`)
+- Run `npm install` first; Vitest lives in `devDependencies` (without it you may see `vitest: not found`, and `pretest` fails fast if the package is missing).
+- `npm run test` — Vitest; integration-style cases live in `src/lib/__tests__/`.
+- If `DATABASE_URL` is unset, Vitest defaults to `mysql://root:root@127.0.0.1:3306/sishi` (see `vitest.config.ts`). When the DB is unreachable, DB-backed tests are skipped (warning in the console). Set `VITEST_REQUIRE_DB=1` to fail the run instead (useful in CI when the database must be up).
 
 ### Demo accounts (from seed data)
 
