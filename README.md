@@ -92,6 +92,12 @@ docker compose up -d --build
 
 ## 测试
 
+需先执行 `npm install`。Vitest 会读取项目根目录 `.env`；若无 `.env`，`vitest.config.ts` 会将 `DATABASE_URL` 默认设为与 AGENTS.md 中 Docker MariaDB 一致的 `mysql://root:root@127.0.0.1:3306/sishi`。数据库不可连时，竞拍相关的数据库集成测试会自动跳过（控制台会给出提示）。在 CI 或本地若要**强制**要求数据库可用，请使用：
+
+```bash
+VITEST_REQUIRE_DB=1 npm run test
+```
+
 ```bash
 npm run test
 ```
