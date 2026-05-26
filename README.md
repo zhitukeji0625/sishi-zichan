@@ -92,9 +92,13 @@ docker compose up -d --build
 
 ## 测试
 
+先安装依赖：`npm install`。
+
 ```bash
 npm run test
 ```
+
+`src/lib/__tests__/auction.test.ts` 为数据库集成测试：需本机可连接 `DATABASE_URL`（例如按上文启动 Docker MariaDB 后执行 `npx prisma db push`）。若无法连库，Vitest 会跳过相关用例并打印提示；流水线中若必须跑通数据库用例，可执行 `npm run test:require-db`（等价于设置环境变量 `VITEST_REQUIRE_DB=1`）。
 
 ## 说明
 
