@@ -93,7 +93,15 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
+```
+
+`src/lib/__tests__` 中的竞拍出价为**数据库集成测试**：需可用的 `DATABASE_URL`（见 `.env.example`），并已执行 `npx prisma db push`。若无法连接数据库，Vitest 会跳过这些用例并打印提示。要在 CI 或本地**强制**跑通（无库则失败），可执行：
+
+```bash
+export DATABASE_URL="mysql://root:root@127.0.0.1:3306/sishi"   # 与本地环境一致即可
+VITEST_REQUIRE_DB=1 npm run test
 ```
 
 ## 说明
