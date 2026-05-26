@@ -92,8 +92,18 @@ docker compose up -d --build
 
 ## 测试
 
+首次克隆后需先执行 `npm install`，否则会出现找不到 `vitest` 的情况。
+
 ```bash
 npm run test
+```
+
+`src/lib/__tests__/` 中的竞拍出价等为 **数据库集成测试**：本机需已启动 MariaDB（见上文 Docker 说明）且 `DATABASE_URL` 可连（未配置 `.env` 时 Vitest 会默认尝试 `mysql://root:root@127.0.0.1:3306/sishi`）。无数据库时会自动跳过这些用例，退出码仍为 0。
+
+在 CI 或合并前希望「数据库不可用时直接失败」时：
+
+```bash
+npm run test:ci
 ```
 
 ## 说明
