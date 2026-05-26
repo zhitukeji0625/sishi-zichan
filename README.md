@@ -93,7 +93,14 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
+```
+
+`src/lib/__tests__` 中的竞拍出价等为**数据库集成测试**：需已配置 `DATABASE_URL` 且 MariaDB/MySQL 可连接；否则 Vitest 会跳过这些用例（仍退出码 0）。在 CI 或需要强制跑通数据库用例时：
+
+```bash
+npm run test:ci
 ```
 
 ## 说明
