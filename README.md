@@ -96,6 +96,8 @@ docker compose up -d --build
 npm run test
 ```
 
+单元与集成测试使用 Vitest。`src/lib/__tests__/auction.test.ts` 等依赖数据库的用例会在 `vitest.config.ts` 未配置 `DATABASE_URL` 时默认尝试 `mysql://root:root@127.0.0.1:3306/sishi`；若仍无法连接 MariaDB，相关用例会自动跳过。CI 若要强制跑通数据库测试，可设置 `VITEST_REQUIRE_DB=1` 并保证库已 `prisma db push`。
+
 ## 说明
 
 - CSV 需求中的全部能力已分阶段落在数据模型与路由中；当前界面实现了核心闭环（资产录入、发拍、报名审核、保证金模拟、出价、公告、晒场预约与审核、消息、订单列表）。合同 PDF、农行真实 SDK、OCR/人脸、大屏监控、报表导出等需对接外部服务或二期扩展。
