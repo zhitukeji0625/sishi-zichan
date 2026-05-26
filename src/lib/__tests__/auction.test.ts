@@ -68,16 +68,14 @@ describe.skipIf(skipDb)("placeBid", () => {
     await prisma.$disconnect();
   });
 
-  it("accepts first bid at start price", async () => {
+  it("accepts first bid at start price and rejects bids below the next increment", async () => {
     const bid = await placeBid({
       projectId,
       endUserId: userId,
       amount: new Decimal(100),
     });
     expect(bid.amount.toString()).toBe("100");
-  });
 
-  it("rejects bid below min increment", async () => {
     await expect(
       placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
     ).rejects.toThrow();
