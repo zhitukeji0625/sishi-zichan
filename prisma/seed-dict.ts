@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import type { PrismaClient } from "@prisma/client";
 
 const categories = [
   {
@@ -161,11 +160,12 @@ const categories = [
   },
 ];
 
-async function main() {
+/** 幂等写入内置数据字典；主种子与独立脚本均可调用 */
+export async function seedDict(prisma: PrismaClient) {
   for (const cat of categories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
-      console.log(`  Skip: ${cat.code} (already exists)`);
+      console.log(`  Skip dict: ${cat.code} (already exists)`);
       continue;
     }
     await prisma.dictCategory.create({
@@ -177,11 +177,25 @@ async function main() {
         items: { create: cat.items },
       },
     });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+    console.log(`  Created dict: ${cat.code} (${cat.items.length} items)`);
   }
-  console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+async function runStandalone() {
+  const { PrismaClient } = await import("@prisma/client");
+  const prisma = new PrismaClient();
+  try {
+    await seedDict(prisma);
+    console.log("Dict seed done.");
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+const entry = process.argv[1]?.replace(/\\/g, "/") ?? "";
+if (entry.endsWith("seed-dict.ts")) {
+  runStandalone().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
