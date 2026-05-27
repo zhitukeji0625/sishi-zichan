@@ -33,6 +33,7 @@ sudo docker run -d --name mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATAB
 ### Testing
 
 - `npm run test` — runs Vitest (unit tests in `src/lib/__tests__/`)
+- `npm run test:ci` — same as above but sets `VITEST_REQUIRE_DB=1` so the run fails if MariaDB is unreachable (use when `DATABASE_URL` is expected to be valid, e.g. CI with a DB service)
 
 ### Demo accounts (from seed data)
 

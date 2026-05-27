@@ -92,8 +92,16 @@ docker compose up -d --build
 
 ## 测试
 
+先执行 `npm install`（否则会出现 `vitest: not found`）。默认在无数据库时会跳过 `placeBid` 等集成用例；本地按 [AGENTS.md](./AGENTS.md) 启动 MariaDB 并 `npx prisma db push` 后，同一套用例会自动连库执行。
+
 ```bash
 npm run test
+```
+
+在 CI 或定时任务中，若已配置可连通的 `DATABASE_URL`，可用以下命令在无库时直接失败（避免「全跳过仍显示通过」）：
+
+```bash
+npm run test:ci
 ```
 
 ## 说明
