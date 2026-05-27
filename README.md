@@ -92,8 +92,20 @@ docker compose up -d --build
 
 ## 测试
 
+使用 [Vitest](https://vitest.dev/)，部分用例（如 `src/lib/__tests__/auction.test.ts`）为 **Prisma 数据库集成测试**，需可连通的 MySQL/MariaDB（与本地开发一致）：
+
+1. 复制 `.env.example` 为 `.env`，将 `DATABASE_URL` 指向可用库（本地 Docker MariaDB 示例见仓库根目录 `AGENTS.md`）。
+2. 执行 `npx prisma db push`（或确保库表结构与当前 schema 一致）。
+3. 启动数据库后运行：
+
 ```bash
 npm run test
+```
+
+若库不可达，Vitest 会 **跳过** 上述集成用例并在控制台提示；CI 或希望「无库即失败」时可设置：
+
+```bash
+VITEST_REQUIRE_DB=1 npm run test
 ```
 
 ## 说明
