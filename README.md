@@ -9,7 +9,7 @@ Next.js 15 + MySQL（Prisma）+ 移动端 H5 + 后台管理。涵盖组织权限
 
 ## 配置
 
-复制 `.env.example` 为 `.env`，设置 `DATABASE_URL`、`SESSION_SECRET`、`THIRD_PARTY_JWT_SECRET`。
+复制 `.env.example` 为 `.env`，按需填写 `SESSION_SECRET`、`THIRD_PARTY_JWT_SECRET`（若使用文档中的 Docker MariaDB，`DATABASE_URL` 已与 root/root 对齐，可直接使用）。
 
 ## 数据库
 
@@ -94,6 +94,12 @@ docker compose up -d --build
 
 ```bash
 npm run test
+```
+
+无可用 MySQL 时，竞拍相关的集成用例会被跳过（控制台会提示）。本地已按上文启动 MariaDB 并 `prisma db push` 后，可强制跑通数据库用例：
+
+```bash
+npm run test:integration
 ```
 
 ## 说明
