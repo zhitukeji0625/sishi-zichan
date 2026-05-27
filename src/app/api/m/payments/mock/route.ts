@@ -59,7 +59,12 @@ export async function POST(req: Request) {
   } else {
     if (!reservationId) return NextResponse.json({ error: "缺少预约ID" }, { status: 400 });
     const reservation = await prisma.dryingReservation.findUnique({ where: { id: reservationId } });
-    if (!reservation || reservation.endUserId !== user.id) return NextResponse.json({ error: "预约不存在" }, { status: 403 });
+    if (!reservation || reservation.endUserId !== user.id) {
+      return NextResponse.json({ error: "预约不存在" }, { status: 403 });
+    }
+    if (reservation.status !== "ACTIVE") {
+      return NextResponse.json({ error: "当前状态不可支付租金" }, { status: 400 });
+    }
     amount = new Decimal(500);
   }
 

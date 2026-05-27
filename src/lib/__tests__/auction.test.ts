@@ -77,6 +77,20 @@ describe.skipIf(skipDb)("placeBid", () => {
     expect(bid.amount.toString()).toBe("100");
   });
 
+  it("rejects bid after auction ends", async () => {
+    await prisma.auctionProject.update({
+      where: { id: projectId },
+      data: { endsAt: new Date(Date.now() - 1000) },
+    });
+    await expect(
+      placeBid({ projectId, endUserId: userId, amount: new Decimal(10000) }),
+    ).rejects.toThrow(/已结束/);
+    await prisma.auctionProject.update({
+      where: { id: projectId },
+      data: { endsAt: new Date(Date.now() + 86400000) },
+    });
+  });
+
   it("rejects bid below min increment", async () => {
     await expect(
       placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
