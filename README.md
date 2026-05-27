@@ -93,8 +93,12 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
 ```
+
+- 默认：若本机无法连接 `DATABASE_URL`（见 `.env.example`），集成测试会自动跳过，`npm run test` 仍返回成功，便于无库环境拉代码后快速校验。
+- CI 或本地需**强制**跑通数据库用例：先启动 MariaDB/MySQL 并执行 `npx prisma db push`，再运行 `npm run test:ci`（数据库不可用时进程退出码非 0）。
 
 ## 说明
 
