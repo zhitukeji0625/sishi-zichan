@@ -93,8 +93,11 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install   # 首次克隆后需安装依赖（否则找不到 vitest）
 npm run test
 ```
+
+- 含数据库集成测试（`src/lib/__tests__/auction.test.ts`）。未配置 `.env` 时，`vitest.config.ts` 会采用与 AGENTS.md 一致的默认 `DATABASE_URL`（`mysql://root:root@127.0.0.1:3306/sishi`）。若无法连接数据库，相关用例会**自动跳过**；CI 若需强制校验数据库，可设置 `VITEST_REQUIRE_DB=1`。
 
 ## 说明
 
