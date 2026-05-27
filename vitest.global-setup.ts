@@ -1,3 +1,4 @@
+import path from "path";
 import { PrismaClient } from "@prisma/client";
 
 /**
@@ -16,6 +17,12 @@ export default async function globalSetup() {
         setTimeout(() => reject(new Error("connect timeout")), timeoutMs),
       ),
     ]);
+    const { execSync } = await import("child_process");
+    execSync("npx prisma db push --skip-generate", {
+      stdio: "pipe",
+      cwd: path.resolve(__dirname),
+      env: process.env,
+    });
     process.env.VITEST_DB_AVAILABLE = "1";
   } catch {
     if (requireDb) {

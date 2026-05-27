@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImageUploader } from "@/components/ImageUploader";
+import { parseImageUrls } from "@/lib/images";
 interface Org {
   id: string;
   name: string;
@@ -32,12 +33,7 @@ interface Props {
 
 export function AssetForm({ orgs, defaultOrgId, action, typeOptions, statusOptions, asset }: Props) {
   const router = useRouter();
-  const [images, setImages] = useState<string[]>(() => {
-    if (asset?.imagesJson) {
-      try { return JSON.parse(asset.imagesJson); } catch { return []; }
-    }
-    return [];
-  });
+  const [images, setImages] = useState<string[]>(() => parseImageUrls(asset?.imagesJson ?? null));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

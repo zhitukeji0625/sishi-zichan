@@ -9,17 +9,7 @@ import { registerAuctionAction } from "../actions";
 import { payAuctionDepositAction } from "../pay-actions";
 import { createAuctionContractAction, payAuctionRentAction } from "../../contract/sign-actions";
 import { BidForm } from "./BidForm";
-
-function parseImageUrls(imagesJson: string | null): string[] {
-  if (!imagesJson) return [];
-  try {
-    const v = JSON.parse(imagesJson) as unknown;
-    if (!Array.isArray(v)) return [];
-    return v.filter((x): x is string => typeof x === "string" && x.length > 0);
-  } catch {
-    return [];
-  }
-}
+import { parseImageUrls } from "@/lib/images";
 
 export default async function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
