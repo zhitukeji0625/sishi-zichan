@@ -93,7 +93,14 @@ docker compose up -d --build
 ## 测试
 
 ```bash
+npm install
 npm run test
+```
+
+未启动数据库或未配置 `DATABASE_URL` 时，竞拍相关的**数据库集成测试**会被跳过（终端会打印提示），`npm run test` 仍会以成功退出。已启动 MySQL/MariaDB、`npx prisma db push` 且连接串可用后，若要**强制**跑通全部用例（无库则失败），请执行：
+
+```bash
+npm run test:db
 ```
 
 ## 说明
