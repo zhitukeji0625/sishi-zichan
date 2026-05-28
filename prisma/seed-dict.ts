@@ -1,5 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
 
 const categories = [
   {
@@ -161,27 +160,37 @@ const categories = [
   },
 ];
 
-async function main() {
-  for (const cat of categories) {
-    const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
-    if (existing) {
-      console.log(`  Skip: ${cat.code} (already exists)`);
-      continue;
+/** 幂等写入内置数据字典；可由主 seed 或 `npm run db:seed:dict` 单独调用。 */
+export async function seedDict(client?: PrismaClient) {
+  const prisma = client ?? new PrismaClient();
+  const ownsClient = !client;
+  try {
+    for (const cat of categories) {
+      const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
+      if (existing) {
+        console.log(`  Skip: ${cat.code} (already exists)`);
+        continue;
+      }
+      await prisma.dictCategory.create({
+        data: {
+          code: cat.code,
+          name: cat.name,
+          description: cat.description ?? null,
+          builtIn: cat.builtIn,
+          items: { create: cat.items },
+        },
+      });
+      console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
     }
-    await prisma.dictCategory.create({
-      data: {
-        code: cat.code,
-        name: cat.name,
-        description: cat.description ?? null,
-        builtIn: cat.builtIn,
-        items: { create: cat.items },
-      },
-    });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+    console.log("Dict seed done.");
+  } finally {
+    if (ownsClient) await prisma.$disconnect();
   }
-  console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+if (process.argv[1]?.includes("seed-dict")) {
+  seedDict().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
