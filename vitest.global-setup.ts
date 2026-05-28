@@ -7,7 +7,7 @@ import { PrismaClient } from "@prisma/client";
 export default async function globalSetup() {
   const requireDb = process.env.VITEST_REQUIRE_DB === "1";
   const prisma = new PrismaClient();
-  const timeoutMs = Number(process.env.VITEST_DB_CONNECT_TIMEOUT_MS ?? "4000");
+  const timeoutMs = Number(process.env.VITEST_DB_CONNECT_TIMEOUT_MS ?? "8000");
 
   try {
     await Promise.race([
