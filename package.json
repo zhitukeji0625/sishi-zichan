@@ -10,8 +10,10 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:smoke": "bash scripts/smoke-test.sh",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:dict": "tsx prisma/seed-dict.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
