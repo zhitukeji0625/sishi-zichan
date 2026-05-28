@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
-import { signThirdPartyToken } from "@/lib/auth/session";
+import { isThirdPartyConfigured, signThirdPartyToken } from "@/lib/auth/session";
 
 export async function GET(req: Request) {
   if (process.env.NODE_ENV === "production") {
     return NextResponse.json({ error: "不可用" }, { status: 404 });
+  }
+  if (!isThirdPartyConfigured()) {
+    return NextResponse.json({ error: "未配置 THIRD_PARTY_JWT_SECRET" }, { status: 503 });
   }
   const url = new URL(req.url);
   const uid = url.searchParams.get("u_id") ?? `demo_${Date.now()}`;
