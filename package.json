@@ -10,6 +10,8 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "node scripts/api-integration-test.mjs",
+    "test:smoke": "bash scripts/smoke-test.sh",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio"
