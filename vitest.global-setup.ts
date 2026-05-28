@@ -9,6 +9,14 @@ export default async function globalSetup() {
   const prisma = new PrismaClient();
   const timeoutMs = Number(process.env.VITEST_DB_CONNECT_TIMEOUT_MS ?? "4000");
 
+  const skipDbTests = (reason: string) => {
+    if (requireDb) {
+      throw new Error(`${reason} 详见 AGENTS.md。`);
+    }
+    process.env.VITEST_SKIP_DB_TESTS = "1";
+    console.warn(`[vitest] 跳过数据库集成测试（${reason}）。设置 VITEST_REQUIRE_DB=1 可强制失败。`);
+  };
+
   try {
     await Promise.race([
       prisma.$connect(),
@@ -16,17 +24,14 @@ export default async function globalSetup() {
         setTimeout(() => reject(new Error("connect timeout")), timeoutMs),
       ),
     ]);
-    process.env.VITEST_DB_AVAILABLE = "1";
-  } catch {
-    if (requireDb) {
-      throw new Error(
-        "数据库不可用：请启动 MariaDB 并执行 prisma db push，或检查 DATABASE_URL。详见 AGENTS.md。",
-      );
+    try {
+      await prisma.organization.count();
+      process.env.VITEST_DB_AVAILABLE = "1";
+    } catch {
+      skipDbTests("已连接数据库但 schema 未就绪，请先执行 npx prisma db push");
     }
-    process.env.VITEST_SKIP_DB_TESTS = "1";
-    console.warn(
-      "[vitest] 跳过数据库集成测试（无法连接 DATABASE_URL）。设置 VITEST_REQUIRE_DB=1 可强制失败。",
-    );
+  } catch {
+    skipDbTests("无法连接 DATABASE_URL，请启动 MariaDB 并检查连接串");
   } finally {
     await prisma.$disconnect().catch(() => {});
   }
