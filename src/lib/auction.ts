@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 
@@ -16,6 +17,9 @@ export async function placeBid(params: {
 }) {
   const { projectId, endUserId, amount } = params;
   return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw(
+      Prisma.sql`SELECT id FROM AuctionProject WHERE id = ${projectId} FOR UPDATE`,
+    );
     const project = await tx.auctionProject.findUnique({ where: { id: projectId } });
     if (!project || project.status !== "LIVE") {
       throw new Error("竞拍未在进行中");

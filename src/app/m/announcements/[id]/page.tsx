@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { sanitizeRichHtml } from "@/lib/sanitize-html";
 import { Megaphone, ChevronLeft, Calendar } from "lucide-react";
 
 export default async function AnnouncementDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -30,7 +31,7 @@ export default async function AnnouncementDetailPage({ params }: { params: Promi
         <div className="card-elevated-lg p-5 animate-slide-up">
           <div
             className="text-sm leading-relaxed text-slate-700 [&_p]:mb-3"
-            dangerouslySetInnerHTML={{ __html: a.content }}
+            dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(a.content) }}
           />
         </div>
       </div>
