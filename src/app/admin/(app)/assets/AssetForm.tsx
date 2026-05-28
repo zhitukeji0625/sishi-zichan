@@ -45,19 +45,24 @@ export function AssetForm({ orgs, defaultOrgId, action, typeOptions, statusOptio
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    const fd = new FormData(e.currentTarget);
-    fd.set("imagesJson", JSON.stringify(images));
-    
-    const url = action === "create" ? "/api/admin/assets" : `/api/admin/assets/${asset?.id}`;
-    const res = await fetch(url, { method: "POST", body: fd });
-    const j = await res.json().catch(() => ({}));
-    setSubmitting(false);
-    if (!res.ok || j.error) {
-      setError(j.error ?? "操作失败");
-      return;
+    try {
+      const fd = new FormData(e.currentTarget);
+      fd.set("imagesJson", JSON.stringify(images));
+
+      const url = action === "create" ? "/api/admin/assets" : `/api/admin/assets/${asset?.id}`;
+      const res = await fetch(url, { method: "POST", body: fd });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j.error) {
+        setError(j.error ?? "操作失败");
+        return;
+      }
+      router.push("/admin/assets");
+      router.refresh();
+    } catch {
+      setError("网络异常，请稍后重试");
+    } finally {
+      setSubmitting(false);
     }
-    router.push("/admin/assets");
-    router.refresh();
   }
 
   return (

@@ -16,19 +16,24 @@ export default function MLoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, password }),
-    });
-    setLoading(false);
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      setError(j.error ?? "登录失败");
-      return;
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, password }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setError(j.error ?? "登录失败");
+        return;
+      }
+      router.replace("/m");
+      router.refresh();
+    } catch {
+      setError("网络异常，请稍后重试");
+    } finally {
+      setLoading(false);
     }
-    router.replace("/m");
-    router.refresh();
   }
 
   return (
