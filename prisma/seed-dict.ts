@@ -1,5 +1,5 @@
+import { pathToFileURL } from "url";
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
 
 const categories = [
   {
@@ -161,7 +161,8 @@ const categories = [
   },
 ];
 
-async function main() {
+/** Idempotent dict seed; safe to run on every `npm run db:seed`. */
+export async function seedDictCategories(prisma: PrismaClient) {
   for (const cat of categories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
@@ -182,6 +183,19 @@ async function main() {
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+async function main() {
+  const prisma = new PrismaClient();
+  try {
+    await seedDictCategories(prisma);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+const isDirectRun = import.meta.url === pathToFileURL(process.argv[1] ?? "").href;
+if (isDirectRun) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
