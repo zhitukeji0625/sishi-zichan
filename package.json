@@ -9,9 +9,11 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
+    "test:integration": "bash scripts/integration-test.sh",
     "test:watch": "vitest",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:dict": "tsx prisma/seed-dict.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
