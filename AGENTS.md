@@ -15,7 +15,7 @@ This is a Next.js 15 asset leasing & auction platform (四师资产租赁) with 
 
 ### Database
 
-- Schema push: `npx prisma db push`
+- Schema push: `npm run db:push`（勿裸跑 `npx prisma`，易拉到 Prisma 7）
 - Seed: `npm run db:seed`
 - Studio: `npm run db:studio`
 
