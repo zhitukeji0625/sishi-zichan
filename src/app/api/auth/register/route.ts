@@ -5,7 +5,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { createDbSession, setSessionCookie } from "@/lib/auth/session";
 
 const schema = z.object({
-  phone: z.string().min(11).max(15),
+  phone: z.string().trim().min(11).max(15),
   password: z.string().min(6).max(64),
   name: z.string().min(1).max(50).optional(),
 });

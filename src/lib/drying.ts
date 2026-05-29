@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { startOfDay, eachDayOfInterval, format } from "date-fns";
+import { startOfDay, eachDayOfInterval, format, addDays } from "date-fns";
 
 export async function getCapacityForDay(listingId: string, day: Date) {
   const d = startOfDay(day);
@@ -30,11 +30,36 @@ export async function getCapacityForDay(listingId: string, day: Date) {
   return { max, booked, available: Math.max(0, max - booked) };
 }
 
+/** 与 H5 预约表单一致的提前天数窗口校验 */
+export async function validateBookingWindow(
+  listingId: string,
+  start: Date,
+  end: Date,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const listing = await prisma.dryingFieldListing.findUnique({
+    where: { id: listingId },
+    include: { bookingRules: true },
+  });
+  if (!listing) return { ok: false, message: "晒场不存在" };
+  const maxAdvance = listing.bookingRules[0]?.maxAdvanceDays ?? 7;
+  const today = startOfDay(new Date());
+  const horizon = startOfDay(addDays(today, maxAdvance));
+  const s = startOfDay(start);
+  const e = startOfDay(end);
+  if (s < today) return { ok: false, message: "开始日期不能早于今天" };
+  if (e > horizon) {
+    return { ok: false, message: `预约日期不能超过今天起 ${maxAdvance} 天` };
+  }
+  return { ok: true };
+}
+
 export async function validateReservationRange(
   listingId: string,
   start: Date,
   end: Date,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  const windowCheck = await validateBookingWindow(listingId, start, end);
+  if (!windowCheck.ok) return windowCheck;
   const days = eachDayOfInterval({ start: startOfDay(start), end: startOfDay(end) });
   for (const day of days) {
     const { available } = await getCapacityForDay(listingId, day);

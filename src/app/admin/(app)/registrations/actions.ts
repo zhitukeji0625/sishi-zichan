@@ -19,6 +19,8 @@ export async function reviewRegistrationFormAction(formData: FormData) {
     include: { project: { include: { asset: true } }, endUser: true },
   });
   if (!reg) return { error: "记录不存在" };
+  if (reg.status !== "PENDING") return { error: "该报名已审核，不可重复操作" };
+  if (!approve && reg.depositPaid) return { error: "已缴纳保证金，不可驳回" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, reg.project.asset.orgId);
   if (!ok) return { error: "无权操作该组织" };
   await prisma.auctionRegistration.update({

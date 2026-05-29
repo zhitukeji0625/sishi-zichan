@@ -49,17 +49,31 @@ export async function upsertEndUserFromExternal(
     include: { endUser: true },
   });
   if (existing) {
-    await prisma.endUser.update({
-      where: { id: existing.endUserId },
-      data: {
-        name: profile.displayName,
-        ...(profile.phone ? { phone: profile.phone } : {}),
-        ...(orgId ? { orgId } : {}),
-      },
-    });
+    const updateData: { name: string; phone?: string; orgId?: string | null } = {
+      name: profile.displayName,
+      ...(orgId ? { orgId } : {}),
+    };
+    if (profile.phone) {
+      const phoneTaken = await prisma.endUser.findFirst({
+        where: { phone: profile.phone, NOT: { id: existing.endUserId } },
+      });
+      if (!phoneTaken) updateData.phone = profile.phone;
+    }
+    try {
+      await prisma.endUser.update({
+        where: { id: existing.endUserId },
+        data: updateData,
+      });
+    } catch {
+      /* 忽略手机号唯一约束等并发冲突 */
+    }
     return prisma.endUser.findUnique({ where: { id: existing.endUserId }, include: { org: true } });
   }
   let phone = profile.phone ?? null;
+  if (phone) {
+    const taken = await prisma.endUser.findUnique({ where: { phone } });
+    if (taken) phone = null;
+  }
   if (!phone) {
     for (let i = 0; i < 20; i++) {
       const cand = `190${Math.floor(Math.random() * 1e8)
