@@ -6,11 +6,9 @@ const prisma = new PrismaClient();
 async function ensureLiveDemoAuction() {
   const live = await prisma.auctionProject.count({ where: { status: "LIVE" } });
   if (live > 0) return;
-
   const asset = await prisma.asset.findFirst({ where: { type: AssetType.LAND } });
   const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
   if (!asset || !demoUser) return;
-
   const starts = new Date(Date.now() - 60 * 1000);
   const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const project = await prisma.auctionProject.create({
