@@ -161,11 +161,11 @@ const categories = [
   },
 ];
 
-async function main() {
+/** 幂等写入内置数据字典；部署与 `db:seed` 均应调用。 */
+export async function seedDict(prisma: PrismaClient) {
   for (const cat of categories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
-      console.log(`  Skip: ${cat.code} (already exists)`);
       continue;
     }
     await prisma.dictCategory.create({
@@ -177,11 +177,24 @@ async function main() {
         items: { create: cat.items },
       },
     });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+    console.log(`  Created dict: ${cat.code} (${cat.items.length} items)`);
   }
+}
+
+async function main() {
+  await seedDict(prisma);
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+const isDirectRun =
+  typeof process.argv[1] === "string" && process.argv[1].replace(/\\/g, "/").endsWith("prisma/seed-dict.ts");
+
+if (isDirectRun) {
+  main()
+    .then(() => prisma.$disconnect())
+    .catch((e) => {
+      console.error(e);
+      prisma.$disconnect();
+      process.exit(1);
+    });
+}
