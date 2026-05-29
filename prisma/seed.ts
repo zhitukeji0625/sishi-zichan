@@ -6,7 +6,36 @@ const prisma = new PrismaClient();
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+    const staleLive = await prisma.auctionProject.findFirst({
+      where: { status: { in: ["ENDED", "LIVE"] }, endsAt: { lte: new Date() } },
+      orderBy: { createdAt: "asc" },
+    });
+    if (staleLive) {
+      const starts = new Date(Date.now() - 60 * 1000);
+      const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await prisma.auctionProject.update({
+        where: { id: staleLive.id },
+        data: { status: "LIVE", startsAt: starts, endsAt: ends },
+      });
+      if (demoUser) {
+        await prisma.auctionRegistration.upsert({
+          where: {
+            projectId_endUserId: { projectId: staleLive.id, endUserId: demoUser.id },
+          },
+          update: { status: "APPROVED", depositPaid: true },
+          create: {
+            projectId: staleLive.id,
+            endUserId: demoUser.id,
+            status: "APPROVED",
+            depositPaid: true,
+          },
+        });
+      }
+      console.log("Seed refresh: demo auction project dates updated to LIVE.");
+    } else {
+      console.log("Seed skipped: data already present.");
+    }
     return;
   }
 
