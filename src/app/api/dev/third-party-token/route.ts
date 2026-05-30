@@ -7,6 +7,13 @@ export async function GET(req: Request) {
   }
   const url = new URL(req.url);
   const uid = url.searchParams.get("u_id") ?? `demo_${Date.now()}`;
-  const token = await signThirdPartyToken(uid, 600);
-  return NextResponse.json({ token, u_id: uid, hint: "POST /api/auth/third-party with { token }" });
+  try {
+    const token = await signThirdPartyToken(uid, 600);
+    return NextResponse.json({ token, u_id: uid, hint: "POST /api/auth/third-party with { token }" });
+  } catch {
+    return NextResponse.json(
+      { error: "THIRD_PARTY_JWT_SECRET 未配置或过短" },
+      { status: 503 },
+    );
+  }
 }

@@ -4,10 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
 import { notifyUser } from "@/lib/messages";
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+import { escapeHtml, fillContractTemplate } from "@/lib/html";
 
 export async function signContractAction(contractId: string) {
   const user = await getCurrentEndUser();
@@ -59,11 +56,12 @@ export async function createAuctionContractAction(projectId: string) {
     where: { type: "AUCTION_LEASE", active: true },
   });
   const htmlBody = template
-    ? template.bodyHtml
-        .replace("{{orgName}}", escapeHtml(result.project.asset.org?.name ?? "甲方"))
-        .replace("{{userName}}", escapeHtml(user.name ?? user.phone))
-        .replace("{{assetName}}", escapeHtml(result.project.asset.name))
-        .replace("{{leaseTerm}}", escapeHtml(result.project.leaseTermDesc ?? "以合同约定为准"))
+    ? fillContractTemplate(template.bodyHtml, {
+        orgName: result.project.asset.org?.name ?? "甲方",
+        userName: user.name ?? user.phone,
+        assetName: result.project.asset.name,
+        leaseTerm: result.project.leaseTermDesc ?? "以合同约定为准",
+      })
     : `<p>竞拍合同：${escapeHtml(result.project.asset.name)}</p>`;
   const contract = await prisma.contract.create({
     data: {
@@ -117,6 +115,10 @@ export async function payAuctionRentAction(projectId: string) {
   if (!result || result.winnerId !== user.id || result.status !== "PUBLISHED") {
     return { error: "无权操作" };
   }
+  const signedContract = await prisma.contract.findFirst({
+    where: { auctionProjectId: projectId, endUserId: user.id, status: "SIGNED" },
+  });
+  if (!signedContract) return { error: "请先签署合同" };
   const topBid = await prisma.auctionBid.findFirst({
     where: { projectId, endUserId: user.id },
     orderBy: { amount: "desc" },
