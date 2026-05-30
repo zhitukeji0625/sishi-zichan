@@ -1,5 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
 
 const categories = [
   {
@@ -161,11 +160,12 @@ const categories = [
   },
 ];
 
-async function main() {
+/** Idempotent dict seed; safe to run on every `npm run db:seed`. */
+export async function seedDict(prisma: PrismaClient) {
   for (const cat of categories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
-      console.log(`  Skip: ${cat.code} (already exists)`);
+      console.log(`  Skip dict: ${cat.code} (already exists)`);
       continue;
     }
     await prisma.dictCategory.create({
@@ -177,11 +177,21 @@ async function main() {
         items: { create: cat.items },
       },
     });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+    console.log(`  Created dict: ${cat.code} (${cat.items.length} items)`);
   }
-  console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+async function main() {
+  const prisma = new PrismaClient();
+  await seedDict(prisma);
+  console.log("Dict seed done.");
+  await prisma.$disconnect();
+}
+
+const isDirectRun = (process.argv[1] ?? "").replace(/\\/g, "/").endsWith("seed-dict.ts");
+if (isDirectRun) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
