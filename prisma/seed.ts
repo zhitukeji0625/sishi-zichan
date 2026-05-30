@@ -3,9 +3,72 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_USER_PHONE = "13800138000";
+
+/** 演示账号需有进行中的竞拍；库已存在时 cron 可能已将项目标为 ENDED，此处刷新时间窗。 */
+async function ensureDemoLiveAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+
+  const now = new Date();
+  const starts = new Date(now.getTime() - 60 * 1000);
+  const ends = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id, status: "APPROVED", depositPaid: true },
+    include: { project: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (reg?.project) {
+    const p = reg.project;
+    if (p.status !== "LIVE" || p.endsAt <= now) {
+      await prisma.auctionProject.update({
+        where: { id: p.id },
+        data: { status: "LIVE", startsAt: starts, endsAt: ends },
+      });
+      console.log(`Demo auction ${p.code} refreshed to LIVE.`);
+    }
+    return;
+  }
+
+  const asset = await prisma.asset.findFirst({
+    where: { type: AssetType.LAND },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!asset) return;
+
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `AP${Date.now()}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log(`Demo auction ${project.code} created for ${DEMO_USER_PHONE}.`);
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await ensureDemoLiveAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
@@ -207,6 +270,8 @@ async function main() {
       channel: "IN_APP",
     },
   });
+
+  await ensureDemoLiveAuction();
 
   console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
 }
