@@ -57,9 +57,14 @@ export async function POST(req: Request) {
     if (existingDeposit) return NextResponse.json({ error: "保证金已缴纳" }, { status: 409 });
     amount = new Decimal(200);
   } else {
+    // DRYING_RENT
     if (!reservationId) return NextResponse.json({ error: "缺少预约ID" }, { status: 400 });
     const reservation = await prisma.dryingReservation.findUnique({ where: { id: reservationId } });
     if (!reservation || reservation.endUserId !== user.id) return NextResponse.json({ error: "预约不存在" }, { status: 403 });
+    const existingRent = await prisma.payment.findFirst({
+      where: { reservationId, endUserId: user.id, purpose: "DRYING_RENT", status: "SUCCESS" },
+    });
+    if (existingRent) return NextResponse.json({ error: "租金已支付" }, { status: 409 });
     amount = new Decimal(500);
   }
 
