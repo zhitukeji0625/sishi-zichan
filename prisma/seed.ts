@@ -2,11 +2,67 @@ import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@pris
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+const DEMO_USER_PHONE = "13800138000";
+
+/** 演示账号需始终有一场可出价的 LIVE 竞拍（cron 会按 endsAt 结束场次）。 */
+async function ensureDemoLiveAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+
+  const liveReg = await prisma.auctionRegistration.findFirst({
+    where: {
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+      project: { status: "LIVE", endsAt: { gt: new Date() } },
+    },
+    select: { projectId: true },
+  });
+  if (liveReg) return;
+
+  const asset =
+    (await prisma.asset.findFirst({
+      where: { name: "团部东侧闲置地块" },
+      orderBy: { createdAt: "asc" },
+    })) ??
+    (await prisma.asset.findFirst({ orderBy: { createdAt: "asc" } }));
+  if (!asset) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `AP-DEMO-${Date.now()}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log(`Demo LIVE auction ensured: ${project.code}`);
+}
 
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
+    await ensureDemoLiveAuction();
     return;
   }
 
@@ -163,7 +219,7 @@ async function main() {
     },
   });
 
-  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
   if (demoUser) {
     await prisma.auctionRegistration.upsert({
       where: {
@@ -178,6 +234,8 @@ async function main() {
       },
     });
   }
+
+  await ensureDemoLiveAuction();
 
   await prisma.announcement.create({
     data: {
