@@ -4,18 +4,36 @@ import { PrismaClient } from "@prisma/client";
  * 集成测试依赖 MySQL/MariaDB。无库时默认跳过相关用例，避免 `npm run test` 直接失败。
  * CI 或本地需强制跑通时设置：VITEST_REQUIRE_DB=1
  */
+async function connectWithRetry(prisma: PrismaClient, attempts: number, timeoutMs: number) {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      await Promise.race([
+        prisma.$connect(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("connect timeout")), timeoutMs),
+        ),
+      ]);
+      return;
+    } catch (e) {
+      lastErr = e;
+      await prisma.$disconnect().catch(() => {});
+      if (i < attempts - 1) {
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 export default async function globalSetup() {
   const requireDb = process.env.VITEST_REQUIRE_DB === "1";
   const prisma = new PrismaClient();
-  const timeoutMs = Number(process.env.VITEST_DB_CONNECT_TIMEOUT_MS ?? "4000");
+  const timeoutMs = Number(process.env.VITEST_DB_CONNECT_TIMEOUT_MS ?? "8000");
+  const attempts = Number(process.env.VITEST_DB_CONNECT_ATTEMPTS ?? "3");
 
   try {
-    await Promise.race([
-      prisma.$connect(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("connect timeout")), timeoutMs),
-      ),
-    ]);
+    await connectWithRetry(prisma, attempts, timeoutMs);
     process.env.VITEST_DB_AVAILABLE = "1";
   } catch {
     if (requireDb) {
