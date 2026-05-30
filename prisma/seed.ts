@@ -1,12 +1,73 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
+
+/** 演示账号需始终有一场可出价的 LIVE 竞拍（cron 过期后 seed 再次执行应恢复） */
+async function ensureDemoLiveAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  const linked = await prisma.auctionProject.findFirst({
+    where: {
+      registrations: {
+        some: {
+          endUserId: demoUser.id,
+          status: "APPROVED",
+          depositPaid: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (linked) {
+    await prisma.auctionProject.update({
+      where: { id: linked.id },
+      data: { status: "LIVE", startsAt: starts, endsAt: ends },
+    });
+    return;
+  }
+
+  const asset = await prisma.asset.findFirst({
+    where: { type: AssetType.LAND },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!asset) return;
+
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `AP${Date.now()}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+
+  await prisma.auctionRegistration.create({
+    data: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+}
 
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    await ensureDemoLiveAuction();
+    await seedDict(prisma);
+    console.log("Seed skipped: data already present (demo auction refreshed).");
     return;
   }
 
@@ -179,6 +240,8 @@ async function main() {
     });
   }
 
+  await ensureDemoLiveAuction();
+
   await prisma.announcement.create({
     data: {
       orgId: reg.id,
@@ -207,6 +270,8 @@ async function main() {
       channel: "IN_APP",
     },
   });
+
+  await seedDict(prisma);
 
   console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
 }
