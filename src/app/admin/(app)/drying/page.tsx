@@ -7,7 +7,10 @@ import { getDictMap } from "@/lib/dict";
 
 async function handleReview(formData: FormData) {
   "use server";
-  await reviewReservationFormAction(formData);
+  const result = await reviewReservationFormAction(formData);
+  if (result && "error" in result) {
+    throw new Error(result.error);
+  }
 }
 
 export default async function AdminDryingPage() {

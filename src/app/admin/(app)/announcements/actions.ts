@@ -40,11 +40,11 @@ export async function reviewAnnouncementFormAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const approve = formData.get("approve") === "true";
   const admin = await getCurrentAdmin();
-  if (!admin || !isDivision(admin.role)) return;
+  if (!admin || !isDivision(admin.role)) throw new Error("无权操作");
   const ann = await prisma.announcement.findUnique({ where: { id } });
-  if (!ann || ann.status !== "PENDING_REVIEW") return;
+  if (!ann || ann.status !== "PENDING_REVIEW") throw new Error("记录不存在或已审核");
   const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, ann.orgId);
-  if (!canAccess) return;
+  if (!canAccess) throw new Error("无权操作");
   await prisma.announcement.update({
     where: { id },
     data: {

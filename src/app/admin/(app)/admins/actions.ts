@@ -39,9 +39,9 @@ export async function toggleAdminDisableAction(formData: FormData) {
   const targetId = String(formData.get("id") ?? "");
   const disable = formData.get("disable") === "true";
   const admin = await getCurrentAdmin();
-  if (!admin || !isDivision(admin.role)) return;
+  if (!admin || !isDivision(admin.role)) throw new Error("无权操作");
   const target = await prisma.adminUser.findUnique({ where: { id: targetId } });
-  if (!target || target.id === admin.id) return;
+  if (!target || target.id === admin.id) throw new Error("无法操作该账号");
   await prisma.adminUser.update({
     where: { id: targetId },
     data: { disabled: disable },
