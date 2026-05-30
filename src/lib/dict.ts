@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { builtinDictItems, builtinDictMap } from "@/lib/dict-defaults";
 
 export type DictOption = { value: string; label: string };
 
@@ -12,7 +13,9 @@ export async function getDictItems(categoryCode: string): Promise<DictOption[]> 
       },
     },
   });
-  if (!cat) return [];
+  if (!cat || cat.items.length === 0) {
+    return builtinDictItems(categoryCode);
+  }
   return cat.items.map((i) => ({ value: i.value, label: i.label }));
 }
 
@@ -28,5 +31,8 @@ export async function getDictMap(
   categoryCode: string,
 ): Promise<Record<string, string>> {
   const items = await getDictItems(categoryCode);
-  return Object.fromEntries(items.map((i) => [i.value, i.label]));
+  if (items.length > 0) {
+    return Object.fromEntries(items.map((i) => [i.value, i.label]));
+  }
+  return builtinDictMap(categoryCode);
 }
