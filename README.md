@@ -15,7 +15,7 @@ Next.js 15 + MySQL（Prisma）+ 移动端 H5 + 后台管理。涵盖组织权限
 
 ```bash
 npx prisma db push
-npm run db:seed
+npm run db:seed   # 含演示数据与数据字典（字典可单独执行 npm run db:seed:dict）
 ```
 
 ## 开发
