@@ -1,7 +1,7 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import type { PrismaClient } from "@prisma/client";
+import { PrismaClient as PrismaClientCtor } from "@prisma/client";
 
-const categories = [
+export const dictCategories = [
   {
     code: "asset_type",
     name: "资产类型",
@@ -161,14 +161,15 @@ const categories = [
   },
 ];
 
-async function main() {
-  for (const cat of categories) {
-    const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
+/** 幂等写入内置数据字典；主 seed 与 Docker 启动均应调用。 */
+export async function seedDict(client: PrismaClient) {
+  for (const cat of dictCategories) {
+    const existing = await client.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
       console.log(`  Skip: ${cat.code} (already exists)`);
       continue;
     }
-    await prisma.dictCategory.create({
+    await client.dictCategory.create({
       data: {
         code: cat.code,
         name: cat.name,
@@ -182,6 +183,19 @@ async function main() {
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+async function main() {
+  const prisma = new PrismaClientCtor();
+  try {
+    await seedDict(prisma);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+const isDirectRun = process.argv[1]?.replace(/\\/g, "/").endsWith("prisma/seed-dict.ts");
+if (isDirectRun) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
