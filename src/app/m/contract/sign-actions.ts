@@ -123,21 +123,37 @@ export async function payAuctionRentAction(projectId: string) {
   });
   if (!topBid) return { error: "未找到出价记录" };
   const existingPayment = await prisma.payment.findFirst({
-    where: { auctionProjectId: projectId, endUserId: user.id, purpose: "AUCTION_RENT" },
+    where: {
+      auctionProjectId: projectId,
+      endUserId: user.id,
+      purpose: "AUCTION_RENT",
+      status: "SUCCESS",
+    },
   });
   if (existingPayment) return { ok: true as const };
   const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  await prisma.payment.create({
-    data: {
-      orderNo,
-      amount: topBid.amount,
-      purpose: "AUCTION_RENT",
-      status: "SUCCESS",
-      endUserId: user.id,
-      auctionProjectId: projectId,
-      paidAt: new Date(),
-      channel: "ABC_MOCK",
-    },
+  await prisma.$transaction(async (tx) => {
+    const dup = await tx.payment.findFirst({
+      where: {
+        auctionProjectId: projectId,
+        endUserId: user.id,
+        purpose: "AUCTION_RENT",
+        status: "SUCCESS",
+      },
+    });
+    if (dup) return;
+    await tx.payment.create({
+      data: {
+        orderNo,
+        amount: topBid.amount,
+        purpose: "AUCTION_RENT",
+        status: "SUCCESS",
+        endUserId: user.id,
+        auctionProjectId: projectId,
+        paidAt: new Date(),
+        channel: "ABC_MOCK",
+      },
+    });
   });
   await notifyUser(user.id, "租金支付成功", `项目 ${result.project.code} 租金已支付。`, "RENT_PAID");
   revalidatePath(`/m/auction/${projectId}`);
