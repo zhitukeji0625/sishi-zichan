@@ -16,10 +16,20 @@ export async function registerAuctionAction(projectId: string) {
   const exists = await prisma.auctionRegistration.findUnique({
     where: { projectId_endUserId: { projectId, endUserId: user.id } },
   });
-  if (exists) return { ok: true as const };
-  await prisma.auctionRegistration.create({
-    data: { projectId, endUserId: user.id, status: "PENDING" },
-  });
+  if (exists) {
+    if (exists.status === "REJECTED") {
+      await prisma.auctionRegistration.update({
+        where: { id: exists.id },
+        data: { status: "PENDING", rejectReason: null, depositPaid: false },
+      });
+    } else {
+      return { ok: true as const };
+    }
+  } else {
+    await prisma.auctionRegistration.create({
+      data: { projectId, endUserId: user.id, status: "PENDING" },
+    });
+  }
   await notifyUser(user.id, "报名已提交", "您的竞拍报名已提交，请等待连队审核。", "REG_SUBMIT");
   revalidatePath(`/m/auction/${projectId}`);
   return { ok: true as const };

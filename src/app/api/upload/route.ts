@@ -5,6 +5,13 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 
 const UPLOAD_DIR = join(process.cwd(), "data", "uploads");
 
+const MIME_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
@@ -21,7 +28,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "文件大小不能超过 5MB" }, { status: 400 });
   }
   
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const ext = MIME_EXT[file.type] ?? "jpg";
   const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   await mkdir(UPLOAD_DIR, { recursive: true });
   

@@ -4,10 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
-import { AssetStatus } from "@prisma/client";
+import { AssetStatus, AssetType } from "@prisma/client";
 
 const updateSchema = z.object({
   name: z.string().min(1),
+  type: z.nativeEnum(AssetType),
   locationText: z.string().min(1),
   specs: z.string().optional(),
   description: z.string().optional(),
@@ -41,6 +42,7 @@ export async function POST(
     where: { id },
     data: {
       name: d.name,
+      type: d.type,
       locationText: d.locationText,
       specs: d.specs || null,
       description: d.description || null,
