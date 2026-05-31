@@ -50,7 +50,7 @@ export default async function AdminDryingPage() {
                 {dryingAssets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
               <input name="maxPeople" type="number" defaultValue={10} placeholder="每日最大人数" className="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-              <input name="maxAdvanceDays" type="number" defaultValue={7} placeholder="提前预约天数" className="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <input name="maxAdvanceDays" type="number" min={0} max={365} defaultValue={7} placeholder="提前预约天数" className="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <button type="submit" className="mt-3 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800">上架</button>
           </form>
