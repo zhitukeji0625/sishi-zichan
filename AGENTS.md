@@ -16,7 +16,9 @@ This is a Next.js 15 asset leasing & auction platform (四师资产租赁) with 
 ### Database
 
 - Schema push: `npx prisma db push`
-- Seed: `npm run db:seed`
+- Seed: `npm run db:seed`（含数据字典；已有库时会刷新过期演示竞拍为 LIVE）
+- 仅字典：`npm run db:seed:dict`
+- 冒烟：`npm run smoke`（需 dev/start 已运行）
 - Studio: `npm run db:studio`
 
 If the MariaDB container doesn't exist yet, create it:
