@@ -7,12 +7,9 @@ import { createAuctionProjectAction } from "./actions";
 import { generateAuctionResultAction, reviewAuctionResultAction } from "./result-actions";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { refreshAuctionProjectStatuses } from "@/lib/cron";
-
 export default async function AdminAuctionsPage() {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
-  await refreshAuctionProjectStatuses();
   const orgWhere = await orgFilterForAdmin(admin.role, admin.orgId);
   const projects = await prisma.auctionProject.findMany({
     where: { asset: orgWhere },
