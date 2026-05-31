@@ -33,6 +33,8 @@ sudo docker run -d --name mariadb -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATAB
 ### Testing
 
 - `npm run test` — runs Vitest (unit tests in `src/lib/__tests__/`)
+- `VITEST_REQUIRE_DB=1 npm run test` — 强制要求 MariaDB，否则集成测试失败
+- `npm run test:smoke` — Vitest + HTTP 冒烟（需 `npm run dev` 在 3000 端口）
 
 ### Demo accounts (from seed data)
 
