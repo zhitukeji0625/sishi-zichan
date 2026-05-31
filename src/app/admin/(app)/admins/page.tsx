@@ -83,7 +83,7 @@ export default async function AdminUsersPage() {
                 <td className="px-4 py-3 text-slate-900">{a.name}</td>
                 <td className="px-4 py-3 text-slate-500">{a.phone}</td>
                 <td className="px-4 py-3 text-slate-600">{roleLabel(a.role)}</td>
-                <td className="px-4 py-3 text-slate-600">{a.org.name}</td>
+                <td className="px-4 py-3 text-slate-600">{a.org?.name ?? "—"}</td>
                 <td className="px-4 py-3">
                   {a.disabled ? (
                     <span className="text-red-600">已禁用</span>
