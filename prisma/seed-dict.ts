@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import type { PrismaClient } from "@prisma/client";
 
 const categories = [
   {
@@ -161,7 +160,8 @@ const categories = [
   },
 ];
 
-async function main() {
+/** 幂等写入内置数据字典（管理端下拉依赖此项）。 */
+export async function seedDict(prisma: PrismaClient) {
   for (const cat of categories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
@@ -182,6 +182,14 @@ async function main() {
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+if (process.argv[1]?.includes("seed-dict")) {
+  const { PrismaClient } = require("@prisma/client") as typeof import("@prisma/client");
+  const prisma = new PrismaClient();
+  seedDict(prisma)
+    .then(() => prisma.$disconnect())
+    .catch((e: unknown) => {
+      console.error(e);
+      prisma.$disconnect();
+      process.exit(1);
+    });
+}
