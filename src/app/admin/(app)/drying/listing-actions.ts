@@ -20,11 +20,15 @@ export async function createDryingListingAction(formData: FormData) {
   if (existing) return { error: "该资产已有晒场上架" };
   const maxAdvanceDays = Number(formData.get("maxAdvanceDays") ?? 7);
   const maxPeople = Number(formData.get("maxPeople") ?? 10);
+  const capStart = new Date();
+  capStart.setHours(0, 0, 0, 0);
+  const capEnd = new Date(capStart);
+  capEnd.setFullYear(capEnd.getFullYear() + 10);
   await prisma.dryingFieldListing.create({
     data: {
       assetId,
       status: "OPERATING",
-      capacityRules: { create: { startDate: new Date("2026-01-01"), endDate: new Date("2027-12-31"), maxPeople } },
+      capacityRules: { create: { startDate: capStart, endDate: capEnd, maxPeople } },
       bookingRules: { create: { maxAdvanceDays } },
     },
   });
