@@ -1,7 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
 
-const categories = [
+export const dictSeedCategories = [
   {
     code: "asset_type",
     name: "资产类型",
@@ -161,14 +160,15 @@ const categories = [
   },
 ];
 
-async function main() {
-  for (const cat of categories) {
-    const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
+/** Idempotent: creates built-in dict categories when missing. */
+export async function seedDict(client: PrismaClient = new PrismaClient()) {
+  for (const cat of dictSeedCategories) {
+    const existing = await client.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
       console.log(`  Skip: ${cat.code} (already exists)`);
       continue;
     }
-    await prisma.dictCategory.create({
+    await client.dictCategory.create({
       data: {
         code: cat.code,
         name: cat.name,
@@ -182,6 +182,15 @@ async function main() {
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+async function main() {
+  const prisma = new PrismaClient();
+  await seedDict(prisma);
+  await prisma.$disconnect();
+}
+
+if (require.main === module) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

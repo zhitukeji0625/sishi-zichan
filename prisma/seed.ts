@@ -1,12 +1,71 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+/** Keep demo user able to bid when prior seed projects have ended. */
+async function ensureDemoLiveAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const liveForDemo = await prisma.auctionProject.findFirst({
+    where: {
+      status: "LIVE",
+      endsAt: { gt: new Date() },
+      registrations: {
+        some: {
+          endUserId: demoUser.id,
+          status: "APPROVED",
+          depositPaid: true,
+        },
+      },
+    },
+  });
+  if (liveForDemo) return;
+
+  const asset =
+    (await prisma.asset.findFirst({ where: { status: AssetStatus.IDLE } })) ??
+    (await prisma.asset.findFirst({ orderBy: { createdAt: "asc" } }));
+  if (!asset) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `AP${Date.now()}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log(`Demo LIVE auction ensured: ${project.code}`);
+}
+
 async function main() {
+  await seedDict(prisma);
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
+    await ensureDemoLiveAuction();
     return;
   }
 
@@ -208,6 +267,7 @@ async function main() {
     },
   });
 
+  await ensureDemoLiveAuction();
   console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
 }
 
