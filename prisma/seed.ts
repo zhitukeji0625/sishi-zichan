@@ -1,12 +1,76 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDictCategories } from "./seed-dict";
 
 const prisma = new PrismaClient();
+const DEMO_USER_PHONE = "13800138000";
+
+/** 定时任务会把过期竞拍标为 ENDED；重复 seed 时恢复演示用 LIVE 项目 */
+async function ensureDemoLiveAuction() {
+  const liveCount = await prisma.auctionProject.count({ where: { status: "LIVE" } });
+  if (liveCount > 0) return;
+
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id },
+    orderBy: { updatedAt: "desc" },
+    include: { project: true },
+  });
+
+  const starts = new Date(Date.now() - 60_000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  if (reg?.project) {
+    await prisma.auctionProject.update({
+      where: { id: reg.projectId },
+      data: { status: "LIVE", startsAt: starts, endsAt: ends },
+    });
+    await prisma.auctionRegistration.update({
+      where: { id: reg.id },
+      data: { status: "APPROVED", depositPaid: true },
+    });
+    console.log(`Demo auction refreshed to LIVE (${reg.project.code}).`);
+    return;
+  }
+
+  const asset = await prisma.asset.findFirst({
+    where: { type: AssetType.LAND },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!asset) return;
+
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `AP${Date.now()}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+  await prisma.auctionRegistration.create({
+    data: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log(`Demo auction created (${project.code}).`);
+}
 
 async function main() {
+  await seedDictCategories();
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    await ensureDemoLiveAuction();
+    console.log("Seed skipped: data already present (dict + demo auction checked).");
     return;
   }
 
