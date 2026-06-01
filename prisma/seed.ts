@@ -1,11 +1,100 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+const DEMO_USER_PHONE = "13800138000";
+const DEMO_AUCTION_ASSET_NAME = "团部东侧闲置地块";
+
+/** 演示账号需有可出价的 LIVE 竞拍；库中已有数据但竞拍已结束时自动续期。 */
+async function ensureDemoLiveAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+
+  const activeReg = await prisma.auctionRegistration.findFirst({
+    where: {
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+      project: { status: "LIVE", endsAt: { gt: new Date() } },
+    },
+  });
+  if (activeReg) return;
+
+  const reg = await prisma.organization.findUnique({ where: { code: "REG61" } });
+  if (!reg) return;
+
+  let asset = await prisma.asset.findFirst({
+    where: { orgId: reg.id, type: AssetType.LAND, name: DEMO_AUCTION_ASSET_NAME },
+  });
+  if (!asset) {
+    asset = await prisma.asset.create({
+      data: {
+        orgId: reg.id,
+        type: AssetType.LAND,
+        name: DEMO_AUCTION_ASSET_NAME,
+        locationText: "六十一团团部东侧",
+        specs: "面积约 5 亩",
+        description: "<p>适合种植及临时堆放，权属清晰。</p>",
+        refPriceMin: 8000,
+        refPriceMax: 12000,
+        status: AssetStatus.IDLE,
+      },
+    });
+  }
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const existingProject = await prisma.auctionProject.findFirst({
+    where: { assetId: asset.id },
+    orderBy: { createdAt: "desc" },
+  });
+
+  let projectId: string;
+  if (existingProject) {
+    await prisma.auctionBid.deleteMany({ where: { projectId: existingProject.id } });
+    await prisma.auctionResult.deleteMany({ where: { projectId: existingProject.id } });
+    const updated = await prisma.auctionProject.update({
+      where: { id: existingProject.id },
+      data: { status: "LIVE", startsAt: starts, endsAt: ends },
+    });
+    projectId = updated.id;
+  } else {
+    const created = await prisma.auctionProject.create({
+      data: {
+        code: `AP${Date.now()}`,
+        assetId: asset.id,
+        startPrice: 8000,
+        bidStep: 200,
+        startsAt: starts,
+        endsAt: ends,
+        depositAmount: 500,
+        status: "LIVE",
+      },
+    });
+    projectId = created.id;
+  }
+
+  await prisma.auctionRegistration.upsert({
+    where: { projectId_endUserId: { projectId, endUserId: demoUser.id } },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log("Demo auction refreshed for demo user.");
+}
+
 async function main() {
+  await seedDict(prisma);
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await ensureDemoLiveAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
