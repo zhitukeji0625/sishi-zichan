@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type ExternalProfile = {
@@ -49,11 +50,18 @@ export async function upsertEndUserFromExternal(
     include: { endUser: true },
   });
   if (existing) {
+    const phoneUpdate: { phone?: string } = {};
+    if (profile.phone) {
+      const taken = await prisma.endUser.findFirst({
+        where: { phone: profile.phone, id: { not: existing.endUserId } },
+      });
+      if (!taken) phoneUpdate.phone = profile.phone;
+    }
     await prisma.endUser.update({
       where: { id: existing.endUserId },
       data: {
         name: profile.displayName,
-        ...(profile.phone ? { phone: profile.phone } : {}),
+        ...phoneUpdate,
         ...(orgId ? { orgId } : {}),
       },
     });
@@ -73,16 +81,23 @@ export async function upsertEndUserFromExternal(
     }
   }
   if (!phone) phone = `190${randomBytes(4).toString("hex")}`.slice(0, 11);
-  const endUser = await prisma.endUser.create({
-    data: {
-      phone,
-      name: profile.displayName,
-      orgId,
-      passwordHash: null,
-    },
-  });
-  await prisma.externalIdentity.create({
-    data: { provider, externalUserId, endUserId: endUser.id },
-  });
-  return prisma.endUser.findUnique({ where: { id: endUser.id }, include: { org: true } });
+  try {
+    const endUser = await prisma.endUser.create({
+      data: {
+        phone,
+        name: profile.displayName,
+        orgId,
+        passwordHash: null,
+      },
+    });
+    await prisma.externalIdentity.create({
+      data: { provider, externalUserId, endUserId: endUser.id },
+    });
+    return prisma.endUser.findUnique({ where: { id: endUser.id }, include: { org: true } });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return null;
+    }
+    throw e;
+  }
 }

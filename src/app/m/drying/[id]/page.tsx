@@ -15,10 +15,15 @@ export default async function DryingDetailPage({ params }: { params: Promise<{ i
   });
   if (!listing) notFound();
   const rule = listing.bookingRules[0];
-  const maxAdvance = rule?.maxAdvanceDays ?? 7;
+  const rawAdvance = rule?.maxAdvanceDays ?? 7;
+  const maxAdvance =
+    typeof rawAdvance === "number" && Number.isFinite(rawAdvance) && rawAdvance >= 0
+      ? Math.min(365, rawAdvance)
+      : 7;
   const today = startOfDay(new Date());
   const horizon = addDays(today, maxAdvance);
-  const days = eachDayOfInterval({ start: today, end: horizon }).slice(0, 8);
+  const days =
+    horizon >= today ? eachDayOfInterval({ start: today, end: horizon }).slice(0, 8) : [today];
   const dayStats = await Promise.all(
     days.map(async (d) => {
       const s = await getCapacityForDay(listing.id, d);

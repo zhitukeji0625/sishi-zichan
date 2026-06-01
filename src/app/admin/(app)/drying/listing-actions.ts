@@ -20,6 +20,12 @@ export async function createDryingListingAction(formData: FormData) {
   if (existing) return { error: "该资产已有晒场上架" };
   const maxAdvanceDays = Number(formData.get("maxAdvanceDays") ?? 7);
   const maxPeople = Number(formData.get("maxPeople") ?? 10);
+  if (!Number.isFinite(maxAdvanceDays) || maxAdvanceDays < 0 || maxAdvanceDays > 365) {
+    return { error: "可预约天数须为 0–365 的整数" };
+  }
+  if (!Number.isFinite(maxPeople) || maxPeople < 1 || maxPeople > 999) {
+    return { error: "每日容量须为 1–999 的整数" };
+  }
   await prisma.dryingFieldListing.create({
     data: {
       assetId,

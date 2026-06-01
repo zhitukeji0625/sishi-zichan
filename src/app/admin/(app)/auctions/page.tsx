@@ -12,7 +12,11 @@ import { refreshAuctionProjectStatuses } from "@/lib/cron";
 export default async function AdminAuctionsPage() {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
-  await refreshAuctionProjectStatuses();
+  try {
+    await refreshAuctionProjectStatuses();
+  } catch {
+    /* DB 未就绪时仍展示列表 */
+  }
   const orgWhere = await orgFilterForAdmin(admin.role, admin.orgId);
   const projects = await prisma.auctionProject.findMany({
     where: { asset: orgWhere },
