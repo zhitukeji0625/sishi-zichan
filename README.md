@@ -18,6 +18,8 @@ npx prisma db push
 npm run db:seed
 ```
 
+`db:seed` 会始终幂等写入内置**数据字典**；仅当库中尚无竞拍项目时才写入演示组织、账号与样例数据。单独补字典：`npm run db:seed-dict`。
+
 ## 开发
 
 启动数据库后：
