@@ -25,13 +25,19 @@ export async function generateAuctionResultAction(projectId: string) {
     where: { projectId },
     orderBy: { amount: "desc" },
   });
-  await prisma.auctionResult.create({
-    data: {
-      projectId,
-      winnerId: topBid?.endUserId ?? null,
-      status: "PENDING_REVIEW",
-    },
-  });
+  try {
+    await prisma.auctionResult.create({
+      data: {
+        projectId,
+        winnerId: topBid?.endUserId ?? null,
+        status: "PENDING_REVIEW",
+      },
+    });
+  } catch (e) {
+    const code = e && typeof e === "object" && "code" in e ? (e as { code: string }).code : "";
+    if (code === "P2002") return { error: "已生成结果" };
+    throw e;
+  }
   await writeAudit(admin.id, "AUCTION_RESULT_GENERATE", JSON.stringify({ projectId }));
   revalidatePath("/admin/auctions");
   return { ok: true as const };
@@ -50,10 +56,46 @@ export async function reviewAuctionResultAction(formData: FormData) {
   const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, result.project.asset.orgId);
   if (!canAccess) return;
   if (approve) {
-    await prisma.auctionResult.update({
-      where: { id: resultId },
-      data: { status: "PUBLISHED", publishedAt: new Date(), reviewedBy: admin.id },
+    const refundWhere =
+      result.winnerId != null
+        ? {
+            projectId: result.projectId,
+            depositPaid: true,
+            endUserId: { not: result.winnerId },
+          }
+        : { projectId: result.projectId, depositPaid: true };
+
+    const refundedUserIds: string[] = [];
+    await prisma.$transaction(async (tx) => {
+      await tx.auctionResult.update({
+        where: { id: resultId },
+        data: { status: "PUBLISHED", publishedAt: new Date(), reviewedBy: admin.id },
+      });
+      const allRegs = await tx.auctionRegistration.findMany({ where: refundWhere });
+      for (const reg of allRegs) {
+        const existingRefund = await tx.payment.findFirst({
+          where: {
+            auctionProjectId: result.projectId,
+            endUserId: reg.endUserId,
+            purpose: "AUCTION_DEPOSIT",
+            status: "REFUNDED",
+          },
+        });
+        if (!existingRefund) {
+          await tx.payment.updateMany({
+            where: {
+              auctionProjectId: result.projectId,
+              endUserId: reg.endUserId,
+              purpose: "AUCTION_DEPOSIT",
+              status: "SUCCESS",
+            },
+            data: { status: "REFUNDED" },
+          });
+          refundedUserIds.push(reg.endUserId);
+        }
+      }
     });
+
     if (result.winnerId) {
       await notifyUser(
         result.winnerId,
@@ -62,21 +104,13 @@ export async function reviewAuctionResultAction(formData: FormData) {
         "AUCTION_WIN",
       );
     }
-    // Refund non-winner deposits
-    const allRegs = await prisma.auctionRegistration.findMany({
-      where: { projectId: result.projectId, depositPaid: true, endUserId: { not: result.winnerId ?? undefined } },
-    });
-    for (const reg of allRegs) {
-      const existingRefund = await prisma.payment.findFirst({
-        where: { auctionProjectId: result.projectId, endUserId: reg.endUserId, purpose: "AUCTION_DEPOSIT", status: "REFUNDED" },
-      });
-      if (!existingRefund) {
-        await prisma.payment.updateMany({
-          where: { auctionProjectId: result.projectId, endUserId: reg.endUserId, purpose: "AUCTION_DEPOSIT", status: "SUCCESS" },
-          data: { status: "REFUNDED" },
-        });
-        await notifyUser(reg.endUserId, "保证金退还通知", `项目 ${result.project.code} 的竞拍保证金已原路退回。`, "DEPOSIT_REFUND");
-      }
+    for (const userId of refundedUserIds) {
+      await notifyUser(
+        userId,
+        "保证金退还通知",
+        `项目 ${result.project.code} 的竞拍保证金已原路退回。`,
+        "DEPOSIT_REFUND",
+      );
     }
   } else {
     await prisma.auctionResult.update({
