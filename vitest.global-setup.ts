@@ -8,16 +8,30 @@ export default async function globalSetup() {
   const requireDb = process.env.VITEST_REQUIRE_DB === "1";
   const prisma = new PrismaClient();
   const timeoutMs = Number(process.env.VITEST_DB_CONNECT_TIMEOUT_MS ?? "4000");
+  const retries = Number(process.env.VITEST_DB_CONNECT_RETRIES ?? "3");
 
   try {
-    await Promise.race([
-      prisma.$connect(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("connect timeout")), timeoutMs),
-      ),
-    ]);
-    process.env.VITEST_DB_AVAILABLE = "1";
-  } catch {
+    let connected = false;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        await Promise.race([
+          prisma.$connect(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("connect timeout")), timeoutMs),
+          ),
+        ]);
+        connected = true;
+        break;
+      } catch {
+        if (attempt < retries) await new Promise((r) => setTimeout(r, 1000 * attempt));
+      }
+    }
+
+    if (connected) {
+      process.env.VITEST_DB_AVAILABLE = "1";
+      return;
+    }
+
     if (requireDb) {
       throw new Error(
         "数据库不可用：请启动 MariaDB 并执行 prisma db push，或检查 DATABASE_URL。详见 AGENTS.md。",
