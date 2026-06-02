@@ -1,6 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { startOfDay, eachDayOfInterval, format } from "date-fns";
 
+/** 避免 start > end 时 eachDayOfInterval 抛 RangeError */
+export function daysInRange(start: Date, end: Date): Date[] {
+  const s = startOfDay(start);
+  const e = startOfDay(end);
+  if (e < s) return [];
+  return eachDayOfInterval({ start: s, end: e });
+}
+
 export async function getCapacityForDay(listingId: string, day: Date) {
   const d = startOfDay(day);
   const rule = await prisma.dryingCapacityRule.findFirst({
@@ -19,10 +27,7 @@ export async function getCapacityForDay(listingId: string, day: Date) {
   });
   let booked = 0;
   for (const r of reservations) {
-    const days = eachDayOfInterval({
-      start: startOfDay(r.startDate),
-      end: startOfDay(r.endDate),
-    });
+    const days = daysInRange(r.startDate, r.endDate);
     if (days.some((x) => format(x, "yyyy-MM-dd") === format(d, "yyyy-MM-dd"))) {
       booked += 1;
     }
@@ -35,7 +40,10 @@ export async function validateReservationRange(
   start: Date,
   end: Date,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
-  const days = eachDayOfInterval({ start: startOfDay(start), end: startOfDay(end) });
+  const days = daysInRange(start, end);
+  if (days.length === 0 && startOfDay(end) < startOfDay(start)) {
+    return { ok: false, message: "结束日期不能早于开始日期" };
+  }
   for (const day of days) {
     const { available } = await getCapacityForDay(listingId, day);
     if (available <= 0) {
