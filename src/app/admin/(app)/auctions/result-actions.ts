@@ -62,10 +62,13 @@ export async function reviewAuctionResultAction(formData: FormData) {
         "AUCTION_WIN",
       );
     }
-    // Refund non-winner deposits
-    const allRegs = await prisma.auctionRegistration.findMany({
-      where: { projectId: result.projectId, depositPaid: true, endUserId: { not: result.winnerId ?? undefined } },
-    });
+    // Refund non-winner deposits (when there is a winner, exclude them; otherwise refund all)
+    const regWhere = {
+      projectId: result.projectId,
+      depositPaid: true,
+      ...(result.winnerId ? { endUserId: { not: result.winnerId } } : {}),
+    };
+    const allRegs = await prisma.auctionRegistration.findMany({ where: regWhere });
     for (const reg of allRegs) {
       const existingRefund = await prisma.payment.findFirst({
         where: { auctionProjectId: result.projectId, endUserId: reg.endUserId, purpose: "AUCTION_DEPOSIT", status: "REFUNDED" },

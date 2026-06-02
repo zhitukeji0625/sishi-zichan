@@ -49,6 +49,14 @@ export async function upsertEndUserFromExternal(
     include: { endUser: true },
   });
   if (existing) {
+    if (profile.phone && profile.phone !== existing.endUser.phone) {
+      const phoneTaken = await prisma.endUser.findFirst({
+        where: { phone: profile.phone, id: { not: existing.endUserId } },
+      });
+      if (phoneTaken) {
+        throw new Error("手机号已被其他账号使用");
+      }
+    }
     await prisma.endUser.update({
       where: { id: existing.endUserId },
       data: {
