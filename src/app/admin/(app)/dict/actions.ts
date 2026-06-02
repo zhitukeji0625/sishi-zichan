@@ -51,6 +51,8 @@ export async function updateDictItemAction(formData: FormData) {
   const sortOrder = Number(formData.get("sortOrder") ?? 0);
   const enabled = formData.get("enabled") === "true";
   if (!id || !label) return { error: "参数无效" };
+  const existing = await prisma.dictItem.findUnique({ where: { id } });
+  if (!existing) return { error: "不存在" };
   await prisma.dictItem.update({
     where: { id },
     data: { label, sortOrder, enabled },
