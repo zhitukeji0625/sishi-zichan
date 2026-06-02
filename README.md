@@ -18,6 +18,8 @@ npx prisma db push
 npm run db:seed
 ```
 
+`db:seed` 会幂等写入内置数据字典（下拉选项与中文标签）。若仅需补字典：`npm run db:seed:dict`。
+
 ## 开发
 
 启动数据库后：

@@ -33,7 +33,7 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.ts ./next.config.ts
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
-COPY --from=builder /app/prisma/seed.ts ./prisma/seed.ts
+COPY prisma ./prisma
 RUN mkdir -p /app/data/uploads
 EXPOSE 3000
 ENV PORT=3000
