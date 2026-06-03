@@ -41,14 +41,15 @@ export async function reviewAuctionResultAction(formData: FormData) {
   const resultId = String(formData.get("id") ?? "");
   const approve = formData.get("approve") === "true";
   const admin = await getCurrentAdmin();
-  if (!admin || !isDivision(admin.role)) return;
+  if (!admin || !isDivision(admin.role)) throw new Error("无权操作");
   const result = await prisma.auctionResult.findUnique({
     where: { id: resultId },
     include: { project: { include: { asset: true } } },
   });
-  if (!result || result.status !== "PENDING_REVIEW") return;
+  if (!result) throw new Error("结果不存在");
+  if (result.status !== "PENDING_REVIEW") throw new Error("当前状态不可审核");
   const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, result.project.asset.orgId);
-  if (!canAccess) return;
+  if (!canAccess) throw new Error("无权操作该项目");
   if (approve) {
     await prisma.auctionResult.update({
       where: { id: resultId },
