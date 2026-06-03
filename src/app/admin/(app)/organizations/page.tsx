@@ -4,8 +4,14 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { isDivision } from "@/lib/rbac";
 import { createOrgAction } from "./actions";
 import { getDictItems, getDictMap } from "@/lib/dict";
+import { FlashMessage } from "@/components/FlashMessage";
 
-export default async function AdminOrganizationsPage() {
+export default async function AdminOrganizationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error: flashError } = await searchParams;
   const admin = await getCurrentAdmin();
   if (!admin) return null;
   const orgs = await prisma.organization.findMany({
@@ -25,6 +31,7 @@ export default async function AdminOrganizationsPage() {
 
   return (
     <div>
+      <FlashMessage error={flashError ? decodeURIComponent(flashError) : null} />
       <h1 className="text-xl font-semibold text-slate-900">组织架构</h1>
       <p className="mt-1 text-sm text-slate-500">管理师/团/连三级组织架构。</p>
 

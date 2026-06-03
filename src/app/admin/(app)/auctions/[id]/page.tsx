@@ -2,10 +2,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
+import { adminCanAccessOrg } from "@/lib/rbac";
 import { getDictMap } from "@/lib/dict";
+import { FlashMessage } from "@/components/FlashMessage";
 
-export default async function AdminAuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminAuctionDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error: flashError } = await searchParams;
   const admin = await getCurrentAdmin();
   if (!admin) return null;
   const project = await prisma.auctionProject.findUnique({
@@ -19,6 +28,8 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
     },
   });
   if (!project) notFound();
+  const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, project.asset.orgId);
+  if (!canAccess) notFound();
 
   const auctionStatusMap = await getDictMap("auction_status");
   const assetTypeMap = await getDictMap("asset_type");
@@ -28,6 +39,7 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
 
   return (
     <div>
+      <FlashMessage error={flashError ? decodeURIComponent(flashError) : null} />
       <Link href="/admin/auctions" className="text-sm text-blue-700">← 返回竞拍列表</Link>
       <h1 className="mt-2 text-xl font-semibold text-slate-900">{project.asset.name}</h1>
       <p className="mt-1 text-sm text-slate-500">编号：{project.code} · 状态：{auctionStatusMap[project.status] ?? project.status}</p>
@@ -72,14 +84,22 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
               </tr>
             </thead>
             <tbody>
-              {project.registrations.map((r) => (
-                <tr key={r.id} className="border-b border-slate-50 last:border-0">
-                  <td className="px-4 py-3 text-slate-700">{r.endUser.name ?? "—"}</td>
-                  <td className="px-4 py-3 text-slate-500">{r.endUser.phone}</td>
-                  <td className="px-4 py-3 text-slate-600">{regStatusMap[r.status] ?? r.status}</td>
-                  <td className="px-4 py-3 text-slate-600">{r.depositPaid ? "已缴" : "未缴"}</td>
+              {project.registrations.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                    暂无报名
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                project.registrations.map((r) => (
+                  <tr key={r.id} className="border-b border-slate-50 last:border-0">
+                    <td className="px-4 py-3 text-slate-700">{r.endUser.name ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-500">{r.endUser.phone}</td>
+                    <td className="px-4 py-3 text-slate-600">{regStatusMap[r.status] ?? r.status}</td>
+                    <td className="px-4 py-3 text-slate-600">{r.depositPaid ? "已缴" : "未缴"}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -97,13 +117,21 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
               </tr>
             </thead>
             <tbody>
-              {project.bids.map((b) => (
-                <tr key={b.id} className="border-b border-slate-50 last:border-0">
-                  <td className="px-4 py-3 text-slate-700">{b.endUser.name ?? b.endUser.phone}</td>
-                  <td className="px-4 py-3 font-mono text-slate-800">¥{b.amount.toString()}</td>
-                  <td className="px-4 py-3 text-xs text-slate-500">{b.createdAt.toISOString().slice(0, 19).replace("T", " ")}</td>
+              {project.bids.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-4 py-8 text-center text-slate-500">
+                    暂无出价
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                project.bids.map((b) => (
+                  <tr key={b.id} className="border-b border-slate-50 last:border-0">
+                    <td className="px-4 py-3 text-slate-700">{b.endUser.name ?? b.endUser.phone}</td>
+                    <td className="px-4 py-3 font-mono text-slate-800">¥{b.amount.toString()}</td>
+                    <td className="px-4 py-3 text-xs text-slate-500">{b.createdAt.toISOString().slice(0, 19).replace("T", " ")}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -139,7 +167,19 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
       </div>
 
       {(project.status === "SCHEDULED" || project.status === "LIVE") && (
-        <form action={async () => { "use server"; const { cancelAuctionAction } = await import("../actions"); await cancelAuctionAction(project.id); }} className="mt-6">
+        <form
+          action={async () => {
+            "use server";
+            const { cancelAuctionAction } = await import("../actions");
+            const { redirect } = await import("next/navigation");
+            const r = await cancelAuctionAction(project.id);
+            if (r.error) {
+              redirect(`/admin/auctions/${project.id}?error=${encodeURIComponent(r.error)}`);
+            }
+            redirect("/admin/auctions");
+          }}
+          className="mt-6"
+        >
           <button type="submit" className="rounded-lg border border-red-200 px-4 py-2 text-sm text-red-700 hover:bg-red-50">
             取消竞拍项目
           </button>

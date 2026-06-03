@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { isDivision } from "@/lib/rbac";
 import { updateConfigAction } from "./actions";
+import { FlashMessage } from "@/components/FlashMessage";
 
 const CONFIG_FIELDS = [
   { key: "site_name", label: "系统名称", type: "text" },
@@ -12,7 +13,12 @@ const CONFIG_FIELDS = [
   { key: "order_retention_days", label: "订单保留时长（天）", type: "number" },
 ];
 
-export default async function AdminConfigPage() {
+export default async function AdminConfigPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error: flashError } = await searchParams;
   const admin = await getCurrentAdmin();
   if (!admin) return null;
   if (!isDivision(admin.role)) {
@@ -35,6 +41,7 @@ export default async function AdminConfigPage() {
 
   return (
     <div>
+      <FlashMessage error={flashError ? decodeURIComponent(flashError) : null} />
       <h1 className="text-xl font-semibold text-slate-900">系统配置</h1>
       <p className="mt-1 text-sm text-slate-500">配置系统基础运行参数。</p>
       <form action={save} className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

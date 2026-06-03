@@ -5,8 +5,14 @@ import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { adminScopedOrgIds, isDivision, isRegimentOrAbove } from "@/lib/rbac";
 import { createAnnouncementAction, reviewAnnouncementFormAction, deleteAnnouncementAction } from "./actions";
 import { getDictMap } from "@/lib/dict";
+import { FlashMessage } from "@/components/FlashMessage";
 
-export default async function AdminAnnouncementsPage() {
+export default async function AdminAnnouncementsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error: flashError } = await searchParams;
   const admin = await getCurrentAdmin();
   if (!admin) return null;
   const orgWhere = await orgFilterForAdmin(admin.role, admin.orgId);
@@ -35,6 +41,7 @@ export default async function AdminAnnouncementsPage() {
 
   return (
     <div>
+      <FlashMessage error={flashError ? decodeURIComponent(flashError) : null} />
       <h1 className="text-xl font-semibold text-slate-900">公告</h1>
       {isRegimentOrAbove(admin.role) && (
         <form action={create} className="mt-6 space-y-3 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

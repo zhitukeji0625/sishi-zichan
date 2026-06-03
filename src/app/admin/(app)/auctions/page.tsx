@@ -8,8 +8,14 @@ import { generateAuctionResultAction, reviewAuctionResultAction } from "./result
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { refreshAuctionProjectStatuses } from "@/lib/cron";
+import { FlashMessage } from "@/components/FlashMessage";
 
-export default async function AdminAuctionsPage() {
+export default async function AdminAuctionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error: flashError } = await searchParams;
   const admin = await getCurrentAdmin();
   if (!admin) return null;
   await refreshAuctionProjectStatuses();
@@ -38,6 +44,7 @@ export default async function AdminAuctionsPage() {
 
   return (
     <div>
+      <FlashMessage error={flashError ? decodeURIComponent(flashError) : null} />
       <h1 className="text-xl font-semibold text-slate-900">竞拍项目</h1>
       {isRegimentOrAbove(admin.role) && (
         <form

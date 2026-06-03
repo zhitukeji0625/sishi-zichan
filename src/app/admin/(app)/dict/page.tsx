@@ -9,15 +9,16 @@ import {
   deleteDictItemAction,
   deleteDictCategoryAction,
 } from "./actions";
+import { FlashMessage } from "@/components/FlashMessage";
 
 export default async function AdminDictPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cat?: string }>;
+  searchParams: Promise<{ cat?: string; error?: string }>;
 }) {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
-  const { cat: selectedCatId } = await searchParams;
+  const { cat: selectedCatId, error: flashError } = await searchParams;
 
   const categories = await prisma.dictCategory.findMany({
     orderBy: { code: "asc" },
@@ -48,6 +49,7 @@ export default async function AdminDictPage({
 
   return (
     <div>
+      <FlashMessage error={flashError ? decodeURIComponent(flashError) : null} />
       <h1 className="text-xl font-semibold text-slate-900">数据字典</h1>
       <p className="mt-1 text-sm text-slate-500">
         管理系统中所有下拉选项的可选值。修改后各表单下拉菜单实时生效。

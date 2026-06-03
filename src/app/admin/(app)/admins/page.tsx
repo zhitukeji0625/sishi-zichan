@@ -4,8 +4,14 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { isDivision, roleLabel } from "@/lib/rbac";
 import { getDictItems } from "@/lib/dict";
 import { createAdminAction, toggleAdminDisableAction } from "./actions";
+import { FlashMessage } from "@/components/FlashMessage";
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error: flashError } = await searchParams;
   const admin = await getCurrentAdmin();
   if (!admin) return null;
   const admins = await prisma.adminUser.findMany({
@@ -25,6 +31,7 @@ export default async function AdminUsersPage() {
 
   return (
     <div>
+      <FlashMessage error={flashError ? decodeURIComponent(flashError) : null} />
       <h1 className="text-xl font-semibold text-slate-900">管理员账号</h1>
       <p className="mt-1 text-sm text-slate-500">管理各级管理员账号信息。</p>
 

@@ -6,9 +6,17 @@ import { adminCanAccessOrg } from "@/lib/rbac";
 import { getDictItems } from "@/lib/dict";
 import { deleteAssetAction } from "../edit-actions";
 import { AssetForm } from "../AssetForm";
+import { FlashMessage } from "@/components/FlashMessage";
 
-export default async function EditAssetPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditAssetPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error: flashError } = await searchParams;
   const admin = await getCurrentAdmin();
   if (!admin) redirect("/admin/login");
   const asset = await prisma.asset.findUnique({ where: { id }, include: { org: true } });
@@ -29,6 +37,7 @@ export default async function EditAssetPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="mx-auto max-w-xl">
+      <FlashMessage error={flashError ? decodeURIComponent(flashError) : null} />
       <Link href="/admin/assets" className="text-sm text-blue-700">← 返回资产列表</Link>
       <h1 className="mt-2 text-xl font-semibold text-slate-900">编辑资产</h1>
       <p className="mt-1 text-sm text-slate-500">{asset.org.name} · {asset.type}</p>

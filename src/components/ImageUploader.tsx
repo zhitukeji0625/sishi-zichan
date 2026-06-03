@@ -11,12 +11,14 @@ interface Props {
 
 export function ImageUploader({ images, onChange, max = 6 }: Props) {
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     setUploading(true);
+    setUploadError(null);
     const newImages = [...images];
     for (const file of Array.from(files)) {
       if (newImages.length >= max) break;
@@ -24,9 +26,17 @@ export function ImageUploader({ images, onChange, max = 6 }: Props) {
       fd.append("file", file);
       try {
         const res = await fetch("/api/upload", { method: "POST", body: fd });
-        const j = await res.json();
-        if (j.url) newImages.push(j.url);
-      } catch { /* ignore */ }
+        const j = await res.json().catch(() => ({}));
+        if (res.ok && j.url) {
+          newImages.push(j.url);
+        } else {
+          setUploadError(j.error ?? "图片上传失败");
+          break;
+        }
+      } catch {
+        setUploadError("图片上传失败，请重试");
+        break;
+      }
     }
     onChange(newImages);
     setUploading(false);
@@ -71,6 +81,7 @@ export function ImageUploader({ images, onChange, max = 6 }: Props) {
           </button>
         )}
       </div>
+      {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
       <input
         ref={inputRef}
         type="file"
