@@ -1,5 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
 
 const categories = [
   {
@@ -161,14 +160,15 @@ const categories = [
   },
 ];
 
-async function main() {
+/** Idempotent dict seed; safe to run on every `npm run db:seed`. */
+export async function seedDict(client: PrismaClient) {
   for (const cat of categories) {
-    const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
+    const existing = await client.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
       console.log(`  Skip: ${cat.code} (already exists)`);
       continue;
     }
-    await prisma.dictCategory.create({
+    await client.dictCategory.create({
       data: {
         code: cat.code,
         name: cat.name,
@@ -182,6 +182,3 @@ async function main() {
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
