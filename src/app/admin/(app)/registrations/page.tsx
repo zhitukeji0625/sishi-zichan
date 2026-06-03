@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
@@ -6,7 +7,10 @@ import { getDictMap } from "@/lib/dict";
 
 async function handleReview(formData: FormData) {
   "use server";
-  await reviewRegistrationFormAction(formData);
+  const result = await reviewRegistrationFormAction(formData);
+  if (result?.error) {
+    redirect(`/admin/registrations?error=${encodeURIComponent(result.error)}`);
+  }
 }
 
 export default async function AdminRegistrationsPage() {

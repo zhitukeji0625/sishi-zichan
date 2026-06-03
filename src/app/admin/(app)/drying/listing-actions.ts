@@ -28,7 +28,7 @@ export async function createDryingListingAction(formData: FormData) {
       bookingRules: { create: { maxAdvanceDays } },
     },
   });
-  await writeAudit(admin.id, "ORG_CREATE", JSON.stringify({ assetId, action: "drying_listing_create" }));
+  await writeAudit(admin.id, "DRYING_LISTING_CREATE", JSON.stringify({ assetId }));
   revalidatePath("/admin/drying");
   return { ok: true as const };
 }

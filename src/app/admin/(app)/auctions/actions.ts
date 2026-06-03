@@ -63,7 +63,7 @@ export async function cancelAuctionAction(projectId: string) {
   if (!ok) return { error: "无权操作" };
   if (project.status === "ENDED") return { error: "已结束的项目不可取消" };
   await prisma.auctionProject.update({ where: { id: projectId }, data: { status: "CANCELLED" } });
-  await writeAudit(admin.id, "AUCTION_CREATE", JSON.stringify({ projectId, action: "cancel" }));
+  await writeAudit(admin.id, "AUCTION_CANCEL", JSON.stringify({ projectId }));
   revalidatePath("/admin/auctions");
   return { ok: true as const };
 }
