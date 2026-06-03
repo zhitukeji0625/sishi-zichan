@@ -1,6 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { startOfDay, eachDayOfInterval, format } from "date-fns";
 
+/** 解析 yyyy-MM-dd 为本地时区当日 0 点，与容量校验逻辑一致。 */
+export function parseDateOnlyInput(value: string): Date {
+  const parts = value.split("-").map(Number);
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) {
+    return new Date(NaN);
+  }
+  const [y, m, d] = parts;
+  return startOfDay(new Date(y, m - 1, d));
+}
+
 export async function getCapacityForDay(listingId: string, day: Date) {
   const d = startOfDay(day);
   const rule = await prisma.dryingCapacityRule.findFirst({
