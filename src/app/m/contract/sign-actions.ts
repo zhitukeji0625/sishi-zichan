@@ -19,22 +19,41 @@ export async function signContractAction(contractId: string) {
   if (contract.status !== "DRAFT") {
     return { error: "合同状态不可签署" };
   }
-  await prisma.$transaction(async (tx) => {
-    await tx.contract.update({
-      where: { id: contractId },
-      data: {
-        status: "SIGNED",
-        effectiveAt: new Date(),
-        expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-      },
+  if (contract.reservationId) {
+    const reservation = await prisma.dryingReservation.findUnique({
+      where: { id: contract.reservationId },
     });
-    if (contract.reservationId) {
-      await tx.dryingReservation.update({
-        where: { id: contract.reservationId },
-        data: { status: "ACTIVE" },
-      });
+    if (!reservation || reservation.endUserId !== user.id) {
+      return { error: "关联预约不存在" };
     }
-  });
+    if (reservation.status !== "CONTRACT_PENDING") {
+      return { error: "当前状态不可签署合同" };
+    }
+  }
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.contract.update({
+        where: { id: contractId },
+        data: {
+          status: "SIGNED",
+          effectiveAt: new Date(),
+          expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        },
+      });
+      if (contract.reservationId) {
+        const updated = await tx.dryingReservation.updateMany({
+          where: { id: contract.reservationId, status: "CONTRACT_PENDING" },
+          data: { status: "ACTIVE" },
+        });
+        if (updated.count === 0) {
+          throw new Error("预约状态已变更，请刷新后重试");
+        }
+      }
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "签署失败";
+    return { error: msg };
+  }
   await notifyUser(user.id, "合同已签署", "您的合同已签署成功。", "CONTRACT_SIGNED");
   revalidatePath("/m/contract");
   revalidatePath("/m/orders");
@@ -123,21 +142,37 @@ export async function payAuctionRentAction(projectId: string) {
   });
   if (!topBid) return { error: "未找到出价记录" };
   const existingPayment = await prisma.payment.findFirst({
-    where: { auctionProjectId: projectId, endUserId: user.id, purpose: "AUCTION_RENT" },
+    where: {
+      auctionProjectId: projectId,
+      endUserId: user.id,
+      purpose: "AUCTION_RENT",
+      status: "SUCCESS",
+    },
   });
   if (existingPayment) return { ok: true as const };
   const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  await prisma.payment.create({
-    data: {
-      orderNo,
-      amount: topBid.amount,
-      purpose: "AUCTION_RENT",
-      status: "SUCCESS",
-      endUserId: user.id,
-      auctionProjectId: projectId,
-      paidAt: new Date(),
-      channel: "ABC_MOCK",
-    },
+  await prisma.$transaction(async (tx) => {
+    const dup = await tx.payment.findFirst({
+      where: {
+        auctionProjectId: projectId,
+        endUserId: user.id,
+        purpose: "AUCTION_RENT",
+        status: "SUCCESS",
+      },
+    });
+    if (dup) return;
+    await tx.payment.create({
+      data: {
+        orderNo,
+        amount: topBid.amount,
+        purpose: "AUCTION_RENT",
+        status: "SUCCESS",
+        endUserId: user.id,
+        auctionProjectId: projectId,
+        paidAt: new Date(),
+        channel: "ABC_MOCK",
+      },
+    });
   });
   await notifyUser(user.id, "租金支付成功", `项目 ${result.project.code} 租金已支付。`, "RENT_PAID");
   revalidatePath(`/m/auction/${projectId}`);
