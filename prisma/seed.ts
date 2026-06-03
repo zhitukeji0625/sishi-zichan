@@ -3,10 +3,64 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_ASSET_NAME = "团部东侧闲置地块";
+
+/** 已有种子数据时仍刷新演示竞拍窗口，避免过期后无法演示出价。 */
+async function ensureDemoAuctionLive() {
+  const asset = await prisma.asset.findFirst({ where: { name: DEMO_ASSET_NAME } });
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!asset) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  let project = await prisma.auctionProject.findFirst({
+    where: { assetId: asset.id },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (project) {
+    project = await prisma.auctionProject.update({
+      where: { id: project.id },
+      data: { status: "LIVE", startsAt: starts, endsAt: ends },
+    });
+  } else {
+    project = await prisma.auctionProject.create({
+      data: {
+        code: `AP${Date.now()}`,
+        assetId: asset.id,
+        startPrice: 8000,
+        bidStep: 200,
+        startsAt: starts,
+        endsAt: ends,
+        depositAmount: 500,
+        status: "LIVE",
+      },
+    });
+  }
+
+  if (demoUser) {
+    await prisma.auctionRegistration.upsert({
+      where: {
+        projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+      },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId: project.id,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+  }
+  console.log("Demo auction refreshed (LIVE).");
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
+    await ensureDemoAuctionLive();
     return;
   }
 
@@ -106,7 +160,7 @@ async function main() {
     data: {
       orgId: reg.id,
       type: AssetType.LAND,
-      name: "团部东侧闲置地块",
+      name: DEMO_ASSET_NAME,
       locationText: "六十一团团部东侧",
       specs: "面积约 5 亩",
       description: "<p>适合种植及临时堆放，权属清晰。</p>",
