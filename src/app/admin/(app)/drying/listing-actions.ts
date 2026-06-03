@@ -18,8 +18,8 @@ export async function createDryingListingAction(formData: FormData) {
   if (!ok) return { error: "无权操作" };
   const existing = await prisma.dryingFieldListing.findUnique({ where: { assetId } });
   if (existing) return { error: "该资产已有晒场上架" };
-  const maxAdvanceDays = Number(formData.get("maxAdvanceDays") ?? 7);
-  const maxPeople = Number(formData.get("maxPeople") ?? 10);
+  const maxAdvanceDays = Math.max(0, Math.min(365, Number(formData.get("maxAdvanceDays") ?? 7) || 7));
+  const maxPeople = Math.max(1, Math.min(999, Number(formData.get("maxPeople") ?? 10) || 10));
   await prisma.dryingFieldListing.create({
     data: {
       assetId,
