@@ -1,5 +1,6 @@
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
+import { refreshAuctionProjectStatuses } from "@/lib/cron";
 
 export async function getHighestBid(projectId: string) {
   const top = await prisma.auctionBid.findFirst({
@@ -15,9 +16,11 @@ export async function placeBid(params: {
   amount: Decimal;
 }) {
   const { projectId, endUserId, amount } = params;
+  await refreshAuctionProjectStatuses();
+  const now = new Date();
   return prisma.$transaction(async (tx) => {
     const project = await tx.auctionProject.findUnique({ where: { id: projectId } });
-    if (!project || project.status !== "LIVE") {
+    if (!project || project.status !== "LIVE" || project.endsAt <= now) {
       throw new Error("竞拍未在进行中");
     }
     const reg = await tx.auctionRegistration.findUnique({

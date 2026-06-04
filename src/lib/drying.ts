@@ -1,5 +1,25 @@
 import { prisma } from "@/lib/prisma";
-import { startOfDay, eachDayOfInterval, format } from "date-fns";
+import { startOfDay, eachDayOfInterval, format, addDays } from "date-fns";
+
+export async function validateAdvanceBookingWindow(
+  listingId: string,
+  start: Date,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const listing = await prisma.dryingFieldListing.findUnique({
+    where: { id: listingId },
+    include: { bookingRules: true },
+  });
+  if (!listing) return { ok: false, message: "晒场不存在" };
+  const maxAdvance = listing.bookingRules[0]?.maxAdvanceDays ?? 7;
+  const today = startOfDay(new Date());
+  const startDay = startOfDay(start);
+  if (startDay < today) return { ok: false, message: "不能预约过去的日期" };
+  const horizon = addDays(today, maxAdvance);
+  if (startDay > horizon) {
+    return { ok: false, message: `预约开始日期不能超过 ${maxAdvance} 天` };
+  }
+  return { ok: true };
+}
 
 export async function getCapacityForDay(listingId: string, day: Date) {
   const d = startOfDay(day);
