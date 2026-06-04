@@ -54,7 +54,13 @@ export async function setSessionCookie(kind: "admin" | "end_user", token: string
 
 export async function clearSessionCookie(kind: "admin" | "end_user") {
   const name = kind === "admin" ? SESSION_COOKIE_ADMIN : SESSION_COOKIE_USER;
-  (await cookies()).set(name, "", { path: "/", maxAge: 0 });
+  (await cookies()).set(name, "", {
+    path: "/",
+    maxAge: 0,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: cookieSecure(),
+  });
 }
 
 export async function getSessionTokenFromCookie(kind: "admin" | "end_user") {

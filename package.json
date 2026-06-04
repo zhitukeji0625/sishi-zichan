@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "tsx prisma/seed.ts && tsx prisma/seed-dict.ts",
+    "test:integration": "tsx scripts/integration-test.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
