@@ -19,7 +19,10 @@ export async function reviewRegistrationFormAction(formData: FormData) {
     include: { project: { include: { asset: true } }, endUser: true },
   });
   if (!reg) return { error: "记录不存在" };
-  const ok = await adminCanAccessOrg(admin.role, admin.orgId, reg.project.asset.orgId);
+  const scopeOrgId =
+    admin.role === "COMPANY_ADMIN" ? reg.endUser.orgId : reg.project.asset.orgId;
+  if (!scopeOrgId) return { error: "缺少组织信息，无法审核" };
+  const ok = await adminCanAccessOrg(admin.role, admin.orgId, scopeOrgId);
   if (!ok) return { error: "无权操作该组织" };
   await prisma.auctionRegistration.update({
     where: { id: registrationId },

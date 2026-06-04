@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
-import { orgFilterForAdmin } from "@/lib/admin-scope";
+import { orgFilterForAdmin, registrationFilterForAdmin } from "@/lib/admin-scope";
 import { reviewRegistrationFormAction } from "./actions";
 import { getDictMap } from "@/lib/dict";
 
@@ -14,7 +14,7 @@ export default async function AdminRegistrationsPage() {
   if (!admin) return null;
   const orgWhere = await orgFilterForAdmin(admin.role, admin.orgId);
   const list = await prisma.auctionRegistration.findMany({
-    where: { project: { asset: orgWhere } },
+    where: registrationFilterForAdmin(admin.role, orgWhere),
     include: {
       endUser: true,
       project: { include: { asset: true } },
