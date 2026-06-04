@@ -3,9 +3,82 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_USER_PHONE = "13800138000";
+
+/** 长期运行的库中演示竞拍会过期或已结案；重复 seed 时确保有一条可出价的 LIVE 项目 */
+async function ensureDemoLiveAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+
+  const activeReg = await prisma.auctionRegistration.findFirst({
+    where: {
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+      project: { status: "LIVE", endsAt: { gt: new Date() }, result: null },
+    },
+  });
+  if (activeReg) return;
+
+  const staleReg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id, status: "APPROVED", depositPaid: true },
+    include: { project: { include: { result: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  const staleProject = staleReg?.project;
+  if (staleProject && !staleProject.result) {
+    const now = Date.now();
+    if (staleProject.endsAt.getTime() <= now || staleProject.status === "ENDED") {
+      await prisma.auctionProject.update({
+        where: { id: staleProject.id },
+        data: {
+          status: "LIVE",
+          startsAt: new Date(now - 60_000),
+          endsAt: new Date(now + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+      console.log(`Demo auction ${staleProject.code} refreshed to LIVE.`);
+      return;
+    }
+  }
+
+  const asset =
+    (await prisma.asset.findFirst({
+      where: { name: "团部东侧闲置地块" },
+    })) ??
+    (await prisma.asset.findFirst({ where: { type: AssetType.LAND } }));
+  if (!asset) return;
+
+  const now = Date.now();
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `DEMO${now}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: new Date(now - 60_000),
+      endsAt: new Date(now + 7 * 24 * 60 * 60 * 1000),
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+  await prisma.auctionRegistration.upsert({
+    where: { projectId_endUserId: { projectId: project.id, endUserId: demoUser.id } },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log(`Demo auction ${project.code} created for smoke testing.`);
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await ensureDemoLiveAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
@@ -163,7 +236,7 @@ async function main() {
     },
   });
 
-  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
   if (demoUser) {
     await prisma.auctionRegistration.upsert({
       where: {
