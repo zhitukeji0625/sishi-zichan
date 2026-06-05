@@ -13,7 +13,12 @@ export async function POST(req: Request) {
   if (!externalUserId) {
     return NextResponse.json({ error: "票据无效或已过期" }, { status: 401 });
   }
-  const user = await upsertEndUserFromExternal(externalUserId);
+  let user;
+  try {
+    user = await upsertEndUserFromExternal(externalUserId);
+  } catch {
+    return NextResponse.json({ error: "用户同步失败" }, { status: 500 });
+  }
   if (!user) {
     return NextResponse.json({ error: "用户创建失败" }, { status: 500 });
   }
