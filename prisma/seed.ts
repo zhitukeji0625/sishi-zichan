@@ -137,8 +137,8 @@ async function main() {
       builtYear: 2018,
       capacityRules: {
         create: {
-          startDate: new Date("2026-01-01"),
-          endDate: new Date("2027-12-31"),
+          startDate: new Date("2020-01-01"),
+          endDate: new Date("2099-12-31"),
           maxPeople: 10,
         },
       },

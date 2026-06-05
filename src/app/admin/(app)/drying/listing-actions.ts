@@ -24,7 +24,9 @@ export async function createDryingListingAction(formData: FormData) {
     data: {
       assetId,
       status: "OPERATING",
-      capacityRules: { create: { startDate: new Date("2026-01-01"), endDate: new Date("2027-12-31"), maxPeople } },
+      capacityRules: {
+        create: { startDate: new Date("2020-01-01"), endDate: new Date("2099-12-31"), maxPeople },
+      },
       bookingRules: { create: { maxAdvanceDays } },
     },
   });

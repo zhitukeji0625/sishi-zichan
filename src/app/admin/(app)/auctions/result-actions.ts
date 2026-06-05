@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { isDivision, isRegimentOrAbove, adminCanAccessOrg } from "@/lib/rbac";
@@ -41,14 +42,20 @@ export async function reviewAuctionResultAction(formData: FormData) {
   const resultId = String(formData.get("id") ?? "");
   const approve = formData.get("approve") === "true";
   const admin = await getCurrentAdmin();
-  if (!admin || !isDivision(admin.role)) return;
+  if (!admin || !isDivision(admin.role)) {
+    redirect(`/admin/auctions?error=${encodeURIComponent("无权操作")}`);
+  }
   const result = await prisma.auctionResult.findUnique({
     where: { id: resultId },
     include: { project: { include: { asset: true } } },
   });
-  if (!result || result.status !== "PENDING_REVIEW") return;
+  if (!result || result.status !== "PENDING_REVIEW") {
+    redirect(`/admin/auctions?error=${encodeURIComponent("状态不可审核")}`);
+  }
   const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, result.project.asset.orgId);
-  if (!canAccess) return;
+  if (!canAccess) {
+    redirect(`/admin/auctions?error=${encodeURIComponent("无权操作该项目")}`);
+  }
   if (approve) {
     await prisma.auctionResult.update({
       where: { id: resultId },
@@ -62,10 +69,15 @@ export async function reviewAuctionResultAction(formData: FormData) {
         "AUCTION_WIN",
       );
     }
-    // Refund non-winner deposits
-    const allRegs = await prisma.auctionRegistration.findMany({
-      where: { projectId: result.projectId, depositPaid: true, endUserId: { not: result.winnerId ?? undefined } },
-    });
+    // Refund deposits: non-winners when there is a winner; all depositors when no winner
+    const refundWhere = result.winnerId
+      ? {
+          projectId: result.projectId,
+          depositPaid: true,
+          endUserId: { not: result.winnerId },
+        }
+      : { projectId: result.projectId, depositPaid: true };
+    const allRegs = await prisma.auctionRegistration.findMany({ where: refundWhere });
     for (const reg of allRegs) {
       const existingRefund = await prisma.payment.findFirst({
         where: { auctionProjectId: result.projectId, endUserId: reg.endUserId, purpose: "AUCTION_DEPOSIT", status: "REFUNDED" },
@@ -86,4 +98,5 @@ export async function reviewAuctionResultAction(formData: FormData) {
   }
   await writeAudit(admin.id, "AUCTION_RESULT_REVIEW", JSON.stringify({ resultId, approve }));
   revalidatePath("/admin/auctions");
+  redirect("/admin/auctions");
 }
