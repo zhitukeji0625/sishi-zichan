@@ -1,11 +1,19 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
+import { adminCanAccessOrg } from "@/lib/rbac";
 import { getDictMap } from "@/lib/dict";
 
-export default async function AdminAuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminAuctionDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error: actionError } = await searchParams;
   const admin = await getCurrentAdmin();
   if (!admin) return null;
   const project = await prisma.auctionProject.findUnique({
@@ -19,6 +27,18 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
     },
   });
   if (!project) notFound();
+  const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, project.asset.orgId);
+  if (!canAccess) notFound();
+
+  const projectId = project.id;
+
+  async function cancelProject() {
+    "use server";
+    const { cancelAuctionAction } = await import("../actions");
+    const r = await cancelAuctionAction(projectId);
+    if (r.error) redirect(`/admin/auctions/${projectId}?error=${encodeURIComponent(r.error)}`);
+    redirect("/admin/auctions");
+  }
 
   const auctionStatusMap = await getDictMap("auction_status");
   const assetTypeMap = await getDictMap("asset_type");
@@ -31,6 +51,9 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
       <Link href="/admin/auctions" className="text-sm text-blue-700">← 返回竞拍列表</Link>
       <h1 className="mt-2 text-xl font-semibold text-slate-900">{project.asset.name}</h1>
       <p className="mt-1 text-sm text-slate-500">编号：{project.code} · 状态：{auctionStatusMap[project.status] ?? project.status}</p>
+      {actionError && (
+        <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{actionError}</div>
+      )}
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm text-sm text-slate-700">
@@ -139,7 +162,7 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
       </div>
 
       {(project.status === "SCHEDULED" || project.status === "LIVE") && (
-        <form action={async () => { "use server"; const { cancelAuctionAction } = await import("../actions"); await cancelAuctionAction(project.id); }} className="mt-6">
+        <form action={cancelProject} className="mt-6">
           <button type="submit" className="rounded-lg border border-red-200 px-4 py-2 text-sm text-red-700 hover:bg-red-50">
             取消竞拍项目
           </button>

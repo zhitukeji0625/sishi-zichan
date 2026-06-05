@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
+import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { isDivision, roleLabel } from "@/lib/rbac";
 import { getDictItems } from "@/lib/dict";
 import { createAdminAction, toggleAdminDisableAction } from "./actions";
@@ -8,7 +9,9 @@ import { createAdminAction, toggleAdminDisableAction } from "./actions";
 export default async function AdminUsersPage() {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
+  const orgWhere = await orgFilterForAdmin(admin.role, admin.orgId);
   const admins = await prisma.adminUser.findMany({
+    where: orgWhere,
     include: { org: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
   });
