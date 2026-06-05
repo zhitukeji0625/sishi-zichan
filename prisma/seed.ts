@@ -1,11 +1,53 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+/** 演示环境无进行中竞拍时自动补一条，便于 H5 出价闭环测试。 */
+async function ensureDemoLiveAuction() {
+  const live = await prisma.auctionProject.count({ where: { status: "LIVE" } });
+  if (live > 0) return;
+
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  const asset = await prisma.asset.findFirst({
+    where: { type: AssetType.LAND },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!demoUser || !asset) return;
+
+  const now = Date.now();
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `AP${now}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: new Date(now - 60_000),
+      endsAt: new Date(now + 7 * 24 * 60 * 60 * 1000),
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+  await prisma.auctionRegistration.upsert({
+    where: { projectId_endUserId: { projectId: project.id, endUserId: demoUser.id } },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log(`Demo LIVE auction ensured: ${project.code}`);
+}
+
 async function main() {
+  await seedDict(prisma);
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await ensureDemoLiveAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
