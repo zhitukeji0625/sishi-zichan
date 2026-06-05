@@ -1,10 +1,12 @@
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 
+const bidOrderBy = [{ amount: "desc" as const }, { createdAt: "asc" as const }];
+
 export async function getHighestBid(projectId: string) {
   const top = await prisma.auctionBid.findFirst({
     where: { projectId },
-    orderBy: { amount: "desc" },
+    orderBy: bidOrderBy,
   });
   return top?.amount ?? null;
 }
@@ -17,7 +19,8 @@ export async function placeBid(params: {
   const { projectId, endUserId, amount } = params;
   return prisma.$transaction(async (tx) => {
     const project = await tx.auctionProject.findUnique({ where: { id: projectId } });
-    if (!project || project.status !== "LIVE") {
+    const now = new Date();
+    if (!project || project.status !== "LIVE" || project.endsAt <= now) {
       throw new Error("竞拍未在进行中");
     }
     const reg = await tx.auctionRegistration.findUnique({
@@ -28,7 +31,7 @@ export async function placeBid(params: {
     }
     const top = await tx.auctionBid.findFirst({
       where: { projectId },
-      orderBy: { amount: "desc" },
+      orderBy: bidOrderBy,
     });
     const minNext = top
       ? new Decimal(top.amount.toString()).plus(project.bidStep.toString())

@@ -23,12 +23,13 @@ export async function generateAuctionResultAction(projectId: string) {
   if (!ok) return { error: "无权操作该项目" };
   const topBid = await prisma.auctionBid.findFirst({
     where: { projectId },
-    orderBy: { amount: "desc" },
+    orderBy: [{ amount: "desc" }, { createdAt: "asc" }],
   });
+  if (!topBid) return { error: "暂无出价，无法生成结果" };
   await prisma.auctionResult.create({
     data: {
       projectId,
-      winnerId: topBid?.endUserId ?? null,
+      winnerId: topBid.endUserId,
       status: "PENDING_REVIEW",
     },
   });

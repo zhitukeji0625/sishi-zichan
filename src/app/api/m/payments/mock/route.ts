@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     if (!result || result.winnerId !== user.id) return NextResponse.json({ error: "无权操作" }, { status: 403 });
     const topBid = await prisma.auctionBid.findFirst({
       where: { projectId: auctionProjectId, endUserId: user.id },
-      orderBy: { amount: "desc" },
+      orderBy: [{ amount: "desc" }, { createdAt: "asc" }],
     });
     if (!topBid) return NextResponse.json({ error: "未找到出价记录" }, { status: 404 });
     amount = topBid.amount;
