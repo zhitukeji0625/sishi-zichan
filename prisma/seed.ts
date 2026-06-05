@@ -3,10 +3,39 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_USER_PHONE = "13800138000";
+
+/** 保持演示竞拍在进行中，避免库中已有数据时 endsAt 过期导致无法出价 */
+async function refreshDemoAuctionWindow() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return false;
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id, status: "APPROVED", depositPaid: true },
+    orderBy: { createdAt: "desc" },
+    include: { project: true },
+  });
+  const projectId = reg?.projectId;
+  if (!projectId) return false;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: projectId },
+    data: { status: "LIVE", startsAt: starts, endsAt: ends },
+  });
+  return true;
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    const refreshed = await refreshDemoAuctionWindow();
+    console.log(
+      refreshed
+        ? "Seed skipped: data present; demo auction window refreshed."
+        : "Seed skipped: data already present.",
+    );
     return;
   }
 
@@ -163,7 +192,7 @@ async function main() {
     },
   });
 
-  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
   if (demoUser) {
     await prisma.auctionRegistration.upsert({
       where: {
