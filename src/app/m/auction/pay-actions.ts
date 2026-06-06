@@ -23,6 +23,10 @@ export async function payAuctionDepositAction(projectId: string) {
   }
   const orderNo = `MOCK${Date.now()}`;
   await prisma.$transaction(async (tx) => {
+    const fresh = await tx.auctionRegistration.findUnique({
+      where: { projectId_endUserId: { projectId, endUserId: user.id } },
+    });
+    if (!fresh || fresh.depositPaid) return;
     await tx.payment.create({
       data: {
         orderNo,
