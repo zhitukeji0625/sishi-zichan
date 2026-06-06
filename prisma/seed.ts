@@ -3,9 +3,49 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** 演示竞拍过期后重新 seed 时恢复为 LIVE，保证自动化与本地演示可出价。 */
+async function refreshStaleDemoAuction() {
+  const now = new Date();
+  const stale = await prisma.auctionProject.findFirst({
+    where: {
+      OR: [{ status: "ENDED" }, { endsAt: { lte: now } }],
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!stale) return false;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionBid.deleteMany({ where: { projectId: stale.id } });
+  await prisma.auctionResult.deleteMany({ where: { projectId: stale.id } });
+  await prisma.auctionProject.update({
+    where: { id: stale.id },
+    data: { startsAt: starts, endsAt: ends, status: "LIVE" },
+  });
+
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (demoUser) {
+    await prisma.auctionRegistration.upsert({
+      where: {
+        projectId_endUserId: { projectId: stale.id, endUserId: demoUser.id },
+      },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId: stale.id,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+  }
+  console.log(`Refreshed stale demo auction ${stale.code} -> LIVE.`);
+  return true;
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshStaleDemoAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
