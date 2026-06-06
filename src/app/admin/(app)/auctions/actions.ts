@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg, isRegimentOrAbove } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+import { notifyUser } from "@/lib/messages";
 
 const createSchema = z.object({
   assetId: z.string(),
@@ -62,7 +63,37 @@ export async function cancelAuctionAction(projectId: string) {
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, project.asset.orgId);
   if (!ok) return { error: "无权操作" };
   if (project.status === "ENDED") return { error: "已结束的项目不可取消" };
-  await prisma.auctionProject.update({ where: { id: projectId }, data: { status: "CANCELLED" } });
+  const refundedUserIds: string[] = [];
+  await prisma.$transaction(async (tx) => {
+    await tx.auctionProject.update({ where: { id: projectId }, data: { status: "CANCELLED" } });
+    const paidRegs = await tx.auctionRegistration.findMany({
+      where: { projectId, depositPaid: true },
+    });
+    for (const reg of paidRegs) {
+      const updated = await tx.payment.updateMany({
+        where: {
+          auctionProjectId: projectId,
+          endUserId: reg.endUserId,
+          purpose: "AUCTION_DEPOSIT",
+          status: "SUCCESS",
+        },
+        data: { status: "REFUNDED" },
+      });
+      if (updated.count > 0) refundedUserIds.push(reg.endUserId);
+      await tx.auctionRegistration.update({
+        where: { id: reg.id },
+        data: { depositPaid: false },
+      });
+    }
+  });
+  for (const userId of refundedUserIds) {
+    await notifyUser(
+      userId,
+      "保证金退还通知",
+      `项目 ${project.code} 已取消，保证金已原路退回。`,
+      "DEPOSIT_REFUND",
+    );
+  }
   await writeAudit(admin.id, "AUCTION_CREATE", JSON.stringify({ projectId, action: "cancel" }));
   revalidatePath("/admin/auctions");
   return { ok: true as const };
