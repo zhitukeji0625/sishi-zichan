@@ -7,6 +7,7 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 import { AssetType, AssetStatus } from "@prisma/client";
+import { parseOptionalFormNumber } from "@/lib/prisma-utils";
 
 const schema = z.object({
   orgId: z.string(),
@@ -26,8 +27,8 @@ export async function createAssetAction(formData: FormData) {
   const raw = Object.fromEntries(formData.entries());
   const parsed = schema.safeParse({
     ...raw,
-    refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
-    refPriceMax: raw.refPriceMax ? Number(raw.refPriceMax) : undefined,
+    refPriceMin: parseOptionalFormNumber(raw.refPriceMin),
+    refPriceMax: parseOptionalFormNumber(raw.refPriceMax),
   });
   if (!parsed.success) return { error: "表单数据无效" };
   const d = parsed.data;

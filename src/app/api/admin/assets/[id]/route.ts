@@ -4,9 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
-import { AssetStatus } from "@prisma/client";
+import { AssetStatus, AssetType } from "@prisma/client";
+import { parseOptionalFormNumber } from "@/lib/prisma-utils";
 
 const updateSchema = z.object({
+  type: z.nativeEnum(AssetType),
   name: z.string().min(1),
   locationText: z.string().min(1),
   specs: z.string().optional(),
@@ -32,14 +34,15 @@ export async function POST(
   const raw = Object.fromEntries(formData.entries());
   const parsed = updateSchema.safeParse({
     ...raw,
-    refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
-    refPriceMax: raw.refPriceMax ? Number(raw.refPriceMax) : undefined,
+    refPriceMin: parseOptionalFormNumber(raw.refPriceMin),
+    refPriceMax: parseOptionalFormNumber(raw.refPriceMax),
   });
   if (!parsed.success) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
   const d = parsed.data;
   await prisma.asset.update({
     where: { id },
     data: {
+      type: d.type,
       name: d.name,
       locationText: d.locationText,
       specs: d.specs || null,

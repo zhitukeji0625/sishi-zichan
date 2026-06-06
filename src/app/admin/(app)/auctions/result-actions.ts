@@ -6,6 +6,7 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { isDivision, isRegimentOrAbove, adminCanAccessOrg } from "@/lib/rbac";
 import { notifyUser } from "@/lib/messages";
 import { writeAudit } from "@/lib/audit";
+import { isPrismaUniqueViolation } from "@/lib/prisma-utils";
 
 export async function generateAuctionResultAction(projectId: string) {
   const admin = await getCurrentAdmin();
@@ -25,13 +26,18 @@ export async function generateAuctionResultAction(projectId: string) {
     where: { projectId },
     orderBy: { amount: "desc" },
   });
-  await prisma.auctionResult.create({
-    data: {
-      projectId,
-      winnerId: topBid?.endUserId ?? null,
-      status: "PENDING_REVIEW",
-    },
-  });
+  try {
+    await prisma.auctionResult.create({
+      data: {
+        projectId,
+        winnerId: topBid?.endUserId ?? null,
+        status: "PENDING_REVIEW",
+      },
+    });
+  } catch (e) {
+    if (isPrismaUniqueViolation(e)) return { error: "已生成结果" };
+    throw e;
+  }
   await writeAudit(admin.id, "AUCTION_RESULT_GENERATE", JSON.stringify({ projectId }));
   revalidatePath("/admin/auctions");
   return { ok: true as const };

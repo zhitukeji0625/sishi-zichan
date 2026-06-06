@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
 import { notifyUser } from "@/lib/messages";
+import { isPrismaUniqueViolation } from "@/lib/prisma-utils";
 
 export async function registerAuctionAction(projectId: string) {
   const user = await getCurrentEndUser();
@@ -17,9 +18,14 @@ export async function registerAuctionAction(projectId: string) {
     where: { projectId_endUserId: { projectId, endUserId: user.id } },
   });
   if (exists) return { ok: true as const };
-  await prisma.auctionRegistration.create({
-    data: { projectId, endUserId: user.id, status: "PENDING" },
-  });
+  try {
+    await prisma.auctionRegistration.create({
+      data: { projectId, endUserId: user.id, status: "PENDING" },
+    });
+  } catch (e) {
+    if (isPrismaUniqueViolation(e)) return { ok: true as const };
+    throw e;
+  }
   await notifyUser(user.id, "报名已提交", "您的竞拍报名已提交，请等待连队审核。", "REG_SUBMIT");
   revalidatePath(`/m/auction/${projectId}`);
   return { ok: true as const };

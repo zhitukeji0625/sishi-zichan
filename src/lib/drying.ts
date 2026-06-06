@@ -19,10 +19,10 @@ export async function getCapacityForDay(listingId: string, day: Date) {
   });
   let booked = 0;
   for (const r of reservations) {
-    const days = eachDayOfInterval({
-      start: startOfDay(r.startDate),
-      end: startOfDay(r.endDate),
-    });
+    const start = startOfDay(r.startDate);
+    const end = startOfDay(r.endDate);
+    if (end < start) continue;
+    const days = eachDayOfInterval({ start, end });
     if (days.some((x) => format(x, "yyyy-MM-dd") === format(d, "yyyy-MM-dd"))) {
       booked += 1;
     }
