@@ -1,9 +1,38 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+/** 演示竞拍过期后恢复为进行中，便于重复测试与演示账号出价 */
+async function refreshDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const project = await prisma.auctionProject.findFirst({
+    where: { registrations: { some: { endUserId: demoUser.id, depositPaid: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!project) return;
+
+  const now = Date.now();
+  if (project.status === "ENDED" || project.endsAt.getTime() <= now) {
+    await prisma.auctionProject.update({
+      where: { id: project.id },
+      data: {
+        status: "LIVE",
+        startsAt: new Date(now - 60_000),
+        endsAt: new Date(now + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+    console.log("Refreshed demo auction to LIVE.");
+  }
+}
+
 async function main() {
+  await seedDict(prisma);
+  await refreshDemoAuction();
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
