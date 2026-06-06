@@ -13,14 +13,20 @@ export async function registerAuctionAction(projectId: string) {
   if (project.status !== "SCHEDULED" && project.status !== "LIVE") {
     return { error: "项目当前状态不允许报名" };
   }
-  const exists = await prisma.auctionRegistration.findUnique({
+  const existing = await prisma.auctionRegistration.findUnique({
     where: { projectId_endUserId: { projectId, endUserId: user.id } },
   });
-  if (exists) return { ok: true as const };
-  await prisma.auctionRegistration.create({
-    data: { projectId, endUserId: user.id, status: "PENDING" },
-  });
-  await notifyUser(user.id, "报名已提交", "您的竞拍报名已提交，请等待连队审核。", "REG_SUBMIT");
+  if (!existing) {
+    try {
+      await prisma.auctionRegistration.create({
+        data: { projectId, endUserId: user.id, status: "PENDING" },
+      });
+      await notifyUser(user.id, "报名已提交", "您的竞拍报名已提交，请等待连队审核。", "REG_SUBMIT");
+    } catch (e) {
+      const code = (e as { code?: string })?.code;
+      if (code !== "P2002") throw e;
+    }
+  }
   revalidatePath(`/m/auction/${projectId}`);
   return { ok: true as const };
 }
