@@ -3,9 +3,52 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_USER_PHONE = "13800138000";
+
+/** Keep demo auction bid-able when seed is re-run against an existing database. */
+async function refreshDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+
+  const project = await prisma.auctionProject.findFirst({
+    where: { registrations: { some: { endUserId: demoUser.id } } },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!project) return;
+
+  const now = new Date();
+  if (project.status === "LIVE" && project.endsAt > now) return;
+
+  await prisma.payment.deleteMany({ where: { auctionProjectId: project.id } });
+  await prisma.contract.deleteMany({ where: { auctionProjectId: project.id } });
+  await prisma.auctionResult.deleteMany({ where: { projectId: project.id } });
+  await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: { startsAt: starts, endsAt: ends, status: "LIVE" },
+  });
+
+  await prisma.auctionRegistration.upsert({
+    where: { projectId_endUserId: { projectId: project.id, endUserId: demoUser.id } },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+
+  console.log("Demo auction refreshed to LIVE.");
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
@@ -83,7 +126,7 @@ async function main() {
 
   const userHash = await bcrypt.hash("user123", 10);
   await prisma.endUser.upsert({
-    where: { phone: "13800138000" },
+    where: { phone: DEMO_USER_PHONE },
     update: {},
     create: {
       phone: "13800138000",
@@ -163,7 +206,7 @@ async function main() {
     },
   });
 
-  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
   if (demoUser) {
     await prisma.auctionRegistration.upsert({
       where: {
