@@ -3,9 +3,70 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** 确保演示账号始终有可出价的 LIVE 竞拍（过期或已结标时自动新建） */
+async function refreshDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  const liveProject = await prisma.auctionProject.findFirst({
+    where: {
+      status: "LIVE",
+      endsAt: { gt: new Date() },
+      registrations: {
+        some: { endUserId: demoUser.id, depositPaid: true, status: "APPROVED" },
+      },
+    },
+    include: { result: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (liveProject && liveProject.result?.status !== "PUBLISHED") {
+    await prisma.auctionProject.update({
+      where: { id: liveProject.id },
+      data: { startsAt: starts, endsAt: ends, status: "LIVE" },
+    });
+    console.log(`Demo auction ${liveProject.code} refreshed to LIVE.`);
+    return;
+  }
+
+  const asset =
+    (await prisma.asset.findFirst({
+      where: { type: AssetType.LAND, status: AssetStatus.IDLE },
+      orderBy: { createdAt: "asc" },
+    })) ??
+    (await prisma.asset.findFirst({ where: { type: AssetType.LAND }, orderBy: { createdAt: "asc" } }));
+  if (!asset) return;
+
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `AP${Date.now()}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+  await prisma.auctionRegistration.create({
+    data: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log(`Demo auction ${project.code} created for testing.`);
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
