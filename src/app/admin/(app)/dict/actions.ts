@@ -29,7 +29,8 @@ export async function createDictItemAction(formData: FormData) {
   const categoryId = String(formData.get("categoryId") ?? "");
   const value = String(formData.get("value") ?? "").trim();
   const label = String(formData.get("label") ?? "").trim();
-  const sortOrder = Number(formData.get("sortOrder") ?? 0);
+  const sortOrderRaw = Number(formData.get("sortOrder") ?? 0);
+  const sortOrder = Number.isFinite(sortOrderRaw) ? Math.trunc(sortOrderRaw) : 0;
   if (!categoryId || !value || !label) return { error: "值和显示名称必填" };
   const exists = await prisma.dictItem.findUnique({
     where: { categoryId_value: { categoryId, value } },
@@ -48,7 +49,8 @@ export async function updateDictItemAction(formData: FormData) {
   if (!admin || !isDivision(admin.role)) return { error: "仅师级管理员可操作" };
   const id = String(formData.get("id") ?? "");
   const label = String(formData.get("label") ?? "").trim();
-  const sortOrder = Number(formData.get("sortOrder") ?? 0);
+  const sortOrderRaw = Number(formData.get("sortOrder") ?? 0);
+  const sortOrder = Number.isFinite(sortOrderRaw) ? Math.trunc(sortOrderRaw) : 0;
   const enabled = formData.get("enabled") === "true";
   if (!id || !label) return { error: "参数无效" };
   await prisma.dictItem.update({
