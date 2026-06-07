@@ -43,10 +43,11 @@ export function AssetForm({ orgs, defaultOrgId, action, typeOptions, statusOptio
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    fd.set("imagesJson", JSON.stringify(images));
     setSubmitting(true);
     setError(null);
-    const fd = new FormData(e.currentTarget);
-    fd.set("imagesJson", JSON.stringify(images));
     
     const url = action === "create" ? "/api/admin/assets" : `/api/admin/assets/${asset?.id}`;
     const res = await fetch(url, { method: "POST", body: fd });
