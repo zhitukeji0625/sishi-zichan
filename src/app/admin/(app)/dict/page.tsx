@@ -13,11 +13,11 @@ import {
 export default async function AdminDictPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cat?: string }>;
+  searchParams: Promise<{ cat?: string; error?: string }>;
 }) {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
-  const { cat: selectedCatId } = await searchParams;
+  const { cat: selectedCatId, error: errorMsg } = await searchParams;
 
   const categories = await prisma.dictCategory.findMany({
     orderBy: { code: "asc" },
@@ -52,6 +52,9 @@ export default async function AdminDictPage({
       <p className="mt-1 text-sm text-slate-500">
         管理系统中所有下拉选项的可选值。修改后各表单下拉菜单实时生效。
       </p>
+      {errorMsg && (
+        <div className="mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{decodeURIComponent(errorMsg)}</div>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[280px_1fr]">
         {/* Left: category list */}
@@ -111,7 +114,12 @@ export default async function AdminDictPage({
                     <div className="text-xs text-slate-400">{selectedCategory.code} · {selectedCategory.description ?? "无描述"}</div>
                   </div>
                   {isDivision(admin.role) && !selectedCategory.builtIn && (
-                    <form action={async (fd: FormData) => { "use server"; fd.append("id", selectedCategory.id); await deleteDictCategoryAction(fd); }} >
+                    <form action={async (fd: FormData) => {
+                      "use server";
+                      const r = await deleteDictCategoryAction(fd);
+                      if (r.error) redirect(`/admin/dict?cat=${selectedCategory.id}&error=${encodeURIComponent(r.error)}`);
+                      redirect("/admin/dict");
+                    }} >
                       <input type="hidden" name="id" value={selectedCategory.id} />
                       <button type="submit" className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-600 hover:bg-red-50">
                         删除分类
@@ -148,7 +156,12 @@ export default async function AdminDictPage({
                       {isDivision(admin.role) && (
                         <td className="px-4 py-2.5">
                           <div className="flex gap-2">
-                            <form action={async (fd: FormData) => { "use server"; await updateDictItemAction(fd); }}>
+                            <form action={async (fd: FormData) => {
+                              "use server";
+                              const r = await updateDictItemAction(fd);
+                              if (r.error) redirect(`/admin/dict?cat=${selectedCategory.id}&error=${encodeURIComponent(r.error)}`);
+                              redirect(`/admin/dict?cat=${selectedCategory.id}`);
+                            }}>
                               <input type="hidden" name="id" value={item.id} />
                               <input type="hidden" name="label" value={item.label} />
                               <input type="hidden" name="sortOrder" value={item.sortOrder} />
@@ -157,7 +170,12 @@ export default async function AdminDictPage({
                                 {item.enabled ? "禁用" : "启用"}
                               </button>
                             </form>
-                            <form action={async (fd: FormData) => { "use server"; await deleteDictItemAction(fd); }}>
+                            <form action={async (fd: FormData) => {
+                              "use server";
+                              const r = await deleteDictItemAction(fd);
+                              if (r.error) redirect(`/admin/dict?cat=${selectedCategory.id}&error=${encodeURIComponent(r.error)}`);
+                              redirect(`/admin/dict?cat=${selectedCategory.id}`);
+                            }}>
                               <input type="hidden" name="id" value={item.id} />
                               <button type="submit" className="text-xs text-red-600 hover:underline">删除</button>
                             </form>
