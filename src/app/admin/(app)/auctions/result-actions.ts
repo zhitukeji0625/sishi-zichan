@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma } from "@/lib/prisma";
+import { prisma, isUniqueConstraintError } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { isDivision, isRegimentOrAbove, adminCanAccessOrg } from "@/lib/rbac";
 import { notifyUser } from "@/lib/messages";
@@ -25,13 +25,18 @@ export async function generateAuctionResultAction(projectId: string) {
     where: { projectId },
     orderBy: { amount: "desc" },
   });
-  await prisma.auctionResult.create({
-    data: {
-      projectId,
-      winnerId: topBid?.endUserId ?? null,
-      status: "PENDING_REVIEW",
-    },
-  });
+  try {
+    await prisma.auctionResult.create({
+      data: {
+        projectId,
+        winnerId: topBid?.endUserId ?? null,
+        status: "PENDING_REVIEW",
+      },
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) return { error: "已生成结果" };
+    throw error;
+  }
   await writeAudit(admin.id, "AUCTION_RESULT_GENERATE", JSON.stringify({ projectId }));
   revalidatePath("/admin/auctions");
   return { ok: true as const };
@@ -71,11 +76,13 @@ export async function reviewAuctionResultAction(formData: FormData) {
         where: { auctionProjectId: result.projectId, endUserId: reg.endUserId, purpose: "AUCTION_DEPOSIT", status: "REFUNDED" },
       });
       if (!existingRefund) {
-        await prisma.payment.updateMany({
+        const { count } = await prisma.payment.updateMany({
           where: { auctionProjectId: result.projectId, endUserId: reg.endUserId, purpose: "AUCTION_DEPOSIT", status: "SUCCESS" },
           data: { status: "REFUNDED" },
         });
-        await notifyUser(reg.endUserId, "保证金退还通知", `项目 ${result.project.code} 的竞拍保证金已原路退回。`, "DEPOSIT_REFUND");
+        if (count > 0) {
+          await notifyUser(reg.endUserId, "保证金退还通知", `项目 ${result.project.code} 的竞拍保证金已原路退回。`, "DEPOSIT_REFUND");
+        }
       }
     }
   } else {
