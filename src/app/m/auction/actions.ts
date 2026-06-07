@@ -16,7 +16,10 @@ export async function registerAuctionAction(projectId: string) {
   const exists = await prisma.auctionRegistration.findUnique({
     where: { projectId_endUserId: { projectId, endUserId: user.id } },
   });
-  if (exists) return { ok: true as const };
+  if (exists) {
+    if (exists.status === "REJECTED") return { error: "报名已被拒绝，请联系管理员" };
+    return { ok: true as const };
+  }
   await prisma.auctionRegistration.create({
     data: { projectId, endUserId: user.id, status: "PENDING" },
   });

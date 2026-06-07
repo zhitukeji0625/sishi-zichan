@@ -26,6 +26,14 @@ export async function createOrgAction(formData: FormData) {
   const d = parsed.data;
   const exists = await prisma.organization.findUnique({ where: { code: d.code } });
   if (exists) return { error: "组织代码已存在" };
+  if (d.level === "DIVISION" && d.parentId) return { error: "师级组织不能有上级" };
+  if (d.level !== "DIVISION" && !d.parentId) return { error: "团/连级组织必须指定上级" };
+  if (d.parentId) {
+    const parent = await prisma.organization.findUnique({ where: { id: d.parentId } });
+    if (!parent) return { error: "上级组织不存在" };
+    if (d.level === "REGIMENT" && parent.level !== "DIVISION") return { error: "团级组织的上级必须是师级" };
+    if (d.level === "COMPANY" && parent.level !== "REGIMENT") return { error: "连级组织的上级必须是团级" };
+  }
   await prisma.organization.create({
     data: {
       name: d.name,

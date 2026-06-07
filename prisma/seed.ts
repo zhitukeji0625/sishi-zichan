@@ -3,10 +3,32 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** Keep demo auction LIVE so README demo flow (bid) works after DB ages. */
+async function refreshDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id },
+    include: { project: true },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!reg) return;
+  const now = Date.now();
+  await prisma.auctionProject.update({
+    where: { id: reg.projectId },
+    data: {
+      status: "LIVE",
+      startsAt: new Date(now - 60_000),
+      endsAt: new Date(now + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    await refreshDemoAuction();
+    console.log("Seed skipped: data already present (demo auction refreshed).");
     return;
   }
 
