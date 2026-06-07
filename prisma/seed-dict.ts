@@ -1,7 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
 
-const categories = [
+export const dictCategories = [
   {
     code: "asset_type",
     name: "资产类型",
@@ -159,29 +158,41 @@ const categories = [
       { value: "COMPANY", label: "企业", sortOrder: 2 },
     ],
   },
-];
+] as const;
 
-async function main() {
-  for (const cat of categories) {
+/** Idempotent seed for built-in dictionary categories. */
+export async function seedDict(prisma: PrismaClient) {
+  for (const cat of dictCategories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
-      console.log(`  Skip: ${cat.code} (already exists)`);
+      console.log(`  Dict skip: ${cat.code} (already exists)`);
       continue;
     }
     await prisma.dictCategory.create({
       data: {
         code: cat.code,
         name: cat.name,
-        description: cat.description ?? null,
+        description: "description" in cat ? (cat.description ?? null) : null,
         builtIn: cat.builtIn,
-        items: { create: cat.items },
+        items: { create: [...cat.items] },
       },
     });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+    console.log(`  Dict created: ${cat.code} (${cat.items.length} items)`);
   }
-  console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+const isDirectRun = process.argv[1]?.replace(/\\/g, "/").endsWith("prisma/seed-dict.ts");
+
+if (isDirectRun) {
+  const prisma = new PrismaClient();
+  seedDict(prisma)
+    .then(() => {
+      console.log("Dict seed done.");
+      return prisma.$disconnect();
+    })
+    .catch((e) => {
+      console.error(e);
+      prisma.$disconnect();
+      process.exit(1);
+    });
+}
