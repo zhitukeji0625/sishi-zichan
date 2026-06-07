@@ -40,12 +40,12 @@ export function ReserveForm({ listingId, minDate, maxDate }: { listingId: string
       </div>
       <div className="space-y-4 p-4">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-600">开始日期</label>
-          <input type="date" required min={minDate} max={maxDate} className="input-field" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <label htmlFor="reserve-start-date" className="mb-1.5 block text-sm font-medium text-slate-600">开始日期</label>
+          <input id="reserve-start-date" name="startDate" type="date" required min={minDate} max={maxDate} className="input-field" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-600">结束日期</label>
-          <input type="date" required min={minDate} max={maxDate} className="input-field" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <label htmlFor="reserve-end-date" className="mb-1.5 block text-sm font-medium text-slate-600">结束日期</label>
+          <input id="reserve-end-date" name="endDate" type="date" required min={minDate} max={maxDate} className="input-field" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
         </div>
         {msg && (
           <div className={`animate-scale-in rounded-xl px-4 py-2.5 text-sm font-medium ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>

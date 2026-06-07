@@ -42,6 +42,8 @@ export function BidForm({ projectId, minBid }: { projectId: string; minBid: numb
         <div className="relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400">¥</span>
           <input
+            id="bid-amount"
+            name="amount"
             type="number"
             step="0.01"
             min={minBid}

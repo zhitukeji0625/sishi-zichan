@@ -45,24 +45,24 @@ export default function MRegisterPage() {
       <div className="relative -mt-8 px-5">
         <form onSubmit={onSubmit} className="card-elevated-lg space-y-5 p-6 animate-slide-up">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">手机号</label>
+            <label htmlFor="m-register-phone" className="mb-2 block text-sm font-medium text-slate-700">手机号</label>
             <div className="relative">
               <Phone className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
-              <input className="input-field !pl-11" placeholder="请输入手机号" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <input id="m-register-phone" name="phone" type="tel" className="input-field !pl-11" placeholder="请输入手机号" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="username" />
             </div>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">姓名（可选）</label>
+            <label htmlFor="m-register-name" className="mb-2 block text-sm font-medium text-slate-700">姓名（可选）</label>
             <div className="relative">
               <User className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
-              <input className="input-field !pl-11" placeholder="请输入姓名" value={name} onChange={(e) => setName(e.target.value)} />
+              <input id="m-register-name" name="name" className="input-field !pl-11" placeholder="请输入姓名" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
             </div>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">密码（至少 6 位）</label>
+            <label htmlFor="m-register-password" className="mb-2 block text-sm font-medium text-slate-700">密码（至少 6 位）</label>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
-              <input type="password" className="input-field !pl-11" placeholder="请设置密码" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <input id="m-register-password" name="password" type="password" className="input-field !pl-11" placeholder="请设置密码" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
             </div>
           </div>
           {error && (

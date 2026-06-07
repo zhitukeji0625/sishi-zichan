@@ -42,8 +42,10 @@ export default function AdminLoginPage() {
         </div>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">手机号</label>
+            <label htmlFor="admin-login-phone" className="mb-1 block text-sm font-medium text-slate-700">手机号</label>
             <input
+              id="admin-login-phone"
+              name="phone"
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-900 outline-none ring-blue-600 focus:ring-2"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -51,8 +53,10 @@ export default function AdminLoginPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">密码</label>
+            <label htmlFor="admin-login-password" className="mb-1 block text-sm font-medium text-slate-700">密码</label>
             <input
+              id="admin-login-password"
+              name="password"
               type="password"
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-slate-900 outline-none ring-blue-600 focus:ring-2"
               value={password}
