@@ -45,19 +45,24 @@ export function AssetForm({ orgs, defaultOrgId, action, typeOptions, statusOptio
     e.preventDefault();
     setSubmitting(true);
     setError(null);
-    const fd = new FormData(e.currentTarget);
-    fd.set("imagesJson", JSON.stringify(images));
-    
-    const url = action === "create" ? "/api/admin/assets" : `/api/admin/assets/${asset?.id}`;
-    const res = await fetch(url, { method: "POST", body: fd });
-    const j = await res.json().catch(() => ({}));
-    setSubmitting(false);
-    if (!res.ok || j.error) {
-      setError(j.error ?? "操作失败");
-      return;
+    try {
+      const fd = new FormData(e.currentTarget);
+      fd.set("imagesJson", JSON.stringify(images));
+
+      const url = action === "create" ? "/api/admin/assets" : `/api/admin/assets/${asset?.id}`;
+      const res = await fetch(url, { method: "POST", body: fd });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j.error) {
+        setError(j.error ?? "操作失败");
+        return;
+      }
+      router.push("/admin/assets");
+      router.refresh();
+    } catch {
+      setError("网络异常，请稍后重试");
+    } finally {
+      setSubmitting(false);
     }
-    router.push("/admin/assets");
-    router.refresh();
   }
 
   return (
@@ -70,12 +75,19 @@ export function AssetForm({ orgs, defaultOrgId, action, typeOptions, statusOptio
           </select>
         </div>
       )}
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">资产类型</label>
-        <select name="type" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" defaultValue={asset?.type ?? "LAND"}>
-          {typeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-      </div>
+      {action === "create" ? (
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">资产类型</label>
+          <select name="type" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" defaultValue={asset?.type ?? "LAND"}>
+            {typeOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+      ) : (
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">资产类型</label>
+          <p className="text-sm text-slate-600">{typeOptions.find((o) => o.value === asset?.type)?.label ?? asset?.type}</p>
+        </div>
+      )}
       <div>
         <label className="mb-1.5 block text-sm font-medium text-slate-700">名称</label>
         <input name="name" required defaultValue={asset?.name ?? ""} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm" />
