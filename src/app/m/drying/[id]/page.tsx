@@ -55,8 +55,12 @@ export default async function DryingDetailPage({ params }: { params: Promise<{ i
             })}
           </div>
         </div>
-        {user ? (
+        {user && listing.status === "OPERATING" ? (
           <ReserveForm listingId={listing.id} minDate={format(today, "yyyy-MM-dd")} maxDate={format(horizon, "yyyy-MM-dd")} />
+        ) : user ? (
+          <div className="card-elevated p-5 text-center">
+            <p className="text-sm text-slate-500">该晒场暂未开放预约</p>
+          </div>
         ) : (
           <div className="card-elevated p-5 text-center">
             <p className="text-sm text-slate-500">请先<Link href="/m/login" className="font-semibold text-blue-600">登录</Link>后预约</p>

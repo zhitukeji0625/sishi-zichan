@@ -49,11 +49,18 @@ export async function upsertEndUserFromExternal(
     include: { endUser: true },
   });
   if (existing) {
+    let phoneUpdate: string | undefined;
+    if (profile.phone && profile.phone !== existing.endUser.phone) {
+      const taken = await prisma.endUser.findFirst({
+        where: { phone: profile.phone, id: { not: existing.endUserId } },
+      });
+      if (!taken) phoneUpdate = profile.phone;
+    }
     await prisma.endUser.update({
       where: { id: existing.endUserId },
       data: {
         name: profile.displayName,
-        ...(profile.phone ? { phone: profile.phone } : {}),
+        ...(phoneUpdate ? { phone: phoneUpdate } : {}),
         ...(orgId ? { orgId } : {}),
       },
     });
