@@ -3,9 +3,61 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_AUCTION_ASSET = "团部东侧闲置地块";
+const DEMO_USER_PHONE = "13800138000";
+
+/** 演示竞拍过期后自动续期，便于本地/自动化冒烟测试 */
+async function refreshDemoAuctionIfStale() {
+  const asset = await prisma.asset.findFirst({ where: { name: DEMO_AUCTION_ASSET } });
+  if (!asset) return false;
+
+  const project = await prisma.auctionProject.findFirst({
+    where: { assetId: asset.id },
+    orderBy: { createdAt: "desc" },
+    include: { result: true },
+  });
+  if (!project) return false;
+
+  const now = new Date();
+  const stale = project.status === "ENDED" || project.endsAt <= now;
+  if (!stale) return false;
+
+  if (project.result) {
+    await prisma.auctionResult.delete({ where: { projectId: project.id } });
+  }
+  await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: { status: "LIVE", startsAt: starts, endsAt: ends },
+  });
+
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (demoUser) {
+    await prisma.auctionRegistration.upsert({
+      where: {
+        projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+      },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId: project.id,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+  }
+
+  console.log(`Demo auction refreshed (${project.code} → LIVE until ${ends.toISOString()}).`);
+  return true;
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuctionIfStale();
     console.log("Seed skipped: data already present.");
     return;
   }
@@ -106,7 +158,7 @@ async function main() {
     data: {
       orgId: reg.id,
       type: AssetType.LAND,
-      name: "团部东侧闲置地块",
+      name: DEMO_AUCTION_ASSET,
       locationText: "六十一团团部东侧",
       specs: "面积约 5 亩",
       description: "<p>适合种植及临时堆放，权属清晰。</p>",
@@ -163,7 +215,7 @@ async function main() {
     },
   });
 
-  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
   if (demoUser) {
     await prisma.auctionRegistration.upsert({
       where: {
