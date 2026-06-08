@@ -3,10 +3,69 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** 确保演示用户始终有可参与的 LIVE 竞拍（重复执行 seed 时刷新已过期项目） */
+async function ensureDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const asset =
+    (await prisma.asset.findFirst({ where: { name: "团部东侧闲置地块" } })) ??
+    (await prisma.asset.findFirst({ where: { type: AssetType.LAND } }));
+  if (!asset) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const now = new Date();
+
+  let project = await prisma.auctionProject.findFirst({
+    where: { assetId: asset.id, status: "LIVE", endsAt: { gt: now } },
+  });
+
+  if (!project) {
+    const stale = await prisma.auctionProject.findFirst({
+      where: { assetId: asset.id },
+      orderBy: { createdAt: "desc" },
+    });
+    if (stale && stale.status !== "CANCELLED") {
+      project = await prisma.auctionProject.update({
+        where: { id: stale.id },
+        data: { startsAt: starts, endsAt: ends, status: "LIVE" },
+      });
+      console.log("Refreshed demo auction to LIVE:", project.id);
+    } else {
+      project = await prisma.auctionProject.create({
+        data: {
+          code: `AP${Date.now()}`,
+          assetId: asset.id,
+          startPrice: 8000,
+          bidStep: 200,
+          startsAt: starts,
+          endsAt: ends,
+          depositAmount: 500,
+          status: "LIVE",
+        },
+      });
+      console.log("Created demo auction:", project.id);
+    }
+  }
+
+  await prisma.auctionRegistration.upsert({
+    where: { projectId_endUserId: { projectId: project.id, endUserId: demoUser.id } },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    await ensureDemoAuction();
+    console.log("Seed skipped: data already present. Demo auction ensured.");
     return;
   }
 
