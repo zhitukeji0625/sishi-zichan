@@ -35,15 +35,20 @@ export async function POST(req: Request) {
   if (!check.ok) {
     return NextResponse.json({ error: check.message }, { status: 400 });
   }
-  const res = await prisma.dryingReservation.create({
-    data: {
-      listingId: parsed.data.listingId,
-      endUserId: user.id,
-      startDate: start,
-      endDate: end,
-      status: "PENDING_REVIEW",
-    },
-  });
+  let res;
+  try {
+    res = await prisma.dryingReservation.create({
+      data: {
+        listingId: parsed.data.listingId,
+        endUserId: user.id,
+        startDate: start,
+        endDate: end,
+        status: "PENDING_REVIEW",
+      },
+    });
+  } catch {
+    return NextResponse.json({ error: "晒场不存在或未运营" }, { status: 404 });
+  }
   await notifyUser(user.id, "预约已提交", `申请单号 ${res.orderNo}，请等待审核。`, "RES_SUBMIT");
   return NextResponse.json({ ok: true, orderNo: res.orderNo, id: res.id });
 }
