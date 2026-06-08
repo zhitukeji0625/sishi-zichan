@@ -21,8 +21,15 @@ function parseImageUrls(imagesJson: string | null): string[] {
   }
 }
 
-export default async function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AuctionDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error: actionError } = await searchParams;
   const user = await getCurrentEndUser();
   const project = await prisma.auctionProject.findUnique({
     where: { id },
@@ -56,25 +63,33 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
 
   async function register() {
     "use server";
-    await registerAuctionAction(projectId);
+    const r = await registerAuctionAction(projectId);
+    if (r.error) redirect(`/m/auction/${projectId}?error=${encodeURIComponent(r.error)}`);
+    redirect(`/m/auction/${projectId}`);
   }
 
   async function payDeposit() {
     "use server";
-    await payAuctionDepositAction(projectId);
+    const r = await payAuctionDepositAction(projectId);
+    if (r.error) redirect(`/m/auction/${projectId}?error=${encodeURIComponent(r.error)}`);
+    redirect(`/m/auction/${projectId}`);
   }
 
   async function goToContract() {
     "use server";
     const r = await createAuctionContractAction(projectId);
+    if (r.error) redirect(`/m/auction/${projectId}?error=${encodeURIComponent(r.error)}`);
     if ("contractId" in r && r.contractId) {
       redirect(`/m/contract/${r.contractId}`);
     }
+    redirect(`/m/auction/${projectId}`);
   }
 
   async function payRent() {
     "use server";
-    await payAuctionRentAction(projectId);
+    const r = await payAuctionRentAction(projectId);
+    if (r.error) redirect(`/m/auction/${projectId}?error=${encodeURIComponent(r.error)}`);
+    redirect(`/m/auction/${projectId}`);
   }
 
   const statusInfo: Record<string, { label: string; cls: string }> = {
@@ -165,7 +180,10 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
 
         {/* Action buttons */}
         <div className="space-y-3 animate-slide-up stagger-2">
-          {user && !reg && project.status !== "ENDED" && (
+          {actionError && (
+            <div className="card-elevated border-red-200 bg-red-50 p-4 text-sm text-red-700">{actionError}</div>
+          )}
+          {user && !reg && (project.status === "SCHEDULED" || project.status === "LIVE") && (
             <form action={register}>
               <button type="submit" className="btn-primary w-full !py-3.5 text-[15px]">报名参与竞拍</button>
             </form>
