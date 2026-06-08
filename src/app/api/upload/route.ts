@@ -8,8 +8,16 @@ const UPLOAD_DIR = join(process.cwd(), "data", "uploads");
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  
-  const formData = await req.formData();
+
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return NextResponse.json(
+      { error: "请求格式无效，请使用 multipart/form-data 上传文件" },
+      { status: 400 },
+    );
+  }
   const file = formData.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "缺少文件" }, { status: 400 });
   
