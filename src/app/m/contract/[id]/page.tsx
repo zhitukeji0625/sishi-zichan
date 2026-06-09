@@ -5,8 +5,15 @@ import { getCurrentEndUser } from "@/lib/auth/session";
 import { signContractAction } from "../sign-actions";
 import { FileText, CheckCircle, ChevronLeft } from "lucide-react";
 
-export default async function ContractDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ContractDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error } = await searchParams;
   const user = await getCurrentEndUser();
   if (!user) redirect("/m/login");
   const contract = await prisma.contract.findUnique({ where: { id } });
@@ -15,7 +22,9 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
 
   async function sign() {
     "use server";
-    await signContractAction(contractId);
+    const r = await signContractAction(contractId);
+    if (r.error) redirect(`/m/contract/${contractId}?error=${encodeURIComponent(r.error)}`);
+    redirect(`/m/contract/${contractId}`);
   }
 
   return (
@@ -47,6 +56,12 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
             dangerouslySetInnerHTML={{ __html: contract.htmlBody }}
           />
         </div>
+
+        {error && (
+          <div className="card-elevated border-red-200 bg-red-50 p-4 text-sm text-red-700 animate-slide-up">
+            {decodeURIComponent(error)}
+          </div>
+        )}
 
         {contract.status === "DRAFT" && (
           <form action={sign} className="card-elevated p-5 animate-slide-up stagger-1">

@@ -39,7 +39,9 @@ export async function POST(req: Request) {
     });
     if (existingRent) return NextResponse.json({ error: "租金已支付" }, { status: 409 });
     const result = await prisma.auctionResult.findUnique({ where: { projectId: auctionProjectId } });
-    if (!result || result.winnerId !== user.id) return NextResponse.json({ error: "无权操作" }, { status: 403 });
+    if (!result || result.winnerId !== user.id || result.status !== "PUBLISHED") {
+      return NextResponse.json({ error: "无权操作" }, { status: 403 });
+    }
     const topBid = await prisma.auctionBid.findFirst({
       where: { projectId: auctionProjectId, endUserId: user.id },
       orderBy: { amount: "desc" },
