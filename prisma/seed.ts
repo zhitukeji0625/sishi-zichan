@@ -3,9 +3,70 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** Keep a demo LIVE auction available when seed data already exists but projects have ended. */
+async function ensureDemoAuction() {
+  const active = await prisma.auctionProject.count({
+    where: { status: { in: ["LIVE", "SCHEDULED"] } },
+  });
+  if (active > 0) return;
+
+  const asset = await prisma.asset.findFirst({
+    where: { type: AssetType.LAND },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!asset) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const ended = await prisma.auctionProject.findFirst({
+    where: { status: "ENDED" },
+    orderBy: { endsAt: "desc" },
+  });
+
+  let projectId: string;
+  if (ended) {
+    await prisma.auctionProject.update({
+      where: { id: ended.id },
+      data: { startsAt: starts, endsAt: ends, status: "LIVE" },
+    });
+    projectId = ended.id;
+    console.log("Demo auction refreshed:", ended.code);
+  } else {
+    const project = await prisma.auctionProject.create({
+      data: {
+        code: `AP${Date.now()}`,
+        assetId: asset.id,
+        startPrice: 8000,
+        bidStep: 200,
+        startsAt: starts,
+        endsAt: ends,
+        depositAmount: 500,
+        status: "LIVE",
+      },
+    });
+    projectId = project.id;
+    console.log("Demo auction created:", project.code);
+  }
+
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (demoUser) {
+    await prisma.auctionRegistration.upsert({
+      where: { projectId_endUserId: { projectId, endUserId: demoUser.id } },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+  }
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await ensureDemoAuction();
     console.log("Seed skipped: data already present.");
     return;
   }

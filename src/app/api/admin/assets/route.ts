@@ -19,10 +19,19 @@ const schema = z.object({
   imagesJson: z.string().optional(),
 });
 
+function parseFormData(req: Request) {
+  const ct = req.headers.get("content-type") ?? "";
+  if (!ct.includes("multipart/form-data") && !ct.includes("application/x-www-form-urlencoded")) {
+    return null;
+  }
+  return req.formData();
+}
+
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formData = await req.formData();
+  const formData = await parseFormData(req);
+  if (!formData) return NextResponse.json({ error: "请使用表单提交" }, { status: 400 });
   const raw = Object.fromEntries(formData.entries());
   const parsed = schema.safeParse({
     ...raw,
