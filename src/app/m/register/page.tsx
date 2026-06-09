@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Phone, Lock, UserPlus, User, ArrowRight } from "lucide-react";
 
@@ -28,8 +27,7 @@ export default function MRegisterPage() {
       setError(j.error ?? "注册失败");
       return;
     }
-    router.replace("/m");
-    router.refresh();
+    window.location.assign("/m");
   }
 
   return (
