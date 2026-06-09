@@ -46,11 +46,14 @@ export default async function AdminDryingPage() {
           <form action={async (fd: FormData) => { "use server"; await createDryingListingAction(fd); }} className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h3 className="mb-3 text-sm font-medium text-slate-800">上架新晒场</h3>
             <div className="grid gap-3 sm:grid-cols-3">
-              <select name="assetId" required className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
+              <label className="sr-only" htmlFor="drying-assetId">晒场资产</label>
+              <select id="drying-assetId" name="assetId" required className="rounded-lg border border-slate-200 px-3 py-2 text-sm">
                 {dryingAssets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
-              <input name="maxPeople" type="number" defaultValue={10} placeholder="每日最大人数" className="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
-              <input name="maxAdvanceDays" type="number" defaultValue={7} placeholder="提前预约天数" className="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <label className="sr-only" htmlFor="drying-maxPeople">每日最大人数</label>
+              <input id="drying-maxPeople" name="maxPeople" type="number" defaultValue={10} placeholder="每日最大人数" className="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <label className="sr-only" htmlFor="drying-maxAdvanceDays">提前预约天数</label>
+              <input id="drying-maxAdvanceDays" name="maxAdvanceDays" type="number" defaultValue={7} placeholder="提前预约天数" className="rounded-lg border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <button type="submit" className="mt-3 rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800">上架</button>
           </form>
