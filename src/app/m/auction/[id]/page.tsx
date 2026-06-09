@@ -21,8 +21,15 @@ function parseImageUrls(imagesJson: string | null): string[] {
   }
 }
 
-export default async function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AuctionDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error: actionError } = await searchParams;
   const user = await getCurrentEndUser();
   const project = await prisma.auctionProject.findUnique({
     where: { id },
@@ -56,17 +63,20 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
 
   async function register() {
     "use server";
-    await registerAuctionAction(projectId);
+    const r = await registerAuctionAction(projectId);
+    if (r.error) redirect(`/m/auction/${projectId}?error=${encodeURIComponent(r.error)}`);
   }
 
   async function payDeposit() {
     "use server";
-    await payAuctionDepositAction(projectId);
+    const r = await payAuctionDepositAction(projectId);
+    if (r.error) redirect(`/m/auction/${projectId}?error=${encodeURIComponent(r.error)}`);
   }
 
   async function goToContract() {
     "use server";
     const r = await createAuctionContractAction(projectId);
+    if (r.error) redirect(`/m/auction/${projectId}?error=${encodeURIComponent(r.error)}`);
     if ("contractId" in r && r.contractId) {
       redirect(`/m/contract/${r.contractId}`);
     }
@@ -74,7 +84,8 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
 
   async function payRent() {
     "use server";
-    await payAuctionRentAction(projectId);
+    const r = await payAuctionRentAction(projectId);
+    if (r.error) redirect(`/m/auction/${projectId}?error=${encodeURIComponent(r.error)}`);
   }
 
   const statusInfo: Record<string, { label: string; cls: string }> = {
@@ -163,6 +174,12 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
           </div>
         )}
 
+        {actionError && (
+          <div className="card-elevated border-red-200 bg-red-50 p-4 text-sm text-red-700 animate-slide-up">
+            {decodeURIComponent(actionError)}
+          </div>
+        )}
+
         {/* Action buttons */}
         <div className="space-y-3 animate-slide-up stagger-2">
           {user && !reg && project.status !== "ENDED" && (
@@ -192,7 +209,8 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
               </div>
             </div>
           )}
-          {user && reg?.status === "APPROVED" && !reg.depositPaid && (
+          {user && reg?.status === "APPROVED" && !reg.depositPaid &&
+            (project.status === "SCHEDULED" || project.status === "LIVE") && (
             <form action={payDeposit}>
               <button type="submit" className="w-full rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 py-3.5 text-[15px] font-bold text-white shadow-md shadow-amber-500/20">
                 缴纳保证金 ¥{project.depositAmount.toString()}

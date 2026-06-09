@@ -44,6 +44,10 @@ export async function POST(req: Request) {
       status: "PENDING_REVIEW",
     },
   });
-  await notifyUser(user.id, "预约已提交", `申请单号 ${res.orderNo}，请等待审核。`, "RES_SUBMIT");
+  try {
+    await notifyUser(user.id, "预约已提交", `申请单号 ${res.orderNo}，请等待审核。`, "RES_SUBMIT");
+  } catch {
+    /* 通知失败不影响预约结果 */
+  }
   return NextResponse.json({ ok: true, orderNo: res.orderNo, id: res.id });
 }

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
 import { notifyUser } from "@/lib/messages";
@@ -17,10 +18,21 @@ export async function registerAuctionAction(projectId: string) {
     where: { projectId_endUserId: { projectId, endUserId: user.id } },
   });
   if (exists) return { ok: true as const };
-  await prisma.auctionRegistration.create({
-    data: { projectId, endUserId: user.id, status: "PENDING" },
-  });
-  await notifyUser(user.id, "报名已提交", "您的竞拍报名已提交，请等待连队审核。", "REG_SUBMIT");
+  try {
+    await prisma.auctionRegistration.create({
+      data: { projectId, endUserId: user.id, status: "PENDING" },
+    });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return { ok: true as const };
+    }
+    throw e;
+  }
+  try {
+    await notifyUser(user.id, "报名已提交", "您的竞拍报名已提交，请等待连队审核。", "REG_SUBMIT");
+  } catch {
+    /* 通知失败不影响报名结果 */
+  }
   revalidatePath(`/m/auction/${projectId}`);
   return { ok: true as const };
 }

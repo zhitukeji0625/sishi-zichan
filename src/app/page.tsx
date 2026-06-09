@@ -3,9 +3,13 @@ import { Building2, Smartphone, Shield } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 
 export default async function HomePage() {
-  const siteName =
-    (await prisma.systemConfig.findUnique({ where: { key: "site_name" } }))?.value ??
-    "四师资产租赁平台";
+  let siteName = "四师资产租赁平台";
+  try {
+    siteName =
+      (await prisma.systemConfig.findUnique({ where: { key: "site_name" } }))?.value ?? siteName;
+  } catch {
+    /* 数据库未就绪时使用默认名称 */
+  }
 
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-16">
