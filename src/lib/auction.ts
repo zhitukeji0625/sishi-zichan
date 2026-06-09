@@ -15,6 +15,24 @@ export async function placeBid(params: {
   amount: Decimal;
 }) {
   const { projectId, endUserId, amount } = params;
+  const now = new Date();
+  const current = await prisma.auctionProject.findUnique({ where: { id: projectId } });
+  if (!current) {
+    throw new Error("竞拍项目不存在");
+  }
+  if (current.status === "SCHEDULED" && current.startsAt <= now) {
+    await prisma.auctionProject.update({
+      where: { id: projectId },
+      data: { status: "LIVE" },
+    });
+  } else if (current.status === "LIVE" && current.endsAt <= now) {
+    await prisma.auctionProject.update({
+      where: { id: projectId },
+      data: { status: "ENDED" },
+    });
+    throw new Error("竞拍已结束");
+  }
+
   return prisma.$transaction(async (tx) => {
     const project = await tx.auctionProject.findUnique({ where: { id: projectId } });
     if (!project || project.status !== "LIVE") {

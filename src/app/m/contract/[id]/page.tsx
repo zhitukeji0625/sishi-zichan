@@ -5,8 +5,15 @@ import { getCurrentEndUser } from "@/lib/auth/session";
 import { signContractAction } from "../sign-actions";
 import { FileText, CheckCircle, ChevronLeft } from "lucide-react";
 
-export default async function ContractDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ContractDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error: actionError } = await searchParams;
   const user = await getCurrentEndUser();
   if (!user) redirect("/m/login");
   const contract = await prisma.contract.findUnique({ where: { id } });
@@ -15,7 +22,11 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
 
   async function sign() {
     "use server";
-    await signContractAction(contractId);
+    const r = await signContractAction(contractId);
+    if ("error" in r && r.error) {
+      redirect(`/m/contract/${contractId}?error=${encodeURIComponent(r.error)}`);
+    }
+    redirect(`/m/contract/${contractId}`);
   }
 
   return (
@@ -47,6 +58,12 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
             dangerouslySetInnerHTML={{ __html: contract.htmlBody }}
           />
         </div>
+
+        {actionError && (
+          <div className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600">
+            {actionError}
+          </div>
+        )}
 
         {contract.status === "DRAFT" && (
           <form action={sign} className="card-elevated p-5 animate-slide-up stagger-1">

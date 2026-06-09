@@ -59,9 +59,9 @@ describe.skipIf(skipDb)("placeBid", () => {
   });
 
   afterAll(async () => {
-    await prisma.auctionBid.deleteMany({ where: { projectId } });
-    await prisma.auctionRegistration.deleteMany({ where: { projectId } });
-    await prisma.auctionProject.delete({ where: { id: projectId } });
+    await prisma.auctionBid.deleteMany({ where: { project: { assetId } } });
+    await prisma.auctionRegistration.deleteMany({ where: { project: { assetId } } });
+    await prisma.auctionProject.deleteMany({ where: { assetId } });
     await prisma.asset.delete({ where: { id: assetId } });
     await prisma.endUser.delete({ where: { id: userId } });
     await prisma.organization.delete({ where: { id: orgId } });
@@ -81,5 +81,35 @@ describe.skipIf(skipDb)("placeBid", () => {
     await expect(
       placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
     ).rejects.toThrow();
+  });
+
+  it("rejects bid after auction end time", async () => {
+    const expired = await prisma.auctionProject.create({
+      data: {
+        code: `TEXP${Date.now()}`,
+        assetId,
+        startPrice: new Decimal(50),
+        bidStep: new Decimal(5),
+        depositAmount: new Decimal(5),
+        startsAt: new Date(Date.now() - 86400000),
+        endsAt: new Date(Date.now() - 1000),
+        status: "LIVE",
+      },
+    });
+    await prisma.auctionRegistration.create({
+      data: {
+        projectId: expired.id,
+        endUserId: userId,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+    await expect(
+      placeBid({ projectId: expired.id, endUserId: userId, amount: new Decimal(50) }),
+    ).rejects.toThrow("竞拍已结束");
+    const updated = await prisma.auctionProject.findUnique({ where: { id: expired.id } });
+    expect(updated?.status).toBe("ENDED");
+    await prisma.auctionRegistration.deleteMany({ where: { projectId: expired.id } });
+    await prisma.auctionProject.delete({ where: { id: expired.id } });
   });
 });

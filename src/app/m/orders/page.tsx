@@ -8,7 +8,12 @@ import { createDryingContractAction } from "../contract/sign-actions";
 import { cancelReservationAction } from "./actions";
 import { FileText, CreditCard, Sun, ChevronLeft } from "lucide-react";
 
-export default async function MOrdersPage() {
+export default async function MOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error: actionError } = await searchParams;
   const user = await getCurrentEndUser();
   if (!user) redirect("/m/login");
   const [payments, reservations, contracts] = await Promise.all([
@@ -63,6 +68,11 @@ export default async function MOrdersPage() {
       </div>
 
       <div className="relative -mt-6 px-4 space-y-5">
+        {actionError && (
+          <div className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600">
+            {actionError}
+          </div>
+        )}
         {/* Reservations */}
         <section className="animate-slide-up">
           <div className="mb-3 flex items-center gap-2 px-1">
@@ -89,19 +99,40 @@ export default async function MOrdersPage() {
                     </div>
                     <div className="mt-3 flex gap-2">
                       {r.status === "APPROVED" && (
-                        <form action={async () => { "use server"; await payDryingDepositAction(resId); }}>
+                        <form action={async () => {
+                          "use server";
+                          const result = await payDryingDepositAction(resId);
+                          if ("error" in result && result.error) {
+                            redirect(`/m/orders?error=${encodeURIComponent(result.error)}`);
+                          }
+                        }}>
                           <button type="submit" className="rounded-lg bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2 text-xs font-bold text-white shadow-sm">
                             缴纳保证金
                           </button>
                         </form>
                       )}
                       {r.status === "CONTRACT_PENDING" && (
-                        <form action={async () => { "use server"; const result = await createDryingContractAction(resId); if ("contractId" in result && result.contractId) { redirect(`/m/contract/${result.contractId}`); } }}>
+                        <form action={async () => {
+                          "use server";
+                          const result = await createDryingContractAction(resId);
+                          if ("error" in result && result.error) {
+                            redirect(`/m/orders?error=${encodeURIComponent(result.error)}`);
+                          }
+                          if ("contractId" in result && result.contractId) {
+                            redirect(`/m/contract/${result.contractId}`);
+                          }
+                        }}>
                           <button type="submit" className="btn-primary !py-2 !px-4 !text-xs">签署合同</button>
                         </form>
                       )}
                       {(r.status === "PENDING_REVIEW" || r.status === "APPROVED") && (
-                        <form action={async () => { "use server"; await cancelReservationAction(resId); }}>
+                        <form action={async () => {
+                          "use server";
+                          const result = await cancelReservationAction(resId);
+                          if ("error" in result && result.error) {
+                            redirect(`/m/orders?error=${encodeURIComponent(result.error)}`);
+                          }
+                        }}>
                           <button type="submit" className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-50">
                             取消
                           </button>
