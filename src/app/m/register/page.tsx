@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Phone, Lock, UserPlus, User, ArrowRight } from "lucide-react";
 
 export default function MRegisterPage() {
-  const router = useRouter();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
