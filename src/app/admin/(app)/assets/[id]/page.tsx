@@ -4,11 +4,19 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { getDictItems } from "@/lib/dict";
+import { AdminFlashError } from "@/components/AdminFlashError";
 import { deleteAssetAction } from "../edit-actions";
 import { AssetForm } from "../AssetForm";
 
-export default async function EditAssetPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditAssetPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error } = await searchParams;
   const admin = await getCurrentAdmin();
   if (!admin) redirect("/admin/login");
   const asset = await prisma.asset.findUnique({ where: { id }, include: { org: true } });
@@ -32,6 +40,7 @@ export default async function EditAssetPage({ params }: { params: Promise<{ id: 
       <Link href="/admin/assets" className="text-sm text-blue-700">← 返回资产列表</Link>
       <h1 className="mt-2 text-xl font-semibold text-slate-900">编辑资产</h1>
       <p className="mt-1 text-sm text-slate-500">{asset.org.name} · {asset.type}</p>
+      <AdminFlashError error={error} />
       <div className="mt-6">
         <AssetForm
           orgs={[{ id: asset.orgId, name: asset.org.name, code: asset.org.code }]}

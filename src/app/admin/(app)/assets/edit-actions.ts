@@ -6,9 +6,10 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
-import { AssetStatus } from "@prisma/client";
+import { AssetStatus, AssetType } from "@prisma/client";
 
 const updateSchema = z.object({
+  type: z.nativeEnum(AssetType),
   name: z.string().min(1),
   locationText: z.string().min(1),
   specs: z.string().optional(),
@@ -36,6 +37,7 @@ export async function updateAssetAction(assetId: string, formData: FormData) {
   await prisma.asset.update({
     where: { id: assetId },
     data: {
+      type: d.type,
       name: d.name,
       locationText: d.locationText,
       specs: d.specs || null,

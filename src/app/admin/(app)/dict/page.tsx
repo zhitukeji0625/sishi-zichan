@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { isDivision } from "@/lib/rbac";
+import { AdminFlashError } from "@/components/AdminFlashError";
 import {
   createDictCategoryAction,
   createDictItemAction,
@@ -13,11 +14,11 @@ import {
 export default async function AdminDictPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cat?: string }>;
+  searchParams: Promise<{ cat?: string; error?: string }>;
 }) {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
-  const { cat: selectedCatId } = await searchParams;
+  const { cat: selectedCatId, error } = await searchParams;
 
   const categories = await prisma.dictCategory.findMany({
     orderBy: { code: "asc" },
@@ -52,6 +53,7 @@ export default async function AdminDictPage({
       <p className="mt-1 text-sm text-slate-500">
         管理系统中所有下拉选项的可选值。修改后各表单下拉菜单实时生效。
       </p>
+      <AdminFlashError error={error} />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[280px_1fr]">
         {/* Left: category list */}
@@ -157,10 +159,17 @@ export default async function AdminDictPage({
                                 {item.enabled ? "禁用" : "启用"}
                               </button>
                             </form>
-                            <form action={async (fd: FormData) => { "use server"; await deleteDictItemAction(fd); }}>
-                              <input type="hidden" name="id" value={item.id} />
-                              <button type="submit" className="text-xs text-red-600 hover:underline">删除</button>
-                            </form>
+                            {!selectedCategory.builtIn && (
+                              <form action={async (fd: FormData) => {
+                                "use server";
+                                const r = await deleteDictItemAction(fd);
+                                if (r.error) redirect(`/admin/dict?cat=${selectedCategory.id}&error=${encodeURIComponent(r.error)}`);
+                                redirect(`/admin/dict?cat=${selectedCategory.id}`);
+                              }}>
+                                <input type="hidden" name="id" value={item.id} />
+                                <button type="submit" className="text-xs text-red-600 hover:underline">删除</button>
+                              </form>
+                            )}
                           </div>
                         </td>
                       )}
