@@ -33,10 +33,14 @@ interface Props {
 export function AssetForm({ orgs, defaultOrgId, action, typeOptions, statusOptions, asset }: Props) {
   const router = useRouter();
   const [images, setImages] = useState<string[]>(() => {
-    if (asset?.imagesJson) {
-      try { return JSON.parse(asset.imagesJson); } catch { return []; }
+    if (!asset?.imagesJson) return [];
+    try {
+      const v = JSON.parse(asset.imagesJson) as unknown;
+      if (!Array.isArray(v)) return [];
+      return v.filter((x): x is string => typeof x === "string" && x.length > 0);
+    } catch {
+      return [];
     }
-    return [];
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
