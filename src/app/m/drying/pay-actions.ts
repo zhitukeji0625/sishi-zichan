@@ -24,24 +24,32 @@ export async function payDryingDepositAction(reservationId: string) {
   }
   const depositAmount = 200;
   const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  await prisma.$transaction(async (tx) => {
-    await tx.payment.create({
-      data: {
-        orderNo,
-        amount: depositAmount,
-        purpose: "DRYING_DEPOSIT",
-        status: "SUCCESS",
-        endUserId: user.id,
-        reservationId,
-        paidAt: new Date(),
-        channel: "ABC_MOCK",
-      },
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.payment.create({
+        data: {
+          orderNo,
+          amount: depositAmount,
+          purpose: "DRYING_DEPOSIT",
+          status: "SUCCESS",
+          endUserId: user.id,
+          reservationId,
+          paidAt: new Date(),
+          channel: "ABC_MOCK",
+        },
+      });
+      const updated = await tx.dryingReservation.updateMany({
+        where: { id: reservationId, status: "APPROVED" },
+        data: { status: "CONTRACT_PENDING" },
+      });
+      if (updated.count === 0) {
+        throw new Error("当前状态不可支付");
+      }
     });
-    await tx.dryingReservation.update({
-      where: { id: reservationId },
-      data: { status: "CONTRACT_PENDING" },
-    });
-  });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "支付失败";
+    return { error: msg };
+  }
   revalidatePath("/m/orders");
   revalidatePath("/m/drying");
   return { ok: true as const };
