@@ -65,8 +65,12 @@ export async function deleteDictItemAction(formData: FormData) {
   if (!admin || !isDivision(admin.role)) return { error: "仅师级管理员可操作" };
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "参数无效" };
-  const item = await prisma.dictItem.findUnique({ where: { id } });
+  const item = await prisma.dictItem.findUnique({
+    where: { id },
+    include: { category: true },
+  });
   if (!item) return { error: "不存在" };
+  if (item.category.builtIn) return { error: "内置字典项不可删除" };
   await prisma.dictItem.delete({ where: { id } });
   await writeAudit(admin.id, "CONFIG_UPDATE", JSON.stringify({ action: "dict_item_delete", id, value: item.value }));
   revalidatePath("/admin/dict");
