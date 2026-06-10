@@ -44,10 +44,12 @@ export default function MLoginPage() {
       <div className="relative -mt-8 px-5">
         <form onSubmit={onSubmit} className="card-elevated-lg space-y-5 p-6 animate-slide-up">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">手机号</label>
+            <label htmlFor="m-login-phone" className="mb-2 block text-sm font-medium text-slate-700">手机号</label>
             <div className="relative">
               <Phone className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
               <input
+                id="m-login-phone"
+                name="phone"
                 type="tel"
                 className="input-field !pl-11"
                 placeholder="请输入手机号"
@@ -58,10 +60,12 @@ export default function MLoginPage() {
             </div>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">密码</label>
+            <label htmlFor="m-login-password" className="mb-2 block text-sm font-medium text-slate-700">密码</label>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
               <input
+                id="m-login-password"
+                name="password"
                 type="password"
                 className="input-field !pl-11"
                 placeholder="请输入密码"
