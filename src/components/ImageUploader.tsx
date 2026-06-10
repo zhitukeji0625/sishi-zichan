@@ -11,13 +11,16 @@ interface Props {
 
 export function ImageUploader({ images, onChange, max = 6 }: Props) {
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     setUploading(true);
+    setError(null);
     const newImages = [...images];
+    let lastError: string | null = null;
     for (const file of Array.from(files)) {
       if (newImages.length >= max) break;
       const fd = new FormData();
@@ -25,9 +28,16 @@ export function ImageUploader({ images, onChange, max = 6 }: Props) {
       try {
         const res = await fetch("/api/upload", { method: "POST", body: fd });
         const j = await res.json();
-        if (j.url) newImages.push(j.url);
-      } catch { /* ignore */ }
+        if (res.ok && j.url) {
+          newImages.push(j.url);
+        } else {
+          lastError = j.error ?? "上传失败";
+        }
+      } catch {
+        lastError = "网络错误，上传失败";
+      }
     }
+    if (lastError) setError(lastError);
     onChange(newImages);
     setUploading(false);
     if (inputRef.current) inputRef.current.value = "";
@@ -79,6 +89,7 @@ export function ImageUploader({ images, onChange, max = 6 }: Props) {
         className="hidden"
         onChange={handleUpload}
       />
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
       <input type="hidden" name="imagesJson" value={JSON.stringify(images)} />
     </div>
   );
