@@ -161,27 +161,35 @@ const categories = [
   },
 ];
 
-async function main() {
+export async function seedDictData(client: PrismaClient = prisma) {
   for (const cat of categories) {
-    const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
-    if (existing) {
-      console.log(`  Skip: ${cat.code} (already exists)`);
-      continue;
+    const existing = await client.dictCategory.findUnique({ where: { code: cat.code } });
+    if (existing) continue;
+    try {
+      await client.dictCategory.create({
+        data: {
+          code: cat.code,
+          name: cat.name,
+          description: cat.description ?? null,
+          builtIn: cat.builtIn,
+          items: { create: cat.items },
+        },
+      });
+    } catch (e: unknown) {
+      const code = (e as { code?: string })?.code;
+      if (code !== "P2002") throw e;
     }
-    await prisma.dictCategory.create({
-      data: {
-        code: cat.code,
-        name: cat.name,
-        description: cat.description ?? null,
-        builtIn: cat.builtIn,
-        items: { create: cat.items },
-      },
-    });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
   }
+}
+
+async function main() {
+  await seedDictData();
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+const isDirectRun = process.argv[1]?.replace(/\\/g, "/").endsWith("seed-dict.ts");
+if (isDirectRun) {
+  main()
+    .then(() => prisma.$disconnect())
+    .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+}
