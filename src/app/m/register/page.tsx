@@ -17,19 +17,24 @@ export default function MRegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, password, name: name || undefined }),
-    });
-    setLoading(false);
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      setError(j.error ?? "注册失败");
-      return;
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, password, name: name || undefined }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setError(j.error ?? "注册失败");
+        return;
+      }
+      router.replace("/m");
+      router.refresh();
+    } catch {
+      setError("网络异常，请稍后重试");
+    } finally {
+      setLoading(false);
     }
-    router.replace("/m");
-    router.refresh();
   }
 
   return (
