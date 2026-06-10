@@ -42,7 +42,10 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
     take: 15,
     select: { amount: true, createdAt: true },
   });
-  const isWinner = user && project.result?.winnerId === user.id && project.result?.status === "PUBLISHED";
+  const resultPublished =
+    project.status === "ENDED" && project.result?.status === "PUBLISHED";
+  const isWinner =
+    resultPublished && user && project.result?.winnerId === user.id;
   const existingContract = isWinner
     ? await prisma.contract.findFirst({
         where: { auctionProjectId: projectId, endUserId: user.id },
@@ -143,7 +146,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
         </div>
 
         {/* Result banner */}
-        {project.result?.status === "PUBLISHED" && (
+        {resultPublished && (
           <div className={`card-elevated overflow-hidden animate-scale-in ${isWinner ? "border-emerald-200 bg-emerald-50" : "border-slate-200"}`}>
             <div className="p-4">
               <div className="flex items-center gap-3">

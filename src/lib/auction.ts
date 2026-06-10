@@ -20,6 +20,12 @@ export async function placeBid(params: {
     if (!project || project.status !== "LIVE") {
       throw new Error("竞拍未在进行中");
     }
+    const published = await tx.auctionResult.findFirst({
+      where: { projectId, status: "PUBLISHED" },
+    });
+    if (published) {
+      throw new Error("竞拍已结束并公示结果");
+    }
     const reg = await tx.auctionRegistration.findUnique({
       where: { projectId_endUserId: { projectId, endUserId } },
     });
