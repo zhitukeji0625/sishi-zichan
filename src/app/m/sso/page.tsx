@@ -13,19 +13,23 @@ function SsoInner() {
     if (!token) return;
     let cancelled = false;
     (async () => {
-      const res = await fetch("/api/auth/third-party", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-      if (cancelled) return;
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        setMsg(j.error ?? "登录失败");
-        return;
+      try {
+        const res = await fetch("/api/auth/third-party", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        if (cancelled) return;
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          setMsg(j.error ?? "登录失败");
+          return;
+        }
+        router.replace("/m");
+        router.refresh();
+      } catch {
+        if (!cancelled) setMsg("网络异常，请稍后重试");
       }
-      router.replace("/m");
-      router.refresh();
     })();
     return () => {
       cancelled = true;
