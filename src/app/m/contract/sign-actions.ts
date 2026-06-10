@@ -60,10 +60,10 @@ export async function createAuctionContractAction(projectId: string) {
   });
   const htmlBody = template
     ? template.bodyHtml
-        .replace("{{orgName}}", escapeHtml(result.project.asset.org?.name ?? "甲方"))
-        .replace("{{userName}}", escapeHtml(user.name ?? user.phone))
-        .replace("{{assetName}}", escapeHtml(result.project.asset.name))
-        .replace("{{leaseTerm}}", escapeHtml(result.project.leaseTermDesc ?? "以合同约定为准"))
+        .replaceAll("{{orgName}}", escapeHtml(result.project.asset.org?.name ?? "甲方"))
+        .replaceAll("{{userName}}", escapeHtml(user.name ?? user.phone))
+        .replaceAll("{{assetName}}", escapeHtml(result.project.asset.name))
+        .replaceAll("{{leaseTerm}}", escapeHtml(result.project.leaseTermDesc ?? "以合同约定为准"))
     : `<p>竞拍合同：${escapeHtml(result.project.asset.name)}</p>`;
   const contract = await prisma.contract.create({
     data: {
@@ -123,7 +123,12 @@ export async function payAuctionRentAction(projectId: string) {
   });
   if (!topBid) return { error: "未找到出价记录" };
   const existingPayment = await prisma.payment.findFirst({
-    where: { auctionProjectId: projectId, endUserId: user.id, purpose: "AUCTION_RENT" },
+    where: {
+      auctionProjectId: projectId,
+      endUserId: user.id,
+      purpose: "AUCTION_RENT",
+      status: "SUCCESS",
+    },
   });
   if (existingPayment) return { ok: true as const };
   const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;

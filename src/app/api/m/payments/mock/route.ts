@@ -64,30 +64,53 @@ export async function POST(req: Request) {
   }
 
   const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  const pay = await prisma.payment.create({
-    data: {
-      orderNo,
-      amount,
-      purpose,
-      status: "SUCCESS",
-      endUserId: user.id,
-      auctionProjectId: auctionProjectId ?? null,
-      reservationId: reservationId ?? null,
-      paidAt: new Date(),
-      channel: "ABC_MOCK",
-    },
+  const pay = await prisma.$transaction(async (tx) => {
+    if (purpose === "AUCTION_DEPOSIT" && auctionProjectId) {
+      const updated = await tx.auctionRegistration.updateMany({
+        where: {
+          projectId: auctionProjectId,
+          endUserId: user.id,
+          depositPaid: false,
+        },
+        data: { depositPaid: true },
+      });
+      if (updated.count === 0) {
+        throw new Error("DEPOSIT_ALREADY_PAID");
+      }
+    }
+    if (purpose === "DRYING_DEPOSIT" && reservationId) {
+      const updated = await tx.dryingReservation.updateMany({
+        where: {
+          id: reservationId,
+          endUserId: user.id,
+          status: "APPROVED",
+        },
+        data: { status: "CONTRACT_PENDING" },
+      });
+      if (updated.count === 0) {
+        throw new Error("INVALID_RESERVATION_STATE");
+      }
+    }
+    return tx.payment.create({
+      data: {
+        orderNo,
+        amount,
+        purpose,
+        status: "SUCCESS",
+        endUserId: user.id,
+        auctionProjectId: auctionProjectId ?? null,
+        reservationId: reservationId ?? null,
+        paidAt: new Date(),
+        channel: "ABC_MOCK",
+      },
+    });
+  }).catch((err: Error) => {
+    if (err.message === "DEPOSIT_ALREADY_PAID") return null;
+    if (err.message === "INVALID_RESERVATION_STATE") return null;
+    throw err;
   });
-  if (auctionProjectId && purpose === "AUCTION_DEPOSIT") {
-    await prisma.auctionRegistration.updateMany({
-      where: { projectId: auctionProjectId, endUserId: user.id },
-      data: { depositPaid: true },
-    });
-  }
-  if (reservationId && purpose === "DRYING_DEPOSIT") {
-    await prisma.dryingReservation.updateMany({
-      where: { id: reservationId, endUserId: user.id },
-      data: { status: "CONTRACT_PENDING" },
-    });
+  if (!pay) {
+    return NextResponse.json({ error: "支付状态已变更，请刷新后重试" }, { status: 409 });
   }
   return NextResponse.json({ ok: true, orderNo: pay.orderNo, paidAt: pay.paidAt });
 }
