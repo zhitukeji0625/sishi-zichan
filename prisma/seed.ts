@@ -1,12 +1,68 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+const DEMO_AUCTION_CODE = "DEMO_AUCTION";
+const DEMO_ASSET_NAME = "团部东侧闲置地块";
+
+/** Keep demo auction live for development and automated tests. */
+async function refreshDemoAuction() {
+  const co = await prisma.organization.findUnique({ where: { code: "CO101" } });
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!co || !demoUser) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  const asset = await prisma.asset.findFirst({ where: { name: DEMO_ASSET_NAME } });
+  if (asset && asset.orgId !== co.id) {
+    await prisma.asset.update({ where: { id: asset.id }, data: { orgId: co.id } });
+  }
+
+  let project =
+    (await prisma.auctionProject.findUnique({ where: { code: DEMO_AUCTION_CODE } })) ??
+    (asset
+      ? await prisma.auctionProject.findFirst({
+          where: { assetId: asset.id },
+          orderBy: { createdAt: "desc" },
+        })
+      : null);
+
+  if (!project) return;
+
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: {
+      code: DEMO_AUCTION_CODE,
+      startsAt: starts,
+      endsAt: ends,
+      status: "LIVE",
+    },
+  });
+
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+}
+
 async function main() {
+  await seedDict(prisma);
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    await refreshDemoAuction();
+    console.log("Seed refreshed demo auction.");
     return;
   }
 
@@ -104,9 +160,9 @@ async function main() {
 
   const asset1 = await prisma.asset.create({
     data: {
-      orgId: reg.id,
+      orgId: co.id,
       type: AssetType.LAND,
-      name: "团部东侧闲置地块",
+      name: DEMO_ASSET_NAME,
       locationText: "六十一团团部东侧",
       specs: "面积约 5 亩",
       description: "<p>适合种植及临时堆放，权属清晰。</p>",
@@ -152,7 +208,7 @@ async function main() {
   const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const project = await prisma.auctionProject.create({
     data: {
-      code: `AP${Date.now()}`,
+      code: DEMO_AUCTION_CODE,
       assetId: asset1.id,
       startPrice: 8000,
       bidStep: 200,

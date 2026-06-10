@@ -13,15 +13,19 @@ export async function POST(req: Request) {
   const file = formData.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "缺少文件" }, { status: 400 });
   
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-  if (!allowedTypes.includes(file.type)) {
+  const allowedTypes: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+  };
+  const ext = allowedTypes[file.type];
+  if (!ext) {
     return NextResponse.json({ error: "仅支持 JPG/PNG/WebP/GIF 格式" }, { status: 400 });
   }
   if (file.size > 5 * 1024 * 1024) {
     return NextResponse.json({ error: "文件大小不能超过 5MB" }, { status: 400 });
   }
-  
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
   const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   await mkdir(UPLOAD_DIR, { recursive: true });
   
