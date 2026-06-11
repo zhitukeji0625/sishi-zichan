@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
+import { adminCanAccessOrg, isRegimentOrAbove } from "@/lib/rbac";
 import { getDictMap } from "@/lib/dict";
 
 export default async function AdminAuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,6 +20,9 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
     },
   });
   if (!project) notFound();
+  const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, project.asset.orgId);
+  if (!canAccess) notFound();
+  const canCancel = isRegimentOrAbove(admin.role);
 
   const auctionStatusMap = await getDictMap("auction_status");
   const assetTypeMap = await getDictMap("asset_type");
@@ -138,7 +142,7 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
         </div>
       </div>
 
-      {(project.status === "SCHEDULED" || project.status === "LIVE") && (
+      {canCancel && (project.status === "SCHEDULED" || project.status === "LIVE") && (
         <form action={async () => { "use server"; const { cancelAuctionAction } = await import("../actions"); await cancelAuctionAction(project.id); }} className="mt-6">
           <button type="submit" className="rounded-lg border border-red-200 px-4 py-2 text-sm text-red-700 hover:bg-red-50">
             取消竞拍项目
