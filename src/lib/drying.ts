@@ -1,5 +1,19 @@
 import { prisma } from "@/lib/prisma";
-import { startOfDay, eachDayOfInterval, format } from "date-fns";
+import { startOfDay, eachDayOfInterval, format, addDays } from "date-fns";
+
+export function validateAdvanceDays(
+  start: Date,
+  end: Date,
+  maxAdvanceDays: number,
+): { ok: true } | { ok: false; message: string } {
+  const today = startOfDay(new Date());
+  const horizon = startOfDay(addDays(today, maxAdvanceDays));
+  const s = startOfDay(start);
+  const e = startOfDay(end);
+  if (s < today) return { ok: false, message: "开始日期不能早于今天" };
+  if (e > horizon) return { ok: false, message: `预约不能超过 ${maxAdvanceDays} 天` };
+  return { ok: true };
+}
 
 export async function getCapacityForDay(listingId: string, day: Date) {
   const d = startOfDay(day);
