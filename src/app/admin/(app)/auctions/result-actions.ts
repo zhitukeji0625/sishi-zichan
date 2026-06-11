@@ -18,20 +18,38 @@ export async function generateAuctionResultAction(projectId: string) {
   });
   if (!project) return { error: "项目不存在" };
   if (project.status !== "ENDED") return { error: "竞拍尚未结束" };
-  if (project.result) return { error: "已生成结果" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, project.asset.orgId);
   if (!ok) return { error: "无权操作该项目" };
-  const topBid = await prisma.auctionBid.findFirst({
-    where: { projectId },
-    orderBy: { amount: "desc" },
-  });
-  await prisma.auctionResult.create({
-    data: {
-      projectId,
-      winnerId: topBid?.endUserId ?? null,
-      status: "PENDING_REVIEW",
-    },
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      const fresh = await tx.auctionProject.findUnique({
+        where: { id: projectId },
+        include: { result: true },
+      });
+      if (!fresh?.result) {
+        const topBid = await tx.auctionBid.findFirst({
+          where: { projectId },
+          orderBy: { amount: "desc" },
+        });
+        await tx.auctionResult.create({
+          data: {
+            projectId,
+            winnerId: topBid?.endUserId ?? null,
+            status: "PENDING_REVIEW",
+          },
+        });
+      } else {
+        throw new Error("ALREADY_EXISTS");
+      }
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === "ALREADY_EXISTS") {
+      return { error: "已生成结果" };
+    }
+    const code = (e as { code?: string })?.code;
+    if (code === "P2002") return { error: "已生成结果" };
+    throw e;
+  }
   await writeAudit(admin.id, "AUCTION_RESULT_GENERATE", JSON.stringify({ projectId }));
   revalidatePath("/admin/auctions");
   return { ok: true as const };
