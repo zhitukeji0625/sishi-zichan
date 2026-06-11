@@ -7,6 +7,14 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 
+function parsePositiveInt(raw: FormDataEntryValue | null, fallback: number): number {
+  const s = String(raw ?? "").trim();
+  if (!s) return fallback;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n < 1) return fallback;
+  return Math.floor(n);
+}
+
 export async function createDryingListingAction(formData: FormData) {
   const admin = await getCurrentAdmin();
   if (!admin) return { error: "未登录" };
@@ -18,8 +26,8 @@ export async function createDryingListingAction(formData: FormData) {
   if (!ok) return { error: "无权操作" };
   const existing = await prisma.dryingFieldListing.findUnique({ where: { assetId } });
   if (existing) return { error: "该资产已有晒场上架" };
-  const maxAdvanceDays = Number(formData.get("maxAdvanceDays") ?? 7);
-  const maxPeople = Number(formData.get("maxPeople") ?? 10);
+  const maxAdvanceDays = parsePositiveInt(formData.get("maxAdvanceDays"), 7);
+  const maxPeople = parsePositiveInt(formData.get("maxPeople"), 10);
   await prisma.dryingFieldListing.create({
     data: {
       assetId,
