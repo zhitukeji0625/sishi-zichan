@@ -14,20 +14,25 @@ export function BidForm({ projectId, minBid }: { projectId: string; minBid: numb
     e.preventDefault();
     setLoading(true);
     setMsg(null);
-    const res = await fetch(`/api/m/auction/${projectId}/bid`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: parseFloat(amount) }),
-    });
-    setLoading(false);
-    const j = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setMsg({ text: j.error ?? "出价失败", ok: false });
-      return;
+    try {
+      const res = await fetch(`/api/m/auction/${projectId}/bid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: parseFloat(amount) }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg({ text: j.error ?? "出价失败", ok: false });
+        return;
+      }
+      setMsg({ text: "出价成功！", ok: true });
+      setAmount("");
+      router.refresh();
+    } catch {
+      setMsg({ text: "网络异常，请重试", ok: false });
+    } finally {
+      setLoading(false);
     }
-    setMsg({ text: "出价成功！", ok: true });
-    setAmount("");
-    router.refresh();
   }
 
   return (

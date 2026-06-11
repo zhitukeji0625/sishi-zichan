@@ -15,19 +15,24 @@ export function ReserveForm({ listingId, minDate, maxDate }: { listingId: string
     e.preventDefault();
     setLoading(true);
     setMsg(null);
-    const res = await fetch("/api/m/drying/reserve", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ listingId, startDate, endDate }),
-    });
-    setLoading(false);
-    const j = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setMsg({ text: j.error ?? "提交失败", ok: false });
-      return;
+    try {
+      const res = await fetch("/api/m/drying/reserve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId, startDate, endDate }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg({ text: j.error ?? "提交失败", ok: false });
+        return;
+      }
+      setMsg({ text: `预约已提交，单号 ${j.orderNo}`, ok: true });
+      router.refresh();
+    } catch {
+      setMsg({ text: "网络异常，请重试", ok: false });
+    } finally {
+      setLoading(false);
     }
-    setMsg({ text: `预约已提交，单号 ${j.orderNo}`, ok: true });
-    router.refresh();
   }
 
   return (
