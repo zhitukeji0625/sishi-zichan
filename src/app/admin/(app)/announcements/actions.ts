@@ -66,7 +66,7 @@ export async function deleteAnnouncementAction(id: string) {
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, ann.orgId);
   if (!ok) return { error: "无权操作" };
   await prisma.announcement.delete({ where: { id } });
-  await writeAudit(admin.id, "ANNOUNCEMENT_CREATE", JSON.stringify({ id, title: ann.title, action: "delete" }));
+  await writeAudit(admin.id, "ANNOUNCEMENT_DELETE", JSON.stringify({ id, title: ann.title }));
   revalidatePath("/admin/announcements");
   return { ok: true as const };
 }
