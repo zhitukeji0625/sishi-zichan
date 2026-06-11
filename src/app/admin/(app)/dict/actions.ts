@@ -51,6 +51,12 @@ export async function updateDictItemAction(formData: FormData) {
   const sortOrder = Number(formData.get("sortOrder") ?? 0);
   const enabled = formData.get("enabled") === "true";
   if (!id || !label) return { error: "参数无效" };
+  const item = await prisma.dictItem.findUnique({
+    where: { id },
+    include: { category: { select: { builtIn: true } } },
+  });
+  if (!item) return { error: "不存在" };
+  if (item.category.builtIn && !enabled) return { error: "内置字典项不可禁用" };
   await prisma.dictItem.update({
     where: { id },
     data: { label, sortOrder, enabled },
@@ -65,8 +71,12 @@ export async function deleteDictItemAction(formData: FormData) {
   if (!admin || !isDivision(admin.role)) return { error: "仅师级管理员可操作" };
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "参数无效" };
-  const item = await prisma.dictItem.findUnique({ where: { id } });
+  const item = await prisma.dictItem.findUnique({
+    where: { id },
+    include: { category: { select: { builtIn: true } } },
+  });
   if (!item) return { error: "不存在" };
+  if (item.category.builtIn) return { error: "内置字典项不可删除" };
   await prisma.dictItem.delete({ where: { id } });
   await writeAudit(admin.id, "CONFIG_UPDATE", JSON.stringify({ action: "dict_item_delete", id, value: item.value }));
   revalidatePath("/admin/dict");
