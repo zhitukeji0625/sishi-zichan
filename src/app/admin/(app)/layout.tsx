@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { LayoutDashboard, LogOut, Package, Gavel, Megaphone, Sun, FileText, ClipboardList, Building2, Users, Settings, BookOpen } from "lucide-react";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { roleLabel } from "@/lib/rbac";
 import { adminLogoutAction } from "./actions";
+import { AdminQueryError } from "@/components/AdminQueryError";
 
 export default async function AdminAppLayout({ children }: { children: React.ReactNode }) {
   const admin = await getCurrentAdmin();
@@ -70,7 +72,12 @@ export default async function AdminAppLayout({ children }: { children: React.Rea
             </Link>
           ))}
         </nav>
-        <div className="p-4 md:p-8">{children}</div>
+        <div className="p-4 md:p-8">
+          <Suspense fallback={null}>
+            <AdminQueryError />
+          </Suspense>
+          {children}
+        </div>
       </main>
     </div>
   );
