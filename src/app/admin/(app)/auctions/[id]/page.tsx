@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
+import { adminCanAccessOrg } from "@/lib/rbac";
 import { getDictMap } from "@/lib/dict";
 
 export default async function AdminAuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,6 +21,8 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
     },
   });
   if (!project) notFound();
+  const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, project.asset.orgId);
+  if (!canAccess) notFound();
 
   const auctionStatusMap = await getDictMap("auction_status");
   const assetTypeMap = await getDictMap("asset_type");
@@ -40,7 +44,7 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
           <div>保证金：¥{project.depositAmount.toString()}</div>
           <div>付款期限：{project.paymentDays} 天</div>
           <div className="text-xs text-slate-500 mt-2">
-            {project.startsAt.toISOString().slice(0, 16)} — {project.endsAt.toISOString().slice(0, 16)}
+            {format(project.startsAt, "yyyy-MM-dd HH:mm")} — {format(project.endsAt, "yyyy-MM-dd HH:mm")}
           </div>
           {project.leaseTermDesc && <div className="mt-2 text-xs text-slate-500">租赁说明：{project.leaseTermDesc}</div>}
         </div>

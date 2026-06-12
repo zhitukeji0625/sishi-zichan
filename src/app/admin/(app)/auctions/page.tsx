@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
@@ -111,7 +112,7 @@ export default async function AdminAuctionsPage() {
                   <td className="px-4 py-3 text-slate-700">{p.asset.name}</td>
                   <td className="px-4 py-3 text-slate-600">{auctionStatusMap[p.status] ?? p.status}</td>
                   <td className="px-4 py-3 text-xs text-slate-500">
-                    {p.startsAt.toISOString().slice(0, 16)} — {p.endsAt.toISOString().slice(0, 16)}
+                    {format(p.startsAt, "yyyy-MM-dd HH:mm")} — {format(p.endsAt, "yyyy-MM-dd HH:mm")}
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-600">
                     {p.result ? (p.result.status === "PUBLISHED" ? "已公示" : p.result.status === "PENDING_REVIEW" ? "待审核" : p.result.status === "REJECTED" ? "已驳回" : p.result.status) : "—"}
