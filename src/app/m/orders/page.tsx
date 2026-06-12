@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
 import { getDictMap } from "@/lib/dict";
-import { payDryingDepositAction } from "../drying/pay-actions";
+import { payDryingDepositAction, payDryingRentAction } from "../drying/pay-actions";
 import { createDryingContractAction } from "../contract/sign-actions";
 import { cancelReservationAction } from "./actions";
 import { FileText, CreditCard, Sun, ChevronLeft } from "lucide-react";
@@ -98,6 +98,13 @@ export default async function MOrdersPage() {
                       {r.status === "CONTRACT_PENDING" && (
                         <form action={async () => { "use server"; const result = await createDryingContractAction(resId); if ("contractId" in result && result.contractId) { redirect(`/m/contract/${result.contractId}`); } }}>
                           <button type="submit" className="btn-primary !py-2 !px-4 !text-xs">签署合同</button>
+                        </form>
+                      )}
+                      {r.status === "PENDING_PAYMENT" && (
+                        <form action={async () => { "use server"; await payDryingRentAction(resId); }}>
+                          <button type="submit" className="rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-sm">
+                            支付租金 ¥500
+                          </button>
                         </form>
                       )}
                       {(r.status === "PENDING_REVIEW" || r.status === "APPROVED") && (
