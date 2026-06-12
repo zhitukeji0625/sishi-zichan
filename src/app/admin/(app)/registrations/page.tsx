@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
+import { adminCanAccessOrg } from "@/lib/rbac";
 import { reviewRegistrationFormAction } from "./actions";
 import { getDictMap } from "@/lib/dict";
 
@@ -28,9 +29,11 @@ export default async function AdminRegistrationsPage() {
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">竞拍报名审核</h1>
-      <p className="mt-1 text-sm text-slate-500">连队管理员可操作通过/驳回。</p>
+      <p className="mt-1 text-sm text-slate-500">管辖范围内的管理员可操作通过/驳回。</p>
       <div className="mt-6 space-y-3">
-        {list.map((r) => (
+        {await Promise.all(list.map(async (r) => {
+          const canReview = await adminCanAccessOrg(admin.role, admin.orgId, r.project.asset.orgId);
+          return (
           <div
             key={r.id}
             className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:flex-row md:items-center md:justify-between"
@@ -42,7 +45,7 @@ export default async function AdminRegistrationsPage() {
               </div>
               <div className="text-xs text-slate-500">状态：{regStatusMap[r.status] ?? r.status}</div>
             </div>
-            {admin.role === "COMPANY_ADMIN" && r.status === "PENDING" && (
+            {canReview && r.status === "PENDING" && (
               <div className="flex gap-2">
                 <form action={handleReview}>
                   <input type="hidden" name="id" value={r.id} />
@@ -68,7 +71,8 @@ export default async function AdminRegistrationsPage() {
               </div>
             )}
           </div>
-        ))}
+          );
+        }))}
         {list.length === 0 && <p className="text-slate-500">暂无报名</p>}
       </div>
     </div>
