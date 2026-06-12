@@ -13,7 +13,17 @@ export async function POST(req: Request) {
   if (!externalUserId) {
     return NextResponse.json({ error: "票据无效或已过期" }, { status: 401 });
   }
-  const user = await upsertEndUserFromExternal(externalUserId);
+  let user;
+  try {
+    user = await upsertEndUserFromExternal(externalUserId);
+  } catch (e) {
+    const code = e && typeof e === "object" && "code" in e ? String(e.code) : "";
+    if (code === "P2002") {
+      return NextResponse.json({ error: "手机号已被其他账号占用" }, { status: 409 });
+    }
+    console.error("third-party login failed", e);
+    return NextResponse.json({ error: "用户创建失败" }, { status: 500 });
+  }
   if (!user) {
     return NextResponse.json({ error: "用户创建失败" }, { status: 500 });
   }
