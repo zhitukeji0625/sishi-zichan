@@ -63,8 +63,11 @@ export async function POST(req: Request) {
     if (!reservationId) return NextResponse.json({ error: "缺少预约ID" }, { status: 400 });
     const reservation = await prisma.dryingReservation.findUnique({ where: { id: reservationId } });
     if (!reservation || reservation.endUserId !== user.id) return NextResponse.json({ error: "预约不存在" }, { status: 403 });
-    if (reservation.status !== "CONTRACT_SIGNED") {
-      return NextResponse.json({ error: "当前状态不可支付租金" }, { status: 400 });
+    const signedContract = await prisma.contract.findFirst({
+      where: { reservationId, endUserId: user.id, status: "SIGNED" },
+    });
+    if (!signedContract) {
+      return NextResponse.json({ error: "请先签署合同" }, { status: 400 });
     }
     const existingRent = await prisma.payment.findFirst({
       where: { reservationId, endUserId: user.id, purpose: "DRYING_RENT", status: "SUCCESS" },
