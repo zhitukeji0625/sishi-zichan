@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { startOfDay, eachDayOfInterval, format } from "date-fns";
 
+/** 将 YYYY-MM-DD 解析为本地时区午夜，避免 UTC 偏移导致容量校验错误。 */
+export function parseLocalDate(dateStr: string): Date {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr.trim());
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return new Date(dateStr);
+}
+
 export async function getCapacityForDay(listingId: string, day: Date) {
   const d = startOfDay(day);
   const rule = await prisma.dryingCapacityRule.findFirst({

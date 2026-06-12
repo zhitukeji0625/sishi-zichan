@@ -26,11 +26,7 @@ export async function updateAssetAction(assetId: string, formData: FormData) {
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return { error: "无权操作" };
   const raw = Object.fromEntries(formData.entries());
-  const parsed = updateSchema.safeParse({
-    ...raw,
-    refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
-    refPriceMax: raw.refPriceMax ? Number(raw.refPriceMax) : undefined,
-  });
+  const parsed = updateSchema.safeParse(raw);
   if (!parsed.success) return { error: "表单数据无效" };
   const d = parsed.data;
   await prisma.asset.update({
