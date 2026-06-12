@@ -21,7 +21,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "文件大小不能超过 5MB" }, { status: 400 });
   }
   
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const mimeToExt: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+  };
+  const ext = mimeToExt[file.type] ?? "jpg";
   const fileName = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
   await mkdir(UPLOAD_DIR, { recursive: true });
   
