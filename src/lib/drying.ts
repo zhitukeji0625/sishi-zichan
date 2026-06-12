@@ -10,7 +10,8 @@ export async function getCapacityForDay(listingId: string, day: Date) {
       endDate: { gte: d },
     },
   });
-  const max = rule?.maxPeople ?? 10;
+  if (!rule) return { max: 0, booked: 0, available: 0 };
+  const max = rule.maxPeople;
   const reservations = await prisma.dryingReservation.findMany({
     where: {
       listingId,
