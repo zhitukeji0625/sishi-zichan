@@ -27,10 +27,6 @@ export async function POST(req: Request) {
   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
     return NextResponse.json({ error: "日期格式无效" }, { status: 400 });
   }
-  const listing = await prisma.dryingFieldListing.findUnique({ where: { id: parsed.data.listingId } });
-  if (!listing || listing.status !== "OPERATING") {
-    return NextResponse.json({ error: "晒场不存在或未运营" }, { status: 404 });
-  }
   const check = await validateReservationRange(parsed.data.listingId, start, end);
   if (!check.ok) {
     return NextResponse.json({ error: check.message }, { status: 400 });
