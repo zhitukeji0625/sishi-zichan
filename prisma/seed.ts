@@ -3,9 +3,32 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+async function ensureDemoAuctionLive() {
+  const asset = await prisma.asset.findFirst({ where: { name: "团部东侧闲置地块" } });
+  if (!asset) return;
+  const project = await prisma.auctionProject.findFirst({
+    where: { assetId: asset.id },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!project) return;
+  const now = Date.now();
+  if (project.status === "ENDED" || project.endsAt.getTime() <= now) {
+    await prisma.auctionProject.update({
+      where: { id: project.id },
+      data: {
+        status: "LIVE",
+        startsAt: new Date(now - 60_000),
+        endsAt: new Date(now + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+    console.log("Refreshed demo auction to LIVE.");
+  }
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await ensureDemoAuctionLive();
     console.log("Seed skipped: data already present.");
     return;
   }

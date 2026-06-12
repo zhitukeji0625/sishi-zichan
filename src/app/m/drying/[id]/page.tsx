@@ -13,7 +13,7 @@ export default async function DryingDetailPage({ params }: { params: Promise<{ i
     where: { id },
     include: { asset: true, bookingRules: true },
   });
-  if (!listing) notFound();
+  if (!listing || listing.status !== "OPERATING") notFound();
   const rule = listing.bookingRules[0];
   const maxAdvance = rule?.maxAdvanceDays ?? 7;
   const today = startOfDay(new Date());
