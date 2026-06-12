@@ -122,6 +122,10 @@ export async function payAuctionRentAction(projectId: string) {
     orderBy: { amount: "desc" },
   });
   if (!topBid) return { error: "未找到出价记录" };
+  const signedContract = await prisma.contract.findFirst({
+    where: { auctionProjectId: projectId, endUserId: user.id, status: "SIGNED" },
+  });
+  if (!signedContract) return { error: "请先签署合同" };
   const existingPayment = await prisma.payment.findFirst({
     where: { auctionProjectId: projectId, endUserId: user.id, purpose: "AUCTION_RENT" },
   });
