@@ -3,9 +3,41 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** 将演示竞拍重置为进行中，便于长期运行环境与重复 seed。 */
+async function ensureDemoAuctionLive() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id },
+    include: { project: true },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!reg) return;
+
+  const projectId = reg.projectId;
+  await prisma.auctionBid.deleteMany({ where: { projectId } });
+  await prisma.auctionResult.deleteMany({ where: { projectId } });
+  await prisma.contract.deleteMany({ where: { auctionProjectId: projectId } });
+  await prisma.payment.deleteMany({ where: { auctionProjectId: projectId } });
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: projectId },
+    data: { status: "LIVE", startsAt: starts, endsAt: ends },
+  });
+  await prisma.auctionRegistration.update({
+    where: { id: reg.id },
+    data: { status: "APPROVED", depositPaid: true, rejectReason: null },
+  });
+  console.log(`Demo auction refreshed to LIVE: ${reg.project.code}`);
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await ensureDemoAuctionLive();
     console.log("Seed skipped: data already present.");
     return;
   }
