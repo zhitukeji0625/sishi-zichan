@@ -24,11 +24,7 @@ export async function POST(req: Request) {
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
   const formData = await req.formData();
   const raw = Object.fromEntries(formData.entries());
-  const parsed = schema.safeParse({
-    ...raw,
-    refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
-    refPriceMax: raw.refPriceMax ? Number(raw.refPriceMax) : undefined,
-  });
+  const parsed = schema.safeParse(raw);
   if (!parsed.success) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
   const d = parsed.data;
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);

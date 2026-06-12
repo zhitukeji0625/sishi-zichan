@@ -30,11 +30,7 @@ export async function POST(
   if (!ok) return NextResponse.json({ error: "无权操作" }, { status: 403 });
   const formData = await req.formData();
   const raw = Object.fromEntries(formData.entries());
-  const parsed = updateSchema.safeParse({
-    ...raw,
-    refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
-    refPriceMax: raw.refPriceMax ? Number(raw.refPriceMax) : undefined,
-  });
+  const parsed = updateSchema.safeParse(raw);
   if (!parsed.success) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
   const d = parsed.data;
   await prisma.asset.update({
