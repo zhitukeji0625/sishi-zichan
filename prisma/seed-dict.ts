@@ -161,27 +161,31 @@ const categories = [
   },
 ];
 
-async function main() {
+export async function seedDictCategories(db: PrismaClient = prisma) {
   for (const cat of categories) {
-    const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
-    if (existing) {
-      console.log(`  Skip: ${cat.code} (already exists)`);
-      continue;
-    }
-    await prisma.dictCategory.create({
-      data: {
+    const category = await db.dictCategory.upsert({
+      where: { code: cat.code },
+      update: {},
+      create: {
         code: cat.code,
         name: cat.name,
         description: cat.description ?? null,
         builtIn: cat.builtIn,
-        items: { create: cat.items },
       },
     });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+    for (const item of cat.items) {
+      await db.dictItem.upsert({
+        where: { categoryId_value: { categoryId: category.id, value: item.value } },
+        update: { label: item.label, sortOrder: item.sortOrder },
+        create: {
+          categoryId: category.id,
+          value: item.value,
+          label: item.label,
+          sortOrder: item.sortOrder,
+        },
+      });
+    }
+    console.log(`  Dict: ${cat.code} (${cat.items.length} items)`);
   }
   console.log("Dict seed done.");
 }
-
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
