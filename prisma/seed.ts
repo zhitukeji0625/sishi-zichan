@@ -1,14 +1,63 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDictCategories } from "./seed-dict";
 
 const prisma = new PrismaClient();
+
+const DEMO_USER_PHONE = "13800138000";
+
+/** 演示竞拍过期后重置为 LIVE，便于反复测试出价流程。 */
+async function ensureDemoAuctionLive() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id },
+    orderBy: { createdAt: "asc" },
+  });
+  const project =
+    (reg
+      ? await prisma.auctionProject.findUnique({ where: { id: reg.projectId } })
+      : null) ?? (await prisma.auctionProject.findFirst({ orderBy: { createdAt: "asc" } }));
+  if (!project) return;
+
+  const now = Date.now();
+  const startsAt = new Date(now - 60 * 1000);
+  const endsAt = new Date(now + 7 * 24 * 60 * 60 * 1000);
+  const needsRefresh =
+    project.status !== "LIVE" || project.endsAt.getTime() <= now;
+
+  if (!needsRefresh) return;
+
+  await prisma.payment.deleteMany({ where: { auctionProjectId: project.id } });
+  await prisma.contract.deleteMany({ where: { auctionProjectId: project.id } });
+  await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+  await prisma.auctionResult.deleteMany({ where: { projectId: project.id } });
+
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: { status: "LIVE", startsAt, endsAt },
+  });
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true, rejectReason: null },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log(`Demo auction ${project.code} refreshed to LIVE (ends ${endsAt.toISOString()}).`);
+}
 
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
-    return;
-  }
+  } else {
 
   const div = await prisma.organization.upsert({
     where: { code: "DIV1" },
@@ -208,7 +257,11 @@ async function main() {
     },
   });
 
-  console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
+    console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
+  }
+
+  await seedDictCategories(prisma);
+  await ensureDemoAuctionLive();
 }
 
 main()
