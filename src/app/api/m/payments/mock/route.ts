@@ -40,6 +40,10 @@ export async function POST(req: Request) {
     if (existingRent) return NextResponse.json({ error: "租金已支付" }, { status: 409 });
     const result = await prisma.auctionResult.findUnique({ where: { projectId: auctionProjectId } });
     if (!result || result.winnerId !== user.id) return NextResponse.json({ error: "无权操作" }, { status: 403 });
+    const signedContract = await prisma.contract.findFirst({
+      where: { auctionProjectId, endUserId: user.id, status: "SIGNED" },
+    });
+    if (!signedContract) return NextResponse.json({ error: "请先签署合同" }, { status: 403 });
     const topBid = await prisma.auctionBid.findFirst({
       where: { projectId: auctionProjectId, endUserId: user.id },
       orderBy: { amount: "desc" },

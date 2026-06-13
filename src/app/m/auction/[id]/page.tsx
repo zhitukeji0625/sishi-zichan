@@ -165,7 +165,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
 
         {/* Action buttons */}
         <div className="space-y-3 animate-slide-up stagger-2">
-          {user && !reg && project.status !== "ENDED" && (
+          {user && !reg && (project.status === "SCHEDULED" || project.status === "LIVE") && (
             <form action={register}>
               <button type="submit" className="btn-primary w-full !py-3.5 text-[15px]">报名参与竞拍</button>
             </form>
