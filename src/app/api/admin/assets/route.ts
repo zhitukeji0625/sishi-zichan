@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+import { isMultipartForm } from "@/lib/multipart";
 import { AssetType, AssetStatus } from "@prisma/client";
 
 const schema = z.object({
@@ -19,9 +20,16 @@ const schema = z.object({
   imagesJson: z.string().optional(),
 });
 
+export async function GET() {
+  return NextResponse.json({ error: "方法不允许" }, { status: 405 });
+}
+
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
+  if (!isMultipartForm(req)) {
+    return NextResponse.json({ error: "请使用 multipart/form-data 提交" }, { status: 400 });
+  }
   const formData = await req.formData();
   const raw = Object.fromEntries(formData.entries());
   const parsed = schema.safeParse({
