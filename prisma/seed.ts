@@ -3,9 +3,49 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_USER_PHONE = "13800138000";
+
+/** 将演示竞拍刷新为 LIVE，便于长期运行环境重复 db:seed 后仍可出价演示。 */
+async function ensureDemoAuctionLive() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+
+  const registration = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id },
+    orderBy: { createdAt: "asc" },
+    include: { project: true },
+  });
+  if (!registration) return;
+
+  const project = registration.project;
+  const now = Date.now();
+  const needsRefresh =
+    project.status !== "LIVE" || project.endsAt.getTime() <= now;
+  if (!needsRefresh) return;
+
+  await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+  await prisma.auctionResult.deleteMany({ where: { projectId: project.id } });
+  await prisma.payment.deleteMany({ where: { auctionProjectId: project.id } });
+  await prisma.contract.deleteMany({ where: { auctionProjectId: project.id } });
+
+  const startsAt = new Date(now - 60 * 1000);
+  const endsAt = new Date(now + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: { status: "LIVE", startsAt, endsAt },
+  });
+  await prisma.auctionRegistration.update({
+    where: { id: registration.id },
+    data: { status: "APPROVED", depositPaid: true, rejectReason: null },
+  });
+
+  console.log(`Demo auction ${project.code} refreshed to LIVE (ends ${endsAt.toISOString()}).`);
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await ensureDemoAuctionLive();
     console.log("Seed skipped: data already present.");
     return;
   }
@@ -163,7 +203,7 @@ async function main() {
     },
   });
 
-  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
   if (demoUser) {
     await prisma.auctionRegistration.upsert({
       where: {
