@@ -17,6 +17,11 @@ const updateSchema = z.object({
   imagesJson: z.string().optional(),
 });
 
+function isFormRequest(req: Request) {
+  const ct = req.headers.get("content-type") ?? "";
+  return ct.includes("multipart/form-data") || ct.includes("application/x-www-form-urlencoded");
+}
+
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -28,6 +33,9 @@ export async function POST(
   if (!asset) return NextResponse.json({ error: "资产不存在" }, { status: 404 });
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return NextResponse.json({ error: "无权操作" }, { status: 403 });
+  if (!isFormRequest(req)) {
+    return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
+  }
   const formData = await req.formData();
   const raw = Object.fromEntries(formData.entries());
   const parsed = updateSchema.safeParse({

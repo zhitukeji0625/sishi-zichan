@@ -5,9 +5,17 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 
 const UPLOAD_DIR = join(process.cwd(), "data", "uploads");
 
+function isFormRequest(req: Request) {
+  const ct = req.headers.get("content-type") ?? "";
+  return ct.includes("multipart/form-data") || ct.includes("application/x-www-form-urlencoded");
+}
+
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
+  if (!isFormRequest(req)) {
+    return NextResponse.json({ error: "缺少文件" }, { status: 400 });
+  }
   
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
