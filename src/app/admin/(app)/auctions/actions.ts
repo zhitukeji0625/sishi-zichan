@@ -65,5 +65,6 @@ export async function cancelAuctionAction(projectId: string) {
   await prisma.auctionProject.update({ where: { id: projectId }, data: { status: "CANCELLED" } });
   await writeAudit(admin.id, "AUCTION_CREATE", JSON.stringify({ projectId, action: "cancel" }));
   revalidatePath("/admin/auctions");
+  revalidatePath(`/admin/auctions/${projectId}`);
   return { ok: true as const };
 }
