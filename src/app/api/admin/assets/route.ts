@@ -22,8 +22,12 @@ const schema = z.object({
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formData = await req.formData();
-  const raw = Object.fromEntries(formData.entries());
+  let raw: Record<string, FormDataEntryValue>;
+  try {
+    raw = Object.fromEntries((await req.formData()).entries());
+  } catch {
+    return NextResponse.json({ error: "请使用表单提交（multipart/form-data）" }, { status: 400 });
+  }
   const parsed = schema.safeParse({
     ...raw,
     refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
