@@ -53,25 +53,25 @@ EOF
 
 echo "Functional tests against $BASE"
 
-code=$(curl -sf -o /dev/null -w '%{http_code}' "$BASE/" || echo "000")
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/" || echo "000")
 check "GET /" "200" "$code"
 
-code=$(curl -sf -o /dev/null -w '%{http_code}' "$BASE/admin/login" || echo "000")
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/admin/login" || echo "000")
 check "GET /admin/login" "200" "$code"
 
-resp=$(curl -sf -c "$COOKIE_JAR" -X POST "$BASE/api/auth/login" \
+resp=$(curl -s -c "$COOKIE_JAR" -X POST "$BASE/api/auth/login" \
   -H 'Content-Type: application/json' \
   -d '{"phone":"13800138000","password":"user123"}')
 ok=$(echo "$resp" | grep -o '"ok":true' || true)
 check "POST /api/auth/login" "ok" "$([ -n "$ok" ] && echo ok || echo fail)"
 
-resp=$(curl -sf -c "$ADMIN_JAR" -X POST "$BASE/api/auth/admin/login" \
+resp=$(curl -s -c "$ADMIN_JAR" -X POST "$BASE/api/auth/admin/login" \
   -H 'Content-Type: application/json' \
   -d '{"phone":"13900000001","password":"admin123"}')
 ok=$(echo "$resp" | grep -o '"ok":true' || true)
 check "POST /api/auth/admin/login" "ok" "$([ -n "$ok" ] && echo ok || echo fail)"
 
-code=$(curl -sf -o /dev/null -w '%{http_code}' -b "$ADMIN_JAR" -X POST "$BASE/api/admin/assets" \
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$ADMIN_JAR" -X POST "$BASE/api/admin/assets" \
   -H 'Content-Type: application/json' -d '{"name":"x"}' || echo "000")
 check "POST /api/admin/assets (json) -> 400" "400" "$code"
 
@@ -79,22 +79,22 @@ if [ -z "$PROJECT_ID" ] || [ -z "$BID_AMOUNT" ]; then
   echo "FAIL: could not resolve demo auction project / bid amount"
   fail=$((fail + 1))
 else
-  code=$(curl -sf -o /dev/null -w '%{http_code}' -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" \
+  code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" \
     -H 'Content-Type: application/json' -d '{"amount":9999}' || echo "000")
   check "POST bid no auth -> 401" "401" "$code"
 
-  resp=$(curl -sf -b "$COOKIE_JAR" -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" \
+  resp=$(curl -s -b "$COOKIE_JAR" -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" \
     -H 'Content-Type: application/json' -d "{\"amount\":$BID_AMOUNT}")
   bid_ok=$(echo "$resp" | grep -o '"ok":true' || true)
   check "POST bid with auth (amount=$BID_AMOUNT)" "ok" "$([ -n "$bid_ok" ] && echo ok || echo fail)"
   if [ -z "$bid_ok" ]; then echo "  response: $resp"; fi
 fi
 
-code=$(curl -sf -o /dev/null -w '%{http_code}' -b "$COOKIE_JAR" -X POST "$BASE/api/m/drying/reserve" \
+code=$(curl -s -o /dev/null -w '%{http_code}' -b "$COOKIE_JAR" -X POST "$BASE/api/m/drying/reserve" \
   -H 'Content-Type: application/json' -d '{}' || echo "000")
 check "POST drying reserve invalid -> 400" "400" "$code"
 
-code=$(curl -sf -o /dev/null -w '%{http_code}' "$BASE/api/dev/third-party-token?u_id=test123" || echo "000")
+code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/dev/third-party-token?u_id=test123" || echo "000")
 check "GET third-party-token" "200" "$code"
 
 echo "--- Results: $pass passed, $fail failed ---"
