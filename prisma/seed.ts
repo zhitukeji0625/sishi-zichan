@@ -1,12 +1,80 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
+
+/** 演示竞拍过期后自动续期或新建，保证 README 演示账号可出价 */
+async function refreshDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const active = await prisma.auctionProject.findFirst({
+    where: {
+      status: { in: ["LIVE", "SCHEDULED"] },
+      endsAt: { gt: new Date() },
+      registrations: {
+        some: { endUserId: demoUser.id, status: "APPROVED", depositPaid: true },
+      },
+    },
+  });
+  if (active) return;
+
+  const project = await prisma.auctionProject.findFirst({
+    where: { registrations: { some: { endUserId: demoUser.id } } },
+    orderBy: { createdAt: "desc" },
+    include: { result: true },
+  });
+
+  if (project && project.result?.status !== "PUBLISHED") {
+    const now = new Date();
+    if (project.status === "ENDED" || project.endsAt < now) {
+      await prisma.auctionProject.update({
+        where: { id: project.id },
+        data: {
+          status: "LIVE",
+          startsAt: new Date(Date.now() - 60_000),
+          endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+      console.log("Refreshed demo auction window.");
+      return;
+    }
+  }
+
+  const asset = await prisma.asset.findFirst({ where: { type: AssetType.LAND } });
+  if (!asset) return;
+  const newProject = await prisma.auctionProject.create({
+    data: {
+      code: `AP${Date.now()}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: new Date(Date.now() - 60_000),
+      endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+  await prisma.auctionRegistration.upsert({
+    where: { projectId_endUserId: { projectId: newProject.id, endUserId: demoUser.id } },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: newProject.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log("Created new demo auction project.");
+}
 
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
+    await seedDict(prisma);
+    await refreshDemoAuction();
     return;
   }
 
@@ -208,6 +276,7 @@ async function main() {
     },
   });
 
+  await seedDict(prisma);
   console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
 }
 
