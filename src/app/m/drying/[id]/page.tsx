@@ -21,7 +21,7 @@ export default async function DryingDetailPage({ params }: { params: Promise<{ i
   const days = eachDayOfInterval({ start: today, end: horizon }).slice(0, 8);
   const dayStats = await Promise.all(
     days.map(async (d) => {
-      const s = await getCapacityForDay(listing.id, d);
+      const s = await getCapacityForDay(prisma, listing.id, d);
       return { date: d, ...s };
     }),
   );
