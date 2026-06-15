@@ -114,7 +114,15 @@ export default async function AdminAuctionsPage() {
                     {p.startsAt.toISOString().slice(0, 16)} — {p.endsAt.toISOString().slice(0, 16)}
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-600">
-                    {p.result ? (p.result.status === "PUBLISHED" ? "已公示" : p.result.status === "PENDING_REVIEW" ? "待审核" : p.result.status === "REJECTED" ? "已驳回" : p.result.status) : "—"}
+                    {p.status === "ENDED" && p.result
+                      ? p.result.status === "PUBLISHED"
+                        ? "已公示"
+                        : p.result.status === "PENDING_REVIEW"
+                          ? "待审核"
+                          : p.result.status === "REJECTED"
+                            ? "已驳回"
+                            : p.result.status
+                      : "—"}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
