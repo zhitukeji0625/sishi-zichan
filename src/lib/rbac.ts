@@ -57,3 +57,13 @@ export function isRegimentOrAbove(role: AdminRole) {
 export function isDivision(role: AdminRole) {
   return role === "DIVISION_ADMIN";
 }
+
+const roleOrgLevel: Record<AdminRole, "DIVISION" | "REGIMENT" | "COMPANY"> = {
+  DIVISION_ADMIN: "DIVISION",
+  REGIMENT_ADMIN: "REGIMENT",
+  COMPANY_ADMIN: "COMPANY",
+};
+
+export function adminRoleMatchesOrgLevel(role: AdminRole, orgLevel: "DIVISION" | "REGIMENT" | "COMPANY") {
+  return roleOrgLevel[role] === orgLevel;
+}

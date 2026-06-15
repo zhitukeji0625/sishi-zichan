@@ -28,7 +28,7 @@ export async function placeBid(params: {
     }
     const top = await tx.auctionBid.findFirst({
       where: { projectId },
-      orderBy: { amount: "desc" },
+      orderBy: [{ amount: "desc" }, { createdAt: "asc" }],
     });
     const minNext = top
       ? new Decimal(top.amount.toString()).plus(project.bidStep.toString())
