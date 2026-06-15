@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { signThirdPartyToken } from "@/lib/auth/session";
 
 export async function GET(req: Request) {
-  if (process.env.NODE_ENV === "production") {
+  const devAllowed =
+    process.env.NODE_ENV !== "production" || process.env.ALLOW_DEV_ROUTES === "true";
+  if (!devAllowed) {
     return NextResponse.json({ error: "不可用" }, { status: 404 });
   }
   const url = new URL(req.url);
