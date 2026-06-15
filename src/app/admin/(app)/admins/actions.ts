@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
-import { isDivision } from "@/lib/rbac";
+import { isDivision, adminRoleMatchesOrgLevel } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 import { hashPassword } from "@/lib/auth/password";
 import { AdminRole } from "@prisma/client";
@@ -26,6 +26,11 @@ export async function createAdminAction(formData: FormData) {
   const d = parsed.data;
   const exists = await prisma.adminUser.findUnique({ where: { phone: d.phone } });
   if (exists) return { error: "手机号已存在" };
+  const org = await prisma.organization.findUnique({ where: { id: d.orgId } });
+  if (!org) return { error: "组织不存在" };
+  if (!adminRoleMatchesOrgLevel(d.role, org.level)) {
+    return { error: "管理员角色与组织层级不匹配" };
+  }
   const passwordHash = await hashPassword(d.password);
   await prisma.adminUser.create({
     data: { phone: d.phone, passwordHash, name: d.name, role: d.role, orgId: d.orgId },
