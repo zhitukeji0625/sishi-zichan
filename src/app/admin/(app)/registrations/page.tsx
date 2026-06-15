@@ -14,7 +14,7 @@ export default async function AdminRegistrationsPage() {
   if (!admin) return null;
   const orgWhere = await orgFilterForAdmin(admin.role, admin.orgId);
   const list = await prisma.auctionRegistration.findMany({
-    where: { project: { asset: orgWhere } },
+    where: { endUser: orgWhere },
     include: {
       endUser: true,
       project: { include: { asset: true } },
