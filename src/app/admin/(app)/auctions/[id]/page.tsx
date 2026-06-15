@@ -49,7 +49,7 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
           <div className="text-slate-700">{project.asset.name}</div>
           <div className="text-xs text-slate-500">{assetTypeMap[project.asset.type] ?? project.asset.type} · {project.asset.org.name}</div>
           <div className="text-xs text-slate-500">{project.asset.locationText}</div>
-          {project.result && (
+          {project.status === "ENDED" && project.result && (
             <div className="mt-3 border-t border-slate-100 pt-3">
               <div className="font-medium text-slate-800">竞拍结果</div>
               <div className="text-slate-600">状态：{project.result.status === "PUBLISHED" ? "已公示" : project.result.status === "PENDING_REVIEW" ? "待审核" : project.result.status === "REJECTED" ? "已驳回" : project.result.status}</div>
