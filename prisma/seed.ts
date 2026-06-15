@@ -6,6 +6,21 @@ const prisma = new PrismaClient();
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    const live = await prisma.auctionProject.count({ where: { status: "LIVE" } });
+    if (live === 0) {
+      const project = await prisma.auctionProject.findFirst({ orderBy: { createdAt: "desc" } });
+      if (project) {
+        await prisma.auctionProject.update({
+          where: { id: project.id },
+          data: {
+            status: "LIVE",
+            startsAt: new Date(Date.now() - 60 * 1000),
+            endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          },
+        });
+        console.log("Refreshed stale auction to LIVE for demo.");
+      }
+    }
     console.log("Seed skipped: data already present.");
     return;
   }
