@@ -8,6 +8,7 @@ const auditActionLabels: Record<string, string> = {
   ASSET_UPDATE: "资产编辑",
   ASSET_DELETE: "资产删除",
   AUCTION_CREATE: "发布竞拍",
+  AUCTION_CANCEL: "取消竞拍",
   AUCTION_RESULT_GENERATE: "生成竞拍结果",
   AUCTION_RESULT_REVIEW: "审核竞拍结果",
   REGISTRATION_REVIEW: "审核报名",
