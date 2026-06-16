@@ -19,6 +19,14 @@ export async function signContractAction(contractId: string) {
   if (contract.status !== "DRAFT") {
     return { error: "合同状态不可签署" };
   }
+  if (contract.reservationId) {
+    const reservation = await prisma.dryingReservation.findUnique({
+      where: { id: contract.reservationId },
+    });
+    if (!reservation || reservation.status !== "CONTRACT_PENDING") {
+      return { error: "预约状态不可签署" };
+    }
+  }
   await prisma.$transaction(async (tx) => {
     await tx.contract.update({
       where: { id: contractId },
@@ -117,6 +125,10 @@ export async function payAuctionRentAction(projectId: string) {
   if (!result || result.winnerId !== user.id || result.status !== "PUBLISHED") {
     return { error: "无权操作" };
   }
+  const signedContract = await prisma.contract.findFirst({
+    where: { auctionProjectId: projectId, endUserId: user.id, status: "SIGNED" },
+  });
+  if (!signedContract) return { error: "请先签署合同" };
   const topBid = await prisma.auctionBid.findFirst({
     where: { projectId, endUserId: user.id },
     orderBy: { amount: "desc" },
