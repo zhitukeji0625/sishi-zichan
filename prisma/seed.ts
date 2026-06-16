@@ -1,11 +1,53 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+/** 演示竞拍过期后刷新时间窗口，保证 README 演示账号可出价 */
+async function refreshDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const project = await prisma.auctionProject.findFirst({
+    where: { asset: { name: "团部东侧闲置地块" } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!project) return;
+
+  const now = Date.now();
+  const needsRefresh =
+    project.status !== "LIVE" ||
+    project.endsAt.getTime() <= now ||
+    project.startsAt.getTime() > now;
+
+  if (!needsRefresh) return;
+
+  const starts = new Date(now - 60 * 1000);
+  const ends = new Date(now + 30 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: { startsAt: starts, endsAt: ends, status: "LIVE" },
+  });
+  await prisma.auctionRegistration.upsert({
+    where: { projectId_endUserId: { projectId: project.id, endUserId: demoUser.id } },
+    update: { status: "APPROVED", depositPaid: true, rejectReason: null },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log("Demo auction refreshed to LIVE.");
+}
+
 async function main() {
+  await seedDict(prisma);
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
