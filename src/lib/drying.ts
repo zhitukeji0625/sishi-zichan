@@ -1,6 +1,38 @@
 import { prisma } from "@/lib/prisma";
 import { startOfDay, eachDayOfInterval, format } from "date-fns";
 
+function rangesOverlap(startA: Date, endA: Date, startB: Date, endB: Date) {
+  const a0 = startOfDay(startA).getTime();
+  const a1 = startOfDay(endA).getTime();
+  const b0 = startOfDay(startB).getTime();
+  const b1 = startOfDay(endB).getTime();
+  return a0 <= b1 && b0 <= a1;
+}
+
+export async function validateUserReservationOverlap(
+  endUserId: string,
+  start: Date,
+  end: Date,
+  excludeReservationId?: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const existing = await prisma.dryingReservation.findMany({
+    where: {
+      endUserId,
+      status: { notIn: ["REJECTED", "CANCELLED"] },
+      ...(excludeReservationId ? { id: { not: excludeReservationId } } : {}),
+    },
+  });
+  for (const r of existing) {
+    if (rangesOverlap(start, end, r.startDate, r.endDate)) {
+      return {
+        ok: false,
+        message: `与已有预约（${format(r.startDate, "yyyy-MM-dd")} 至 ${format(r.endDate, "yyyy-MM-dd")}）日期重叠`,
+      };
+    }
+  }
+  return { ok: true };
+}
+
 export async function getCapacityForDay(listingId: string, day: Date) {
   const d = startOfDay(day);
   const rule = await prisma.dryingCapacityRule.findFirst({
