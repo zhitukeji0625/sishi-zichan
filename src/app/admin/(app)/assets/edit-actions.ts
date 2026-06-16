@@ -28,8 +28,8 @@ export async function updateAssetAction(assetId: string, formData: FormData) {
   const raw = Object.fromEntries(formData.entries());
   const parsed = updateSchema.safeParse({
     ...raw,
-    refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
-    refPriceMax: raw.refPriceMax ? Number(raw.refPriceMax) : undefined,
+    refPriceMin: raw.refPriceMin !== undefined && raw.refPriceMin !== "" ? Number(raw.refPriceMin) : undefined,
+    refPriceMax: raw.refPriceMax !== undefined && raw.refPriceMax !== "" ? Number(raw.refPriceMax) : undefined,
   });
   if (!parsed.success) return { error: "表单数据无效" };
   const d = parsed.data;
