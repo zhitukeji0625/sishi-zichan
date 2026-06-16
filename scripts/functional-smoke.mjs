@@ -99,7 +99,7 @@ async function main() {
 
   // Upload non-multipart with admin
   const uploadBad = await req("POST", "/api/upload", { cookie: COOKIE_JAR.admin });
-  log(uploadBad.status === 400 || uploadBad.status === 500, "上传非 multipart 拒绝", `HTTP ${uploadBad.status}`);
+  log(uploadBad.status === 400, "上传非 multipart 拒绝", `HTTP ${uploadBad.status}`);
 
   // Admin asset create non-multipart
   const assetBad = await req("POST", "/api/admin/assets", {
