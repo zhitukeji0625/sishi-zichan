@@ -1,11 +1,38 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+/** 演示竞拍过期时续期，保证演示账号可继续出价 */
+async function refreshDemoAuction() {
+  const project = await prisma.auctionProject.findFirst({
+    where: { asset: { name: "团部东侧闲置地块" } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!project) return;
+  const now = Date.now();
+  if (project.status !== "ENDED" && project.endsAt > new Date()) return;
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: {
+      startsAt: new Date(now - 60 * 1000),
+      endsAt: new Date(now + 7 * 24 * 60 * 60 * 1000),
+      status: "LIVE",
+    },
+  });
+  await prisma.auctionResult.deleteMany({
+    where: { projectId: project.id, status: { in: ["REJECTED", "PENDING_REVIEW"] } },
+  });
+  console.log("Demo auction renewed to LIVE.");
+}
+
 async function main() {
+  await seedDict(prisma);
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
