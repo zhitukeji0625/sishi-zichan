@@ -62,8 +62,9 @@ echo "=== 晒场预约 ==="
 read -r LISTING_ID <<< $(cd /workspace && npx tsx scripts/smoke-query.ts listing 2>/dev/null)
 echo "  listingId=$LISTING_ID"
 if [ -n "$LISTING_ID" ]; then
-  START=$(date -d "+30 days" +%Y-%m-%d 2>/dev/null || date -v+30d +%Y-%m-%d)
-  END=$(date -d "+32 days" +%Y-%m-%d 2>/dev/null || date -v+32d +%Y-%m-%d)
+  # 使用较远日期，避免与历史冒烟测试预约重叠
+  START=$(date -d "+90 days" +%Y-%m-%d 2>/dev/null || date -v+90d +%Y-%m-%d)
+  END=$(date -d "+92 days" +%Y-%m-%d 2>/dev/null || date -v+92d +%Y-%m-%d)
   RESERVE_RESP=$(curl -s -b $USER_JAR -X POST $BASE/api/m/drying/reserve -H 'Content-Type: application/json' -d "{\"listingId\":\"$LISTING_ID\",\"startDate\":\"$START\",\"endDate\":\"$END\"}")
   echo "  reserve: $RESERVE_RESP"
   check "晒场预约" "true" $(echo $RESERVE_RESP | python3 -c "import sys,json; print(str(json.load(sys.stdin).get('ok', False)).lower())" 2>/dev/null || echo false)
