@@ -25,7 +25,7 @@ describe.skipIf(skipDb)("drying reservations", () => {
     const asset = await prisma.asset.create({
       data: {
         orgId,
-        type: "LAND",
+        type: "DRYING_FIELD",
         name: "测试晒场资产",
         locationText: "测试",
         status: "IDLE",
@@ -36,18 +36,16 @@ describe.skipIf(skipDb)("drying reservations", () => {
       data: {
         assetId,
         status: "OPERATING",
-        maxAdvanceDays: 30,
+        capacityRules: {
+          create: {
+            startDate: startOfDay(new Date()),
+            endDate: startOfDay(addDays(new Date(), 365)),
+            maxPeople: 2,
+          },
+        },
       },
     });
     listingId = listing.id;
-    await prisma.dryingCapacityRule.create({
-      data: {
-        listingId,
-        startDate: startOfDay(new Date()),
-        endDate: startOfDay(addDays(new Date(), 365)),
-        maxPeople: 2,
-      },
-    });
     const user = await prisma.endUser.create({
       data: {
         phone: `198${Date.now().toString().slice(-8)}`,
