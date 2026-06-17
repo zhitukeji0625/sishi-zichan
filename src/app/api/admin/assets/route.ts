@@ -22,7 +22,21 @@ const schema = z.object({
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formData = await req.formData();
+
+  const contentType = req.headers.get("content-type") ?? "";
+  if (
+    !contentType.includes("multipart/form-data") &&
+    !contentType.includes("application/x-www-form-urlencoded")
+  ) {
+    return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
+  }
+
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
+  }
   const raw = Object.fromEntries(formData.entries());
   const parsed = schema.safeParse({
     ...raw,
