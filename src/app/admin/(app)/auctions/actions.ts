@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg, isRegimentOrAbove } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+import { AssetType } from "@prisma/client";
 
 const createSchema = z.object({
   assetId: z.string(),
@@ -31,8 +32,16 @@ export async function createAuctionProjectAction(formData: FormData) {
   const d = parsed.data;
   const asset = await prisma.asset.findUnique({ where: { id: d.assetId } });
   if (!asset) return { error: "资产不存在" };
+  if (asset.type === AssetType.DRYING_FIELD) {
+    return { error: "晒场资产不可发布竞拍" };
+  }
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return { error: "无权使用该资产发拍" };
+  const startsAt = new Date(d.startsAt);
+  const endsAt = new Date(d.endsAt);
+  if (endsAt <= startsAt) {
+    return { error: "结束时间必须晚于开始时间" };
+  }
   const code = `AP${Date.now()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
   await prisma.auctionProject.create({
     data: {
@@ -41,8 +50,8 @@ export async function createAuctionProjectAction(formData: FormData) {
       startPrice: new Decimal(d.startPrice),
       bidStep: new Decimal(d.bidStep),
       depositAmount: new Decimal(d.depositAmount),
-      startsAt: new Date(d.startsAt),
-      endsAt: new Date(d.endsAt),
+      startsAt,
+      endsAt,
       paymentDays: d.paymentDays ?? 7,
       leaseTermDesc: d.leaseTermDesc || null,
       status: "SCHEDULED",
