@@ -34,12 +34,42 @@ export async function validateReservationRange(
   listingId: string,
   start: Date,
   end: Date,
+  endUserId?: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (endUserId) {
+    const overlap = await checkUserDateOverlap(listingId, endUserId, start, end);
+    if (!overlap.ok) return overlap;
+  }
   const days = eachDayOfInterval({ start: startOfDay(start), end: startOfDay(end) });
   for (const day of days) {
     const { available } = await getCapacityForDay(listingId, day);
     if (available <= 0) {
       return { ok: false, message: `${format(day, "yyyy-MM-dd")} 已满` };
+    }
+  }
+  return { ok: true };
+}
+
+async function checkUserDateOverlap(
+  listingId: string,
+  endUserId: string,
+  start: Date,
+  end: Date,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const existing = await prisma.dryingReservation.findMany({
+    where: {
+      listingId,
+      endUserId,
+      status: { notIn: ["REJECTED", "CANCELLED"] },
+    },
+  });
+  const s = startOfDay(start).getTime();
+  const e = startOfDay(end).getTime();
+  for (const r of existing) {
+    const rs = startOfDay(r.startDate).getTime();
+    const re = startOfDay(r.endDate).getTime();
+    if (s <= re && e >= rs) {
+      return { ok: false, message: "您在该时段已有预约，日期不能重叠" };
     }
   }
   return { ok: true };
