@@ -36,7 +36,7 @@ export async function signContractAction(contractId: string) {
     }
   });
   await notifyUser(user.id, "合同已签署", "您的合同已签署成功。", "CONTRACT_SIGNED");
-  revalidatePath("/m/contract");
+  revalidatePath(`/m/contract/${contractId}`);
   revalidatePath("/m/orders");
   return { ok: true as const };
 }
