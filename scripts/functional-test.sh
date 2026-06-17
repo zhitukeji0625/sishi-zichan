@@ -124,8 +124,8 @@ code=$(curl -s -o /dev/null -w "%{http_code}" -b "$ADMIN_JAR" -X POST "$BASE/api
   -H "Content-Type: application/json" -d "{\"orgId\":\"$ORG_ID\",\"type\":\"LAND\",\"name\":\"test\",\"locationText\":\"test\"}")
 check "资产 API 非 multipart 400" "400" "$code"
 
-# 11. 第三方 token
-if [ "${ALLOW_DEV_ROUTES:-false}" = "true" ]; then
+# 11. 第三方 token（开发环境默认可用；生产需 ALLOW_DEV_ROUTES=true）
+if [ "${NODE_ENV:-development}" != "production" ] || [ "${ALLOW_DEV_ROUTES:-false}" = "true" ]; then
   code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/api/dev/third-party-token?u_id=test-user")
   check "第三方 token" "200" "$code"
 else
