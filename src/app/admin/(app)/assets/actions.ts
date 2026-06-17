@@ -24,11 +24,7 @@ export async function createAssetAction(formData: FormData) {
   const admin = await getCurrentAdmin();
   if (!admin) return { error: "未登录" };
   const raw = Object.fromEntries(formData.entries());
-  const parsed = schema.safeParse({
-    ...raw,
-    refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
-    refPriceMax: raw.refPriceMax ? Number(raw.refPriceMax) : undefined,
-  });
+  const parsed = schema.safeParse(raw);
   if (!parsed.success) return { error: "表单数据无效" };
   const d = parsed.data;
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);

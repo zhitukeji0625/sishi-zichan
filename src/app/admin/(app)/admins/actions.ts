@@ -26,6 +26,13 @@ export async function createAdminAction(formData: FormData) {
   const d = parsed.data;
   const exists = await prisma.adminUser.findUnique({ where: { phone: d.phone } });
   if (exists) return { error: "手机号已存在" };
+  const org = await prisma.organization.findUnique({ where: { id: d.orgId } });
+  if (!org) return { error: "组织不存在" };
+  const expectedLevel =
+    d.role === "DIVISION_ADMIN" ? "DIVISION" : d.role === "REGIMENT_ADMIN" ? "REGIMENT" : "COMPANY";
+  if (org.level !== expectedLevel) {
+    return { error: "角色与组织层级不匹配" };
+  }
   const passwordHash = await hashPassword(d.password);
   await prisma.adminUser.create({
     data: { phone: d.phone, passwordHash, name: d.name, role: d.role, orgId: d.orgId },

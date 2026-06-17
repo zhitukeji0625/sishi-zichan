@@ -12,17 +12,17 @@ export async function payAuctionDepositAction(projectId: string) {
   if (project.status !== "SCHEDULED" && project.status !== "LIVE") {
     return { error: "项目状态不允许缴纳保证金" };
   }
-  const registration = await prisma.auctionRegistration.findUnique({
-    where: { projectId_endUserId: { projectId, endUserId: user.id } },
-  });
-  if (!registration || registration.status !== "APPROVED") {
-    return { error: "报名未通过审核" };
-  }
-  if (registration.depositPaid) {
-    return { ok: true as const };
-  }
   const orderNo = `MOCK${Date.now()}`;
-  await prisma.$transaction(async (tx) => {
+  const paid = await prisma.$transaction(async (tx) => {
+    const registration = await tx.auctionRegistration.findUnique({
+      where: { projectId_endUserId: { projectId, endUserId: user.id } },
+    });
+    if (!registration || registration.status !== "APPROVED") {
+      return { error: "报名未通过审核" } as const;
+    }
+    if (registration.depositPaid) {
+      return { ok: true } as const;
+    }
     await tx.payment.create({
       data: {
         orderNo,
@@ -39,7 +39,9 @@ export async function payAuctionDepositAction(projectId: string) {
       where: { projectId_endUserId: { projectId, endUserId: user.id } },
       data: { depositPaid: true },
     });
+    return { ok: true } as const;
   });
+  if ("error" in paid) return paid;
   revalidatePath(`/m/auction/${projectId}`);
   return { ok: true as const };
 }
