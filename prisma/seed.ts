@@ -1,12 +1,32 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDictCategories } from "./seed-dict";
 
 const prisma = new PrismaClient();
+
+async function refreshDemoAuction() {
+  const project = await prisma.auctionProject.findFirst({
+    orderBy: { createdAt: "asc" },
+  });
+  if (!project) return;
+  const now = Date.now();
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: {
+      status: "LIVE",
+      startsAt: new Date(now - 60_000),
+      endsAt: new Date(now + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+  console.log(`  Refreshed demo auction ${project.code} → LIVE`);
+}
 
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    await seedDictCategories();
+    await refreshDemoAuction();
+    console.log("Seed refresh: dict categories + demo auction updated.");
     return;
   }
 
@@ -207,6 +227,8 @@ async function main() {
       channel: "IN_APP",
     },
   });
+
+  await seedDictCategories();
 
   console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
 }
