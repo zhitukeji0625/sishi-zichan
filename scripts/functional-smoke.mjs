@@ -118,12 +118,31 @@ async function main() {
     });
     assert("竞拍详情可访问", detail.res.status === 200);
 
-    const bidAmount = 8200;
-    const bid = await fetchText(`/api/m/auction/${projectId}/bid`, {
+    let bidAmount = 8000;
+    const bidStepMatch = detail.text.match(/加价幅度[^¥\d]*([\d.]+)/);
+    const topMatch = detail.text.match(/当前最高出价[^¥\d]*([\d.]+)/);
+    if (topMatch && bidStepMatch) {
+      bidAmount = parseFloat(topMatch[1]) + parseFloat(bidStepMatch[1]);
+    } else if (topMatch) {
+      bidAmount = parseFloat(topMatch[1]) + 200;
+    }
+
+    let bid = await fetchText(`/api/m/auction/${projectId}/bid`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: userJar.header() },
       body: JSON.stringify({ amount: bidAmount }),
     });
+    if (!bid.json?.ok && bid.json?.error?.includes("不低于")) {
+      const minMatch = bid.json.error.match(/([\d.]+)/);
+      if (minMatch) {
+        bidAmount = parseFloat(minMatch[1]);
+        bid = await fetchText(`/api/m/auction/${projectId}/bid`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Cookie: userJar.header() },
+          body: JSON.stringify({ amount: bidAmount }),
+        });
+      }
+    }
     assert(
       "竞拍出价成功",
       bid.res.status === 200 && bid.json?.ok === true && !!bid.json?.bidId,
