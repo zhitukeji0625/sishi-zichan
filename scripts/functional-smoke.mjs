@@ -23,6 +23,12 @@ async function test(name, fn) {
   }
 }
 
+function extractEntityId(html, prefix) {
+  const re = new RegExp(`/${prefix}/(c[a-z0-9]{20,})`, "gi");
+  const m = re.exec(html);
+  return m ? m[1] : "";
+}
+
 function extractCookie(res, name) {
   const raw = res.headers.getSetCookie?.() ?? [];
   for (const c of raw) {
@@ -140,9 +146,8 @@ async function main() {
     const res = await fetch(`${BASE}/m/auction`, { headers: { Cookie: userCookie } });
     assert(res.ok, `status ${res.status}`);
     const html = await res.text();
-    const m = html.match(/\/m\/auction\/([a-z0-9]+)/i);
-    assert(m, "no auction link found in /m/auction");
-    projectId = m[1];
+    projectId = extractEntityId(html, "m/auction");
+    assert(projectId, "no auction project link found in /m/auction");
   });
 
   await test("POST bid on LIVE auction", async () => {
@@ -150,7 +155,7 @@ async function main() {
     const { res, json } = await fetchJson(`/api/m/auction/${projectId}/bid`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: userCookie },
-      body: JSON.stringify({ amount: 8000 }),
+      body: JSON.stringify({ amount: 99999 }),
     });
     assert(res.ok, `status ${res.status} ${JSON.stringify(json)}`);
     assert(json?.ok && json?.bidId, "expected ok + bidId");
@@ -161,9 +166,8 @@ async function main() {
     const res = await fetch(`${BASE}/m/drying`, { headers: { Cookie: userCookie } });
     assert(res.ok, `status ${res.status}`);
     const html = await res.text();
-    const m = html.match(/\/m\/drying\/([a-z0-9]+)/i);
-    assert(m, "no drying link found");
-    listingId = m[1];
+    listingId = extractEntityId(html, "m/drying");
+    assert(listingId, "no drying listing link found");
   });
 
   await test("POST /api/m/drying/reserve", async () => {
