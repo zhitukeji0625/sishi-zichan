@@ -47,8 +47,8 @@ export default async function AdminAuctionsPage() {
           <h2 className="text-sm font-medium text-slate-800">发布竞拍</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs text-slate-600">关联资产</label>
-              <select name="assetId" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+              <label htmlFor="auction-assetId" className="mb-1 block text-xs text-slate-600">关联资产</label>
+              <select id="auction-assetId" name="assetId" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
                 {assets.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name}
@@ -57,32 +57,32 @@ export default async function AdminAuctionsPage() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">起拍价</label>
-              <input name="startPrice" type="number" step="0.01" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <label htmlFor="auction-startPrice" className="mb-1 block text-xs text-slate-600">起拍价</label>
+              <input id="auction-startPrice" name="startPrice" type="number" step="0.01" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">加价幅度</label>
-              <input name="bidStep" type="number" step="0.01" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <label htmlFor="auction-bidStep" className="mb-1 block text-xs text-slate-600">加价幅度</label>
+              <input id="auction-bidStep" name="bidStep" type="number" step="0.01" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">保证金</label>
-              <input name="depositAmount" type="number" step="0.01" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <label htmlFor="auction-depositAmount" className="mb-1 block text-xs text-slate-600">保证金</label>
+              <input id="auction-depositAmount" name="depositAmount" type="number" step="0.01" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">付款期限(天)</label>
-              <input name="paymentDays" type="number" defaultValue={7} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <label htmlFor="auction-paymentDays" className="mb-1 block text-xs text-slate-600">付款期限(天)</label>
+              <input id="auction-paymentDays" name="paymentDays" type="number" defaultValue={7} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">开始时间</label>
-              <input name="startsAt" type="datetime-local" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <label htmlFor="auction-startsAt" className="mb-1 block text-xs text-slate-600">开始时间</label>
+              <input id="auction-startsAt" name="startsAt" type="datetime-local" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-slate-600">结束时间</label>
-              <input name="endsAt" type="datetime-local" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <label htmlFor="auction-endsAt" className="mb-1 block text-xs text-slate-600">结束时间</label>
+              <input id="auction-endsAt" name="endsAt" type="datetime-local" required className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
             </div>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs text-slate-600">租赁期限说明</label>
-              <textarea name="leaseTermDesc" rows={2} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
+              <label htmlFor="auction-leaseTermDesc" className="mb-1 block text-xs text-slate-600">租赁期限说明</label>
+              <textarea id="auction-leaseTermDesc" name="leaseTermDesc" rows={2} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" />
             </div>
           </div>
           <button type="submit" className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800">
