@@ -10,7 +10,7 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:functional": "node scripts/functional-smoke.mjs",
+    "test:functional": "npm run db:seed && node scripts/functional-smoke.mjs",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio"
