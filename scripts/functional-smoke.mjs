@@ -1,175 +1,240 @@
 #!/usr/bin/env node
 /**
- * API 功能冒烟测试（需服务运行在 BASE_URL，默认 http://localhost:3000）
- * 用法：node scripts/functional-smoke.mjs
+ * Functional smoke tests against a running dev server.
+ * Usage: BASE_URL=http://localhost:3000 node scripts/functional-smoke.mjs
  */
-const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const COOKIE_JAR = { admin: "", user: "" };
+
+const BASE = process.env.BASE_URL || "http://localhost:3000";
 
 let passed = 0;
 let failed = 0;
 
-function log(ok, name, detail = "") {
-  if (ok) {
+function assert(name, cond, detail = "") {
+  if (cond) {
     passed++;
-    console.log(`✓ ${name}${detail ? ` — ${detail}` : ""}`);
+    console.log(`  ✓ ${name}`);
   } else {
     failed++;
-    console.error(`✗ ${name}${detail ? ` — ${detail}` : ""}`);
+    console.error(`  ✗ ${name}${detail ? `: ${detail}` : ""}`);
   }
 }
 
-async function req(method, path, { body, headers = {}, cookie } = {}) {
-  const h = { ...headers };
-  if (cookie) h.Cookie = cookie;
-  let payload;
-  if (body instanceof FormData) {
-    payload = body;
-  } else if (body !== undefined) {
-    h["Content-Type"] = "application/json";
-    payload = JSON.stringify(body);
-  }
-  const res = await fetch(`${BASE}${path}`, { method, headers: h, body: payload, redirect: "manual" });
-  const setCookie = res.headers.getSetCookie?.() ?? [];
+async function fetchJson(path, opts = {}) {
+  const res = await fetch(`${BASE}${path}`, opts);
   const text = await res.text();
-  let json;
+  let json = null;
   try {
-    json = JSON.parse(text);
+    json = text ? JSON.parse(text) : null;
   } catch {
-    json = null;
+    json = { _raw: text };
   }
-  return { status: res.status, json, text, setCookie, location: res.headers.get("location") };
+  return { res, json };
 }
 
-function extractCookie(setCookies, name) {
-  for (const c of setCookies) {
-    const m = c.match(new RegExp(`^${name}=([^;]+)`));
-    if (m) return `${name}=${m[1]}`;
-  }
-  return "";
+function cookieHeader(setCookie) {
+  if (!setCookie) return "";
+  const parts = Array.isArray(setCookie) ? setCookie : [setCookie];
+  return parts.map((c) => c.split(";")[0]).join("; ");
 }
 
 async function main() {
-  console.log(`\n功能冒烟测试 @ ${BASE}\n`);
+  console.log(`\nFunctional smoke tests → ${BASE}\n`);
 
-  for (const [name, path] of [
-    ["门户首页", "/"],
-    ["H5 首页", "/m"],
-    ["管理登录页", "/admin/login"],
-    ["竞拍列表", "/m/auction"],
-    ["晒场列表", "/m/drying"],
-  ]) {
-    const r = await req("GET", path);
-    log(r.status === 200, name, `HTTP ${r.status}`);
+  // 1. Public pages
+  {
+    const r = await fetch(`${BASE}/`);
+    assert("GET / returns 200", r.status === 200);
+    const m = await fetch(`${BASE}/m`);
+    assert("GET /m returns 200", m.status === 200);
+    const admin = await fetch(`${BASE}/admin/login`);
+    assert("GET /admin/login returns 200", admin.status === 200);
   }
 
-  const fav = await req("GET", "/favicon.ico");
-  log(fav.status === 200 || fav.status === 307 || fav.status === 308, "favicon", `HTTP ${fav.status}`);
-
-  const adminLogin = await req("POST", "/api/auth/admin/login", {
-    body: { phone: "13900000001", password: "admin123" },
-  });
-  log(adminLogin.status === 200 && adminLogin.json?.ok, "管理员登录", JSON.stringify(adminLogin.json));
-  COOKIE_JAR.admin = extractCookie(adminLogin.setCookie, "sishi_admin_session");
-
-  const userLogin = await req("POST", "/api/auth/login", {
-    body: { phone: "13800138000", password: "user123" },
-  });
-  log(userLogin.status === 200 && userLogin.json?.ok, "用户登录", JSON.stringify(userLogin.json));
-  COOKIE_JAR.user = extractCookie(userLogin.setCookie, "sishi_user_session");
-
-  const tpToken = await req("GET", "/api/dev/third-party-token?u_id=smoke_test");
-  log(tpToken.status === 200 && tpToken.json?.token, "第三方 token", tpToken.status === 404 ? "生产环境已禁用" : "ok");
-
-  if (tpToken.json?.token) {
-    const tpLogin = await req("POST", "/api/auth/third-party", {
-      body: { token: tpToken.json.token },
-    });
-    log(tpLogin.status === 200 && tpLogin.json?.ok, "第三方登录", JSON.stringify(tpLogin.json));
+  // 2. Dev third-party token
+  let ssoToken = null;
+  {
+    const { res, json } = await fetchJson("/api/dev/third-party-token?u_id=smoke_test");
+    assert("GET /api/dev/third-party-token returns 200", res.status === 200, JSON.stringify(json));
+    assert("third-party token has token field", !!json?.token);
+    ssoToken = json?.token;
   }
 
-  const uploadNoAuth = await req("POST", "/api/upload");
-  log(uploadNoAuth.status === 401, "上传未登录拒绝", `HTTP ${uploadNoAuth.status}`);
-
-  const uploadBad = await req("POST", "/api/upload", { cookie: COOKIE_JAR.admin });
-  log(uploadBad.status === 400, "上传非 multipart 拒绝", `HTTP ${uploadBad.status}`);
-
-  const assetBad = await req("POST", "/api/admin/assets", {
-    cookie: COOKIE_JAR.admin,
-    body: { orgId: "x", type: "LAND", name: "t", locationText: "t" },
-  });
-  log(assetBad.status === 400, "资产创建非 multipart 拒绝", `HTTP ${assetBad.status}`);
-
-  const { PrismaClient } = await import("@prisma/client");
-  const prisma = new PrismaClient();
-  let project = await prisma.auctionProject.findFirst({
-    where: { status: "LIVE" },
-    orderBy: { createdAt: "desc" },
-  });
-  if (!project) {
-    project = await prisma.auctionProject.findFirst({ orderBy: { createdAt: "desc" } });
-    if (project) {
-      const now = Date.now();
-      await prisma.auctionProject.update({
-        where: { id: project.id },
-        data: {
-          status: "LIVE",
-          startsAt: new Date(now - 60_000),
-          endsAt: new Date(now + 7 * 24 * 60 * 60 * 1000),
-        },
-      });
-      project = await prisma.auctionProject.findUnique({ where: { id: project.id } });
-      console.log("  (已刷新演示竞拍为 LIVE)");
-    }
+  // 3. Admin login
+  let adminCookie = "";
+  {
+    const { res, json } = await fetchJson("/api/auth/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: "13900000001", password: "admin123" }),
+    });
+    assert("admin login returns 200", res.status === 200, JSON.stringify(json));
+    adminCookie = cookieHeader(res.headers.getSetCookie?.() ?? res.headers.get("set-cookie"));
+    assert("admin login sets cookie", adminCookie.includes("sishi_admin_session"));
   }
 
-  if (project) {
-    const topBid = await prisma.auctionBid.findFirst({
-      where: { projectId: project.id },
-      orderBy: { amount: "desc" },
-    });
-    const start = Number(project.startPrice);
-    const step = Number(project.bidStep);
-    let bidAmount = topBid ? Number(topBid.amount) + step : start;
+  // 4. Admin protected page
+  {
+    const r = await fetch(`${BASE}/admin`, { headers: { Cookie: adminCookie } });
+    assert("GET /admin with session returns 200", r.status === 200);
+  }
 
-    let bidRes = await req("POST", `/api/m/auction/${project.id}/bid`, {
-      cookie: COOKIE_JAR.user,
-      body: { amount: bidAmount },
+  // 5. User login
+  let userCookie = "";
+  {
+    const { res, json } = await fetchJson("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone: "13800138000", password: "user123" }),
     });
-    if (bidRes.status !== 200 && bidRes.json?.error) {
-      const m = String(bidRes.json.error).match(/(\d+(?:\.\d+)?)/);
-      if (m) {
-        bidAmount = parseFloat(m[1]);
-        bidRes = await req("POST", `/api/m/auction/${project.id}/bid`, {
-          cookie: COOKIE_JAR.user,
-          body: { amount: bidAmount },
+    assert("user login returns 200", res.status === 200, JSON.stringify(json));
+    userCookie = cookieHeader(res.headers.getSetCookie?.() ?? res.headers.get("set-cookie"));
+    assert("user login sets cookie", userCookie.includes("sishi_user_session"));
+  }
+
+  // 6. Third-party SSO
+  {
+    const { res, json } = await fetchJson("/api/auth/third-party", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: ssoToken }),
+    });
+    assert("third-party auth returns 200", res.status === 200, JSON.stringify(json));
+  }
+
+  // 7. Protected API without auth
+  {
+    const { res } = await fetchJson("/api/m/auction/fake/bid", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount: 100 }),
+    });
+    assert("bid without auth returns 401", res.status === 401);
+  }
+
+  // 8. Upload without multipart
+  {
+    const { res } = await fetchJson("/api/upload", {
+      method: "POST",
+      headers: { Cookie: adminCookie, "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    assert("upload without file returns 400", res.status === 400);
+  }
+
+  // 9. Admin asset without multipart
+  {
+    const { res } = await fetchJson("/api/admin/assets", {
+      method: "POST",
+      headers: { Cookie: adminCookie, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "test" }),
+    });
+    assert("admin asset without form returns 400", res.status === 400);
+  }
+
+  // 10. Find live auction and place bid
+  {
+    const { PrismaClient } = await import("@prisma/client");
+    const prisma = new PrismaClient();
+    const project = await prisma.auctionProject.findFirst({
+      where: { status: "LIVE" },
+      orderBy: { createdAt: "desc" },
+    });
+    await prisma.$disconnect();
+
+    if (!project) {
+      assert("live auction project exists", false, "no LIVE project in DB");
+    } else {
+      const topBid = await (async () => {
+        const { PrismaClient: PC } = await import("@prisma/client");
+        const p = new PC();
+        const top = await p.auctionBid.findFirst({
+          where: { projectId: project.id },
+          orderBy: { amount: "desc" },
         });
-      }
+        await p.$disconnect();
+        return top;
+      })();
+
+      const minBid = topBid
+        ? Number(topBid.amount) + Number(project.bidStep)
+        : Number(project.startPrice);
+
+      const { res, json } = await fetchJson(`/api/m/auction/${project.id}/bid`, {
+        method: "POST",
+        headers: { Cookie: userCookie, "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: minBid }),
+      });
+      assert("place bid returns 200", res.status === 200, JSON.stringify(json));
+      assert("place bid returns bidId", !!json?.bidId);
     }
-    log(bidRes.status === 200 && bidRes.json?.ok, "竞拍出价", JSON.stringify(bidRes.json));
-  } else {
-    log(false, "竞拍出价", "无竞拍项目");
   }
 
-  const listing = await prisma.dryingFieldListing.findFirst({ where: { status: "OPERATING" } });
-  if (listing) {
-    const d = new Date();
-    d.setDate(d.getDate() + 2);
-    const startDate = d.toISOString().slice(0, 10);
-    d.setDate(d.getDate() + 1);
-    const endDate = d.toISOString().slice(0, 10);
-    const dryRes = await req("POST", "/api/m/drying/reserve", {
-      cookie: COOKIE_JAR.user,
-      body: { listingId: listing.id, startDate, endDate },
+  // 11. Drying reservation
+  let listingId = null;
+  {
+    const { PrismaClient } = await import("@prisma/client");
+    const prisma = new PrismaClient();
+    const listing = await prisma.dryingFieldListing.findFirst({
+      where: { status: "OPERATING" },
     });
-    log(dryRes.status === 200 && dryRes.json?.ok, "晒场预约", JSON.stringify(dryRes.json));
-  } else {
-    log(false, "晒场预约", "无运营晒场");
+    listingId = listing?.id ?? null;
+    await prisma.$disconnect();
   }
 
-  await prisma.$disconnect();
+  if (listingId) {
+    const start = new Date();
+    start.setDate(start.getDate() + 3);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    const { res, json } = await fetchJson("/api/m/drying/reserve", {
+      method: "POST",
+      headers: { Cookie: userCookie, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        listingId,
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+      }),
+    });
+    assert("drying reserve returns 200", res.status === 200, JSON.stringify(json));
+    assert("drying reserve returns id", !!json?.id);
+  } else {
+    assert("operating drying listing exists", false);
+  }
 
-  console.log(`\n${passed} passed, ${failed} failed\n`);
+  // 12. Mobile pages with auth
+  {
+    const pages = ["/m/auction", "/m/drying", "/m/orders", "/m/me"];
+    for (const p of pages) {
+      const r = await fetch(`${BASE}${p}`, { headers: { Cookie: userCookie } });
+      assert(`GET ${p} returns 200`, r.status === 200);
+    }
+  }
+
+  // 13. Admin pages
+  {
+    const pages = ["/admin/assets", "/admin/auctions", "/admin/drying", "/admin/dict"];
+    for (const p of pages) {
+      const r = await fetch(`${BASE}${p}`, { headers: { Cookie: adminCookie } });
+      assert(`GET ${p} returns 200`, r.status === 200);
+    }
+  }
+
+  // 14. Favicon
+  {
+    const r = await fetch(`${BASE}/favicon.ico`);
+    assert("GET /favicon.ico returns 200 or 304", r.status === 200 || r.status === 304);
+  }
+
+  // 15. Logout
+  {
+    const { res } = await fetchJson("/api/auth/logout", {
+      method: "POST",
+      headers: { Cookie: userCookie },
+    });
+    assert("user logout returns 200", res.status === 200);
+  }
+
+  console.log(`\nResults: ${passed} passed, ${failed} failed\n`);
   process.exit(failed > 0 ? 1 : 0);
 }
 
