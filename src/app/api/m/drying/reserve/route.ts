@@ -27,9 +27,18 @@ export async function POST(req: Request) {
   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
     return NextResponse.json({ error: "日期格式无效" }, { status: 400 });
   }
-  const listing = await prisma.dryingFieldListing.findUnique({ where: { id: parsed.data.listingId } });
+  const listing = await prisma.dryingFieldListing.findUnique({
+    where: { id: parsed.data.listingId },
+    include: { bookingRules: true },
+  });
   if (!listing || listing.status !== "OPERATING") {
     return NextResponse.json({ error: "晒场不存在或未运营" }, { status: 404 });
+  }
+  const maxAdvance = listing.bookingRules[0]?.maxAdvanceDays ?? 7;
+  const latestStart = new Date();
+  latestStart.setDate(latestStart.getDate() + maxAdvance);
+  if (start > latestStart) {
+    return NextResponse.json({ error: `开始日期不能超过今天起 ${maxAdvance} 天` }, { status: 400 });
   }
   const check = await validateReservationRange(parsed.data.listingId, start, end);
   if (!check.ok) {
