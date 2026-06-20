@@ -100,6 +100,43 @@ async function main() {
   });
   log(assetBad.status === 400, "资产创建非 multipart 拒绝", `HTTP ${assetBad.status}`);
 
+  const adminNoAuth = await req("GET", "/admin");
+  log(
+    adminNoAuth.status === 307 || adminNoAuth.status === 302,
+    "管理后台未登录重定向",
+    `HTTP ${adminNoAuth.status}`,
+  );
+
+  for (const [name, path] of [
+    ["管理概览", "/admin"],
+    ["资产管理", "/admin/assets"],
+    ["竞拍管理", "/admin/auctions"],
+    ["报名审核", "/admin/registrations"],
+    ["公告管理", "/admin/announcements"],
+    ["晒场管理", "/admin/drying"],
+    ["组织管理", "/admin/organizations"],
+    ["管理员", "/admin/admins"],
+    ["系统配置", "/admin/config"],
+    ["数据字典", "/admin/dict"],
+    ["审计日志", "/admin/audit"],
+  ]) {
+    const r = await req("GET", path, { cookie: COOKIE_JAR.admin });
+    log(r.status === 200, name, `HTTP ${r.status}`);
+  }
+
+  for (const [name, path] of [
+    ["订单页", "/m/orders"],
+    ["个人中心", "/m/me"],
+    ["注册页", "/m/register"],
+    ["登录页", "/m/login"],
+  ]) {
+    const r = await req("GET", path, { cookie: COOKIE_JAR.user });
+    log(r.status === 200, name, `HTTP ${r.status}`);
+  }
+
+  const bidNoAuth = await req("POST", "/api/m/auction/fake/bid", { body: { amount: 100 } });
+  log(bidNoAuth.status === 401, "出价未登录拒绝", `HTTP ${bidNoAuth.status}`);
+
   const { PrismaClient } = await import("@prisma/client");
   const prisma = new PrismaClient();
   let project = await prisma.auctionProject.findFirst({
@@ -147,6 +184,16 @@ async function main() {
       }
     }
     log(bidRes.status === 200 && bidRes.json?.ok, "竞拍出价", JSON.stringify(bidRes.json));
+
+    const payRes = await req("POST", "/api/m/payments/mock", {
+      cookie: COOKIE_JAR.user,
+      body: { purpose: "AUCTION_DEPOSIT", auctionProjectId: project.id },
+    });
+    log(
+      payRes.status === 409 || (payRes.status === 200 && payRes.json?.ok),
+      "竞拍保证金支付",
+      JSON.stringify(payRes.json),
+    );
   } else {
     log(false, "竞拍出价", "无竞拍项目");
   }
@@ -168,6 +215,12 @@ async function main() {
   }
 
   await prisma.$disconnect();
+
+  const logout = await req("POST", "/api/auth/logout", { cookie: COOKIE_JAR.user });
+  log(logout.status === 200 && logout.json?.ok, "用户登出", JSON.stringify(logout.json));
+
+  const adminLogout = await req("POST", "/api/auth/admin/logout", { cookie: COOKIE_JAR.admin });
+  log(adminLogout.status === 200 && adminLogout.json?.ok, "管理员登出", JSON.stringify(adminLogout.json));
 
   console.log(`\n${passed} passed, ${failed} failed\n`);
   process.exit(failed > 0 ? 1 : 0);
