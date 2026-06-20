@@ -6,7 +6,11 @@ import { getDictMap } from "@/lib/dict";
 import { Gavel } from "lucide-react";
 
 export default async function MAuctionListPage() {
-  await refreshAuctionProjectStatuses();
+  try {
+    await refreshAuctionProjectStatuses();
+  } catch {
+    /* DB unavailable during build or startup */
+  }
   const projects = await prisma.auctionProject.findMany({
     where: { status: { in: ["SCHEDULED", "LIVE", "ENDED"] } },
     include: { asset: true },
