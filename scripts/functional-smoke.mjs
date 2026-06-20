@@ -100,6 +100,33 @@ async function main() {
   });
   log(assetBad.status === 400, "资产创建非 multipart 拒绝", `HTTP ${assetBad.status}`);
 
+  for (const [name, path] of [
+    ["管理首页", "/admin"],
+    ["资产列表", "/admin/assets"],
+    ["竞拍管理", "/admin/auctions"],
+    ["报名审核", "/admin/registrations"],
+    ["公告管理", "/admin/announcements"],
+    ["晒场管理", "/admin/drying"],
+    ["组织管理", "/admin/organizations"],
+    ["管理员", "/admin/admins"],
+    ["系统配置", "/admin/config"],
+    ["数据字典", "/admin/dict"],
+    ["操作审计", "/admin/audit"],
+  ]) {
+    const r = await req("GET", path, { cookie: COOKIE_JAR.admin });
+    log(r.status === 200, name, `HTTP ${r.status}`);
+  }
+
+  for (const [name, path] of [
+    ["H5 登录页", "/m/login"],
+    ["H5 注册页", "/m/register"],
+    ["我的订单", "/m/orders"],
+    ["个人中心", "/m/me"],
+  ]) {
+    const r = await req("GET", path, { cookie: COOKIE_JAR.user });
+    log(r.status === 200, name, `HTTP ${r.status}`);
+  }
+
   const { PrismaClient } = await import("@prisma/client");
   const prisma = new PrismaClient();
   let project = await prisma.auctionProject.findFirst({
@@ -165,6 +192,18 @@ async function main() {
     log(dryRes.status === 200 && dryRes.json?.ok, "晒场预约", JSON.stringify(dryRes.json));
   } else {
     log(false, "晒场预约", "无运营晒场");
+  }
+
+  if (project) {
+    const payRes = await req("POST", "/api/m/payments/mock", {
+      cookie: COOKIE_JAR.user,
+      body: { purpose: "AUCTION_DEPOSIT", auctionProjectId: project.id },
+    });
+    log(
+      (payRes.status === 200 && payRes.json?.ok) || payRes.status === 409,
+      "竞拍保证金支付",
+      JSON.stringify(payRes.json),
+    );
   }
 
   await prisma.$disconnect();
