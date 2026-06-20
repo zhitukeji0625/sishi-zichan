@@ -48,6 +48,23 @@ async function loginUser() {
   return cookie.split(";")[0];
 }
 
+async function resolveTestIds() {
+  let auctionId = process.env.TEST_AUCTION_ID;
+  let listingId = process.env.TEST_LISTING_ID;
+
+  if (!auctionId) {
+    const html = await (await fetch(`${BASE}/m/auction`)).text();
+    const m = html.match(/\/m\/auction\/(cm[a-z0-9]+)/i);
+    if (m) auctionId = m[1];
+  }
+  if (!listingId) {
+    const html = await (await fetch(`${BASE}/m/drying`)).text();
+    const m = html.match(/\/m\/drying\/(cm[a-z0-9]+)/i);
+    if (m) listingId = m[1];
+  }
+  return { auctionId, listingId };
+}
+
 async function testPages(name, paths, cookie) {
   for (const path of paths) {
     const res = await fetchStatus(path, {
@@ -114,13 +131,11 @@ async function main() {
     fail("dev third-party-token", `status ${tokenRes.status}`);
   }
 
-  // Get auction project from list page or API - query via drying listing
   const dryingRes = await fetch(`${BASE}/m/drying`, { headers: { Cookie: userCookie } });
   if (dryingRes.ok) ok("user /m/drying with session");
   else fail("user /m/drying with session", `status ${dryingRes.status}`);
 
-  // Drying reserve API - need listingId from DB
-  const listingId = process.env.TEST_LISTING_ID;
+  const { auctionId, listingId } = await resolveTestIds();
   if (listingId) {
     const reserveRes = await fetch(`${BASE}/api/m/drying/reserve`, {
       method: "POST",
@@ -138,7 +153,6 @@ async function main() {
     }
   }
 
-  const auctionId = process.env.TEST_AUCTION_ID;
   if (auctionId) {
     const auctionPage = await fetchStatus(`/m/auction/${auctionId}`, { headers: { Cookie: userCookie } });
     if (auctionPage.status === 200) ok(`user /m/auction/${auctionId}`);
