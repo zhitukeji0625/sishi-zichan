@@ -28,8 +28,16 @@ export async function POST(
   if (!asset) return NextResponse.json({ error: "资产不存在" }, { status: 404 });
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return NextResponse.json({ error: "无权操作" }, { status: 403 });
-  const formData = await req.formData();
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return NextResponse.json({ error: "请使用 multipart/form-data 提交" }, { status: 400 });
+  }
   const raw = Object.fromEntries(formData.entries());
+  if (Object.keys(raw).length === 0) {
+    return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
+  }
   const parsed = updateSchema.safeParse({
     ...raw,
     refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
