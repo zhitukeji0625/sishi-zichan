@@ -36,7 +36,7 @@ export async function createAnnouncementAction(formData: FormData) {
   return { ok: true as const };
 }
 
-export async function reviewAnnouncementFormAction(formData: FormData) {
+export async function reviewAnnouncementFormAction(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   const approve = formData.get("approve") === "true";
   const admin = await getCurrentAdmin();
