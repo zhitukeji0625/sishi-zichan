@@ -1,12 +1,31 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
+
+/** 将演示竞拍刷新为进行中并延长结束时间，便于 cron/重复 seed 后仍可测试出价 */
+export async function refreshDemoAuction(client: PrismaClient = prisma) {
+  const latest = await client.auctionProject.findFirst({
+    orderBy: { createdAt: "desc" },
+  });
+  if (!latest) return;
+  const now = Date.now();
+  const startsAt = latest.startsAt.getTime() > now ? latest.startsAt : new Date(now - 60_000);
+  const endsAt = new Date(Math.max(latest.endsAt.getTime(), now + 7 * 24 * 60 * 60 * 1000));
+  await client.auctionProject.update({
+    where: { id: latest.id },
+    data: { status: "LIVE", startsAt, endsAt },
+  });
+  console.log(`Demo auction refreshed: ${latest.code} -> LIVE until ${endsAt.toISOString()}`);
+}
 
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
+    await seedDict(prisma);
+    await refreshDemoAuction(prisma);
     return;
   }
 
@@ -207,6 +226,8 @@ async function main() {
       channel: "IN_APP",
     },
   });
+
+  await seedDict(prisma);
 
   console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
 }
