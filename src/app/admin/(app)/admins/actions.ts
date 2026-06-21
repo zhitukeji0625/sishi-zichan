@@ -35,7 +35,7 @@ export async function createAdminAction(formData: FormData) {
   return { ok: true as const };
 }
 
-export async function toggleAdminDisableAction(formData: FormData) {
+export async function toggleAdminDisableAction(formData: FormData): Promise<void> {
   const targetId = String(formData.get("id") ?? "");
   const disable = formData.get("disable") === "true";
   const admin = await getCurrentAdmin();
