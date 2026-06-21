@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
-import { validateReservationRange } from "@/lib/drying";
+import { validateReservationRange, parseLocalDate } from "@/lib/drying";
 import { notifyUser } from "@/lib/messages";
 
 const schema = z.object({
@@ -19,8 +19,8 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "参数无效" }, { status: 400 });
   }
-  const start = new Date(parsed.data.startDate);
-  const end = new Date(parsed.data.endDate);
+  const start = parseLocalDate(parsed.data.startDate);
+  const end = parseLocalDate(parsed.data.endDate);
   if (end < start) {
     return NextResponse.json({ error: "结束日期不能早于开始日期" }, { status: 400 });
   }
