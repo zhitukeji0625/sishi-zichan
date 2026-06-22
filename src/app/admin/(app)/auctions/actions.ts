@@ -8,16 +8,25 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg, isRegimentOrAbove } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 
-const createSchema = z.object({
-  assetId: z.string(),
-  startPrice: z.coerce.number().positive(),
-  bidStep: z.coerce.number().positive(),
-  depositAmount: z.coerce.number().positive(),
-  startsAt: z.string(),
-  endsAt: z.string(),
-  paymentDays: z.coerce.number().int().min(1).optional(),
-  leaseTermDesc: z.string().optional(),
-});
+const createSchema = z
+  .object({
+    assetId: z.string(),
+    startPrice: z.coerce.number().positive(),
+    bidStep: z.coerce.number().positive(),
+    depositAmount: z.coerce.number().positive(),
+    startsAt: z.string(),
+    endsAt: z.string(),
+    paymentDays: z.coerce.number().int().min(1).optional(),
+    leaseTermDesc: z.string().optional(),
+  })
+  .refine(
+    (d) => {
+      const start = new Date(d.startsAt);
+      const end = new Date(d.endsAt);
+      return !isNaN(start.getTime()) && !isNaN(end.getTime()) && end > start;
+    },
+    { message: "结束时间必须晚于开始时间" },
+  );
 
 export async function createAuctionProjectAction(formData: FormData) {
   const admin = await getCurrentAdmin();

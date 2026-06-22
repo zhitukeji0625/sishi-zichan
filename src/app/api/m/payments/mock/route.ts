@@ -28,9 +28,13 @@ export async function POST(req: Request) {
       where: { projectId_endUserId: { projectId: auctionProjectId, endUserId: user.id } },
     });
     if (!reg) return NextResponse.json({ error: "未报名该项目" }, { status: 403 });
+    if (reg.status !== "APPROVED") return NextResponse.json({ error: "报名未通过审核" }, { status: 403 });
     if (reg.depositPaid) return NextResponse.json({ error: "保证金已缴纳" }, { status: 409 });
     const project = await prisma.auctionProject.findUnique({ where: { id: auctionProjectId } });
     if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+    if (project.status !== "SCHEDULED" && project.status !== "LIVE") {
+      return NextResponse.json({ error: "项目状态不允许缴纳保证金" }, { status: 400 });
+    }
     amount = project.depositAmount;
   } else if (purpose === "AUCTION_RENT") {
     if (!auctionProjectId) return NextResponse.json({ error: "缺少项目ID" }, { status: 400 });

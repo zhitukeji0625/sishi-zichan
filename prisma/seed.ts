@@ -1,15 +1,48 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict-lib";
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const existing = await prisma.auctionProject.count();
-  if (existing > 0) {
-    console.log("Seed skipped: data already present.");
-    return;
-  }
+/** 确保至少有一个可出价的演示竞拍（重复执行 seed 时也会刷新） */
+async function ensureDemoLiveAuction(assetId: string) {
+  const live = await prisma.auctionProject.findFirst({
+    where: { status: { in: ["LIVE", "SCHEDULED"] } },
+  });
+  if (live) return live;
 
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `AP${Date.now()}`,
+      assetId,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (demoUser) {
+    await prisma.auctionRegistration.upsert({
+      where: { projectId_endUserId: { projectId: project.id, endUserId: demoUser.id } },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId: project.id,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+  }
+  console.log("Created demo LIVE auction:", project.code);
+  return project;
+}
+
+async function main() {
   const div = await prisma.organization.upsert({
     where: { code: "DIV1" },
     update: {},
@@ -102,112 +135,112 @@ async function main() {
     create: { key: "site_name", value: "四师资产租赁平台" },
   });
 
-  const asset1 = await prisma.asset.create({
-    data: {
-      orgId: reg.id,
-      type: AssetType.LAND,
-      name: "团部东侧闲置地块",
-      locationText: "六十一团团部东侧",
-      specs: "面积约 5 亩",
-      description: "<p>适合种植及临时堆放，权属清晰。</p>",
-      refPriceMin: 8000,
-      refPriceMax: 12000,
-      status: AssetStatus.IDLE,
-    },
+  let asset1 = await prisma.asset.findFirst({
+    where: { name: "团部东侧闲置地块", orgId: reg.id },
   });
-
-  const dryingAsset = await prisma.asset.create({
-    data: {
-      orgId: co.id,
-      type: AssetType.DRYING_FIELD,
-      name: "一连晒场 A 区",
-      locationText: "一连晒场",
-      specs: "占地约 2000㎡",
-      description: "<p>硬化地面，通水电。</p>",
-      status: AssetStatus.IN_USE,
-    },
-  });
-
-  await prisma.dryingFieldListing.create({
-    data: {
-      assetId: dryingAsset.id,
-      status: "OPERATING",
-      lat: 44.2,
-      lng: 80.6,
-      builtYear: 2018,
-      capacityRules: {
-        create: {
-          startDate: new Date("2026-01-01"),
-          endDate: new Date("2027-12-31"),
-          maxPeople: 10,
-        },
-      },
-      bookingRules: {
-        create: { maxAdvanceDays: 7 },
-      },
-    },
-  });
-
-  const starts = new Date(Date.now() - 60 * 1000);
-  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const project = await prisma.auctionProject.create({
-    data: {
-      code: `AP${Date.now()}`,
-      assetId: asset1.id,
-      startPrice: 8000,
-      bidStep: 200,
-      startsAt: starts,
-      endsAt: ends,
-      depositAmount: 500,
-      status: "LIVE",
-    },
-  });
-
-  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
-  if (demoUser) {
-    await prisma.auctionRegistration.upsert({
-      where: {
-        projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
-      },
-      update: { status: "APPROVED", depositPaid: true },
-      create: {
-        projectId: project.id,
-        endUserId: demoUser.id,
-        status: "APPROVED",
-        depositPaid: true,
+  if (!asset1) {
+    asset1 = await prisma.asset.create({
+      data: {
+        orgId: reg.id,
+        type: AssetType.LAND,
+        name: "团部东侧闲置地块",
+        locationText: "六十一团团部东侧",
+        specs: "面积约 5 亩",
+        description: "<p>适合种植及临时堆放，权属清晰。</p>",
+        refPriceMin: 8000,
+        refPriceMax: 12000,
+        status: AssetStatus.IDLE,
       },
     });
   }
 
-  await prisma.announcement.create({
-    data: {
-      orgId: reg.id,
-      title: "春季资产竞拍公告",
-      content: "<p>欢迎参与本轮竞拍，详见各项目说明。</p>",
-      status: "PUBLISHED",
-      publishedAt: new Date(),
-    },
+  let dryingAsset = await prisma.asset.findFirst({
+    where: { name: "一连晒场 A 区", orgId: co.id },
   });
+  if (!dryingAsset) {
+    dryingAsset = await prisma.asset.create({
+      data: {
+        orgId: co.id,
+        type: AssetType.DRYING_FIELD,
+        name: "一连晒场 A 区",
+        locationText: "一连晒场",
+        specs: "占地约 2000㎡",
+        description: "<p>硬化地面，通水电。</p>",
+        status: AssetStatus.IN_USE,
+      },
+    });
+  }
 
-  await prisma.contractTemplate.create({
-    data: {
-      name: "竞拍租赁合同（示例）",
-      type: "AUCTION_LEASE",
-      bodyHtml:
-        "<p>甲方：{{orgName}}</p><p>乙方：{{userName}}</p><p>标的：{{assetName}}</p><p>租期：{{leaseTerm}}</p>",
-      active: true,
-    },
+  const existingListing = await prisma.dryingFieldListing.findFirst({
+    where: { assetId: dryingAsset.id },
   });
+  if (!existingListing) {
+    await prisma.dryingFieldListing.create({
+      data: {
+        assetId: dryingAsset.id,
+        status: "OPERATING",
+        lat: 44.2,
+        lng: 80.6,
+        builtYear: 2018,
+        capacityRules: {
+          create: {
+            startDate: new Date("2026-01-01"),
+            endDate: new Date("2027-12-31"),
+            maxPeople: 10,
+          },
+        },
+        bookingRules: {
+          create: { maxAdvanceDays: 7 },
+        },
+      },
+    });
+  }
 
-  await prisma.messageTemplate.create({
-    data: {
-      code: "REG_RESULT",
-      title: "报名审核结果",
-      body: "您的报名已{{status}}。",
-      channel: "IN_APP",
-    },
+  await ensureDemoLiveAuction(asset1.id);
+
+  const existingAnnouncement = await prisma.announcement.findFirst({
+    where: { title: "春季资产竞拍公告", orgId: reg.id },
   });
+  if (!existingAnnouncement) {
+    await prisma.announcement.create({
+      data: {
+        orgId: reg.id,
+        title: "春季资产竞拍公告",
+        content: "<p>欢迎参与本轮竞拍，详见各项目说明。</p>",
+        status: "PUBLISHED",
+        publishedAt: new Date(),
+      },
+    });
+  }
 
+  const existingTemplate = await prisma.contractTemplate.findFirst({
+    where: { type: "AUCTION_LEASE", active: true },
+  });
+  if (!existingTemplate) {
+    await prisma.contractTemplate.create({
+      data: {
+        name: "竞拍租赁合同（示例）",
+        type: "AUCTION_LEASE",
+        bodyHtml:
+          "<p>甲方：{{orgName}}</p><p>乙方：{{userName}}</p><p>标的：{{assetName}}</p><p>租期：{{leaseTerm}}</p>",
+        active: true,
+      },
+    });
+  }
+
+  const existingMsgTpl = await prisma.messageTemplate.findFirst({ where: { code: "REG_RESULT" } });
+  if (!existingMsgTpl) {
+    await prisma.messageTemplate.create({
+      data: {
+        code: "REG_RESULT",
+        title: "报名审核结果",
+        body: "您的报名已{{status}}。",
+        channel: "IN_APP",
+      },
+    });
+  }
+
+  await seedDict(prisma);
   console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
 }
 
