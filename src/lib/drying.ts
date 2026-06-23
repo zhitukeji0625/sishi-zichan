@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { startOfDay, eachDayOfInterval, format } from "date-fns";
+import { startOfDay, eachDayOfInterval, format, addDays } from "date-fns";
 
 export async function getCapacityForDay(listingId: string, day: Date) {
   const d = startOfDay(day);
@@ -41,6 +41,28 @@ export async function validateReservationRange(
     if (available <= 0) {
       return { ok: false, message: `${format(day, "yyyy-MM-dd")} 已满` };
     }
+  }
+  return { ok: true };
+}
+
+export async function validateBookingWindow(
+  listingId: string,
+  start: Date,
+  end: Date,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const listing = await prisma.dryingFieldListing.findUnique({
+    where: { id: listingId },
+    include: { bookingRules: true },
+  });
+  if (!listing) return { ok: false, message: "晒场不存在" };
+  const maxAdvance = listing.bookingRules[0]?.maxAdvanceDays ?? 7;
+  const today = startOfDay(new Date());
+  const maxDate = addDays(today, maxAdvance);
+  if (startOfDay(start) < today) {
+    return { ok: false, message: "不能预约过去的日期" };
+  }
+  if (startOfDay(end) > maxDate) {
+    return { ok: false, message: `最多可提前 ${maxAdvance} 天预约` };
   }
   return { ok: true };
 }
