@@ -5,7 +5,7 @@ import { seedDict } from "./seed-dict";
 const prisma = new PrismaClient();
 
 /** 已有种子数据时，若演示竞拍非 LIVE 或已过期则自动刷新 */
-export async function refreshDemoAuction() {
+async function refreshDemoAuction() {
   const project = await prisma.auctionProject.findFirst({ orderBy: { createdAt: "desc" } });
   if (!project) return;
   const now = new Date();
@@ -33,7 +33,6 @@ export async function refreshDemoAuction() {
       },
     });
   }
-  console.log("Demo auction refreshed to LIVE.");
 }
 
 async function main() {
@@ -42,7 +41,7 @@ async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     await refreshDemoAuction();
-    console.log("Seed skipped: data already present.");
+    console.log("Seed skipped: data already present. Demo auction refreshed if needed.");
     return;
   }
 
