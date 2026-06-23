@@ -42,7 +42,7 @@ async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     await refreshDemoAuction();
-    console.log("Seed skipped: data already present.");
+    console.log("Seed skipped: data already present. Demo auction refreshed to LIVE.");
     return;
   }
 
