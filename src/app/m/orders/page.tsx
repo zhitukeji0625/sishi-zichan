@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
 import { getDictMap } from "@/lib/dict";
+import { formatDbDate } from "@/lib/dates";
 import { payDryingDepositAction } from "../drying/pay-actions";
 import { createDryingContractAction } from "../contract/sign-actions";
 import { cancelReservationAction } from "./actions";
@@ -81,7 +82,7 @@ export default async function MOrdersPage() {
                       <div className="min-w-0">
                         <div className="text-sm font-bold text-slate-800">{r.listing.asset.name}</div>
                         <div className="mt-1 text-[11px] text-slate-400">
-                          {r.startDate.toISOString().slice(0, 10)} — {r.endDate.toISOString().slice(0, 10)}
+                          {formatDbDate(r.startDate)} — {formatDbDate(r.endDate)}
                         </div>
                         <div className="mt-0.5 font-mono text-[10px] text-slate-300">{r.orderNo}</div>
                       </div>
