@@ -21,7 +21,7 @@ export async function payAuctionDepositAction(projectId: string) {
   if (registration.depositPaid) {
     return { ok: true as const };
   }
-  const orderNo = `MOCK${Date.now()}`;
+  const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;
   await prisma.$transaction(async (tx) => {
     await tx.payment.create({
       data: {

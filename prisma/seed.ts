@@ -6,7 +6,24 @@ const prisma = new PrismaClient();
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    const now = new Date();
+    const expired = await prisma.auctionProject.findFirst({
+      where: { OR: [{ status: "ENDED" }, { endsAt: { lte: now } }] },
+      orderBy: { createdAt: "desc" },
+    });
+    if (expired) {
+      await prisma.auctionProject.update({
+        where: { id: expired.id },
+        data: {
+          status: "LIVE",
+          startsAt: new Date(Date.now() - 60 * 1000),
+          endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+      console.log("Seed skipped: refreshed expired demo auction.");
+    } else {
+      console.log("Seed skipped: data already present.");
+    }
     return;
   }
 
