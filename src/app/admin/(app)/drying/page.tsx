@@ -4,6 +4,7 @@ import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { reviewReservationFormAction } from "./actions";
 import { createDryingListingAction, toggleDryingListingStatusAction } from "./listing-actions";
 import { getDictMap } from "@/lib/dict";
+import { formatDbDate } from "@/lib/dates";
 
 async function handleReview(formData: FormData) {
   "use server";
@@ -100,7 +101,7 @@ export default async function AdminDryingPage() {
                 单号 {r.orderNo} · {r.endUser.name ?? r.endUser.phone}
               </div>
               <div className="text-xs text-slate-500">
-                {r.startDate.toISOString().slice(0, 10)} — {r.endDate.toISOString().slice(0, 10)} · {resStatusMap[r.status] ?? r.status}
+                {formatDbDate(r.startDate)} — {formatDbDate(r.endDate)} · {resStatusMap[r.status] ?? r.status}
               </div>
             </div>
             {admin.role === "COMPANY_ADMIN" && r.status === "PENDING_REVIEW" && (

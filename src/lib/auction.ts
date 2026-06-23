@@ -1,5 +1,23 @@
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
+import { refreshAuctionProjectStatuses } from "@/lib/cron";
+
+function assertAuctionInProgress(project: {
+  status: string;
+  startsAt: Date;
+  endsAt: Date;
+}) {
+  const now = new Date();
+  if (now < project.startsAt) {
+    throw new Error("竞拍尚未开始");
+  }
+  if (now >= project.endsAt) {
+    throw new Error("竞拍已结束");
+  }
+  if (project.status !== "LIVE") {
+    throw new Error("竞拍未在进行中");
+  }
+}
 
 export async function getHighestBid(projectId: string) {
   const top = await prisma.auctionBid.findFirst({
@@ -15,11 +33,13 @@ export async function placeBid(params: {
   amount: Decimal;
 }) {
   const { projectId, endUserId, amount } = params;
+  await refreshAuctionProjectStatuses();
   return prisma.$transaction(async (tx) => {
     const project = await tx.auctionProject.findUnique({ where: { id: projectId } });
-    if (!project || project.status !== "LIVE") {
-      throw new Error("竞拍未在进行中");
+    if (!project) {
+      throw new Error("竞拍项目不存在");
     }
+    assertAuctionInProgress(project);
     const reg = await tx.auctionRegistration.findUnique({
       where: { projectId_endUserId: { projectId, endUserId } },
     });
