@@ -6,7 +6,21 @@ const prisma = new PrismaClient();
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    // 演示竞拍过期后自动续期，便于开发/自动化测试
+    const stale = await prisma.auctionProject.findMany({
+      where: { status: { in: ["ENDED", "LIVE"] }, endsAt: { lt: new Date() } },
+    });
+    if (stale.length > 0) {
+      const starts = new Date(Date.now() - 60 * 1000);
+      const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await prisma.auctionProject.updateMany({
+        where: { id: { in: stale.map((p) => p.id) } },
+        data: { status: "LIVE", startsAt: starts, endsAt: ends },
+      });
+      console.log(`Seed refresh: renewed ${stale.length} stale auction(s) to LIVE.`);
+    } else {
+      console.log("Seed skipped: data already present.");
+    }
     return;
   }
 
