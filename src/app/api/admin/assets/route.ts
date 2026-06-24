@@ -4,10 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+import { prismaErrorMessage } from "@/lib/prisma-errors";
 import { AssetType, AssetStatus } from "@prisma/client";
 
 const schema = z.object({
-  orgId: z.string(),
+  orgId: z.string().min(1, "请选择组织"),
   type: z.nativeEnum(AssetType),
   name: z.string().min(1),
   locationText: z.string().min(1),
@@ -33,20 +34,28 @@ export async function POST(req: Request) {
   const d = parsed.data;
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);
   if (!ok) return NextResponse.json({ error: "无权在该组织录入资产" }, { status: 403 });
-  await prisma.asset.create({
-    data: {
-      orgId: d.orgId,
-      type: d.type,
-      name: d.name,
-      locationText: d.locationText,
-      specs: d.specs || null,
-      description: d.description || null,
-      refPriceMin: d.refPriceMin ?? null,
-      refPriceMax: d.refPriceMax ?? null,
-      status: d.status ?? AssetStatus.IDLE,
-      imagesJson: d.imagesJson || null,
-    },
-  });
-  await writeAudit(admin.id, "ASSET_CREATE", JSON.stringify({ name: d.name, type: d.type }));
-  return NextResponse.json({ ok: true });
+  const org = await prisma.organization.findUnique({ where: { id: d.orgId }, select: { id: true } });
+  if (!org) return NextResponse.json({ error: "组织不存在" }, { status: 400 });
+  try {
+    await prisma.asset.create({
+      data: {
+        orgId: d.orgId,
+        type: d.type,
+        name: d.name,
+        locationText: d.locationText,
+        specs: d.specs || null,
+        description: d.description || null,
+        refPriceMin: d.refPriceMin ?? null,
+        refPriceMax: d.refPriceMax ?? null,
+        status: d.status ?? AssetStatus.IDLE,
+        imagesJson: d.imagesJson || null,
+      },
+    });
+    await writeAudit(admin.id, "ASSET_CREATE", JSON.stringify({ name: d.name, type: d.type }));
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    const msg = prismaErrorMessage(e);
+    if (msg) return NextResponse.json({ error: msg }, { status: 400 });
+    throw e;
+  }
 }

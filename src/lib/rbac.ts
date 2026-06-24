@@ -45,6 +45,7 @@ export async function adminCanAccessOrg(
   adminOrgId: string,
   targetOrgId: string,
 ): Promise<boolean> {
+  if (!targetOrgId) return false;
   const scope = await adminScopedOrgIds(role, adminOrgId);
   if (scope === "ALL") return true;
   return scope.includes(targetOrgId);

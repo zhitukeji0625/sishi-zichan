@@ -8,7 +8,7 @@ import { adminCanAccessOrg, isDivision, isRegimentOrAbove } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 
 const createSchema = z.object({
-  orgId: z.string(),
+  orgId: z.string().min(1, "请选择组织"),
   title: z.string().min(1),
   content: z.string().min(1),
 });
@@ -22,6 +22,8 @@ export async function createAnnouncementAction(formData: FormData) {
   if (!parsed.success) return { error: "表单无效" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, parsed.data.orgId);
   if (!ok) return { error: "无权" };
+  const org = await prisma.organization.findUnique({ where: { id: parsed.data.orgId }, select: { id: true } });
+  if (!org) return { error: "组织不存在" };
   await prisma.announcement.create({
     data: {
       orgId: parsed.data.orgId,
