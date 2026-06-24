@@ -14,7 +14,7 @@ const createSchema = z.object({
   password: z.string().min(6).max(64),
   name: z.string().min(1),
   role: z.nativeEnum(AdminRole),
-  orgId: z.string(),
+  orgId: z.string().min(1, "请选择组织"),
 });
 
 export async function createAdminAction(formData: FormData) {
@@ -26,6 +26,8 @@ export async function createAdminAction(formData: FormData) {
   const d = parsed.data;
   const exists = await prisma.adminUser.findUnique({ where: { phone: d.phone } });
   if (exists) return { error: "手机号已存在" };
+  const org = await prisma.organization.findUnique({ where: { id: d.orgId }, select: { id: true } });
+  if (!org) return { error: "组织不存在" };
   const passwordHash = await hashPassword(d.password);
   await prisma.adminUser.create({
     data: { phone: d.phone, passwordHash, name: d.name, role: d.role, orgId: d.orgId },

@@ -9,7 +9,7 @@ import { writeAudit } from "@/lib/audit";
 import { AssetType, AssetStatus } from "@prisma/client";
 
 const schema = z.object({
-  orgId: z.string(),
+  orgId: z.string().min(1, "请选择组织"),
   type: z.nativeEnum(AssetType),
   name: z.string().min(1),
   locationText: z.string().min(1),
@@ -33,6 +33,8 @@ export async function createAssetAction(formData: FormData) {
   const d = parsed.data;
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);
   if (!ok) return { error: "无权在该组织录入资产" };
+  const org = await prisma.organization.findUnique({ where: { id: d.orgId }, select: { id: true } });
+  if (!org) return { error: "组织不存在" };
   await prisma.asset.create({
     data: {
       orgId: d.orgId,
