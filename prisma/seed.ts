@@ -3,9 +3,77 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** 确保演示账号始终有可出价的进行中竞拍（种子数据随时间过期后重跑 seed 可恢复） */
+async function refreshDemoLiveAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const live = await prisma.auctionProject.findFirst({
+    where: {
+      status: "LIVE",
+      registrations: {
+        some: {
+          endUserId: demoUser.id,
+          status: "APPROVED",
+          depositPaid: true,
+        },
+      },
+    },
+  });
+  if (live) return;
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: {
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+    orderBy: { createdAt: "desc" },
+    include: { project: true },
+  });
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  if (reg) {
+    await prisma.auctionProject.update({
+      where: { id: reg.projectId },
+      data: { status: "LIVE", startsAt: starts, endsAt: ends },
+    });
+    console.log("Refreshed demo auction to LIVE:", reg.project.code);
+    return;
+  }
+
+  const asset = await prisma.asset.findFirst({ where: { type: AssetType.LAND } });
+  if (!asset) return;
+
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `AP${Date.now()}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+  await prisma.auctionRegistration.create({
+    data: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log("Created demo LIVE auction:", project.code);
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoLiveAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
