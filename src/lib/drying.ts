@@ -14,7 +14,7 @@ export async function getCapacityForDay(listingId: string, day: Date) {
   const reservations = await prisma.dryingReservation.findMany({
     where: {
       listingId,
-      status: { notIn: ["REJECTED", "CANCELLED"] },
+      status: { in: ["APPROVED", "PENDING_PAYMENT", "PAID", "CONTRACT_PENDING", "ACTIVE", "COMPLETED"] },
     },
   });
   let booked = 0;
