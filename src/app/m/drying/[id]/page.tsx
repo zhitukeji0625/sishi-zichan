@@ -14,6 +14,7 @@ export default async function DryingDetailPage({ params }: { params: Promise<{ i
     include: { asset: true, bookingRules: true },
   });
   if (!listing) notFound();
+  const canReserve = listing.status === "OPERATING";
   const rule = listing.bookingRules[0];
   const maxAdvance = rule?.maxAdvanceDays ?? 7;
   const today = startOfDay(new Date());
@@ -55,7 +56,11 @@ export default async function DryingDetailPage({ params }: { params: Promise<{ i
             })}
           </div>
         </div>
-        {user ? (
+        {!canReserve ? (
+          <div className="card-elevated p-5 text-center">
+            <p className="text-sm text-slate-500">该晒场当前不可预约（{listing.status === "PAUSED" ? "已暂停" : listing.status === "OFFLINE" ? "已下线" : "维护中"}）</p>
+          </div>
+        ) : user ? (
           <ReserveForm listingId={listing.id} minDate={format(today, "yyyy-MM-dd")} maxDate={format(horizon, "yyyy-MM-dd")} />
         ) : (
           <div className="card-elevated p-5 text-center">
