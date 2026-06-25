@@ -17,9 +17,13 @@ export async function registerAuctionAction(projectId: string) {
     where: { projectId_endUserId: { projectId, endUserId: user.id } },
   });
   if (exists) return { ok: true as const };
-  await prisma.auctionRegistration.create({
-    data: { projectId, endUserId: user.id, status: "PENDING" },
-  });
+  try {
+    await prisma.auctionRegistration.create({
+      data: { projectId, endUserId: user.id, status: "PENDING" },
+    });
+  } catch {
+    return { ok: true as const };
+  }
   await notifyUser(user.id, "报名已提交", "您的竞拍报名已提交，请等待连队审核。", "REG_SUBMIT");
   revalidatePath(`/m/auction/${projectId}`);
   return { ok: true as const };
