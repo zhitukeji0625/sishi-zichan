@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { readFile, stat } from "fs/promises";
-import { join } from "path";
+import { join, resolve } from "path";
 
-const UPLOAD_DIR = join(process.cwd(), "data", "uploads");
+const UPLOAD_DIR = resolve(process.cwd(), "data", "uploads");
 
 const MIME_TYPES: Record<string, string> = {
   jpg: "image/jpeg",
@@ -18,12 +18,15 @@ export async function GET(
 ) {
   const { path } = await params;
   const fileName = path.join("/");
-  
-  if (fileName.includes("..") || fileName.includes("~")) {
+
+  if (!fileName || fileName.startsWith("/") || fileName.includes("..") || fileName.includes("~")) {
     return NextResponse.json({ error: "非法路径" }, { status: 400 });
   }
-  
-  const filePath = join(UPLOAD_DIR, fileName);
+
+  const filePath = resolve(UPLOAD_DIR, fileName);
+  if (!filePath.startsWith(UPLOAD_DIR + "/") && filePath !== UPLOAD_DIR) {
+    return NextResponse.json({ error: "非法路径" }, { status: 400 });
+  }
   
   try {
     await stat(filePath);

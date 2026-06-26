@@ -118,7 +118,7 @@ export default async function AdminAuctionsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
-                      {p.status === "ENDED" && !p.result && isRegimentOrAbove(admin.role) && (
+                      {p.status === "ENDED" && (!p.result || p.result.status === "REJECTED") && isRegimentOrAbove(admin.role) && (
                         <form
                           action={async () => {
                             "use server";

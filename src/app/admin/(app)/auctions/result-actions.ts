@@ -18,7 +18,13 @@ export async function generateAuctionResultAction(projectId: string) {
   });
   if (!project) return { error: "项目不存在" };
   if (project.status !== "ENDED") return { error: "竞拍尚未结束" };
-  if (project.result) return { error: "已生成结果" };
+  if (project.result) {
+    if (project.result.status === "REJECTED") {
+      await prisma.auctionResult.delete({ where: { id: project.result.id } });
+    } else {
+      return { error: "已生成结果" };
+    }
+  }
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, project.asset.orgId);
   if (!ok) return { error: "无权操作该项目" };
   const topBid = await prisma.auctionBid.findFirst({
