@@ -4,7 +4,7 @@ import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { isDivision, isRegimentOrAbove } from "@/lib/rbac";
 import { getDictMap } from "@/lib/dict";
 import { createAuctionProjectAction } from "./actions";
-import { generateAuctionResultAction, reviewAuctionResultAction } from "./result-actions";
+import { generateAuctionResultAction, generateAuctionResultFormAction, reviewAuctionResultAction } from "./result-actions";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { refreshAuctionProjectStatuses } from "@/lib/cron";
@@ -119,12 +119,7 @@ export default async function AdminAuctionsPage() {
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       {p.status === "ENDED" && !p.result && isRegimentOrAbove(admin.role) && (
-                        <form
-                          action={async () => {
-                            "use server";
-                            await generateAuctionResultAction(projectId);
-                          }}
-                        >
+                        <form action={generateAuctionResultFormAction.bind(null, projectId)}>
                           <button type="submit" className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs text-white">
                             生成结果
                           </button>
