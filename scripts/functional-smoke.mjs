@@ -79,7 +79,12 @@ async function main() {
   COOKIE_JAR.user = extractCookie(userLogin.setCookie, "sishi_user_session");
 
   const tpToken = await req("GET", "/api/dev/third-party-token?u_id=smoke_test");
-  log(tpToken.status === 200 && tpToken.json?.token, "第三方 token", tpToken.status === 404 ? "生产环境已禁用" : "ok");
+  const tpDevUnavailable = tpToken.status === 404;
+  log(
+    tpDevUnavailable || (tpToken.status === 200 && tpToken.json?.token),
+    "第三方 token",
+    tpDevUnavailable ? "生产环境已禁用（预期）" : tpToken.json?.token ? "ok" : `HTTP ${tpToken.status}`,
+  );
 
   if (tpToken.json?.token) {
     const tpLogin = await req("POST", "/api/auth/third-party", {
