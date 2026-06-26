@@ -42,7 +42,13 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
     take: 15,
     select: { amount: true, createdAt: true },
   });
-  const isWinner = user && project.result?.winnerId === user.id && project.result?.status === "PUBLISHED";
+  const hasPublishedResult = project.result?.status === "PUBLISHED";
+  const isWinner = user && hasPublishedResult && project.result?.winnerId === user.id;
+  const canBid =
+    project.status === "LIVE" &&
+    !hasPublishedResult &&
+    reg?.status === "APPROVED" &&
+    reg.depositPaid;
   const existingContract = isWinner
     ? await prisma.contract.findFirst({
         where: { auctionProjectId: projectId, endUserId: user.id },
@@ -143,7 +149,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
         </div>
 
         {/* Result banner */}
-        {project.result?.status === "PUBLISHED" && (
+        {hasPublishedResult && (
           <div className={`card-elevated overflow-hidden animate-scale-in ${isWinner ? "border-emerald-200 bg-emerald-50" : "border-slate-200"}`}>
             <div className="p-4">
               <div className="flex items-center gap-3">
@@ -199,7 +205,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
               </button>
             </form>
           )}
-          {user && reg?.status === "APPROVED" && reg.depositPaid && project.status === "LIVE" && (() => {
+          {user && canBid && (() => {
             const minNext = top
               ? Number(top.toString()) + Number(project.bidStep.toString())
               : Number(project.startPrice.toString());
