@@ -16,9 +16,15 @@ export async function placeBid(params: {
 }) {
   const { projectId, endUserId, amount } = params;
   return prisma.$transaction(async (tx) => {
-    const project = await tx.auctionProject.findUnique({ where: { id: projectId } });
+    const project = await tx.auctionProject.findUnique({
+      where: { id: projectId },
+      include: { result: true },
+    });
     if (!project || project.status !== "LIVE") {
       throw new Error("竞拍未在进行中");
+    }
+    if (project.result?.status === "PUBLISHED") {
+      throw new Error("竞拍结果已公示，无法继续出价");
     }
     const reg = await tx.auctionRegistration.findUnique({
       where: { projectId_endUserId: { projectId, endUserId } },
