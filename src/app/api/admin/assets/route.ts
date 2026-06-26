@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
@@ -22,7 +23,16 @@ const schema = z.object({
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formData = await req.formData();
+  const contentType = req.headers.get("content-type") ?? "";
+  if (!contentType.includes("multipart/form-data")) {
+    return NextResponse.json({ error: "请使用表单提交" }, { status: 400 });
+  }
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
+  }
   const raw = Object.fromEntries(formData.entries());
   const parsed = schema.safeParse({
     ...raw,
@@ -33,20 +43,27 @@ export async function POST(req: Request) {
   const d = parsed.data;
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);
   if (!ok) return NextResponse.json({ error: "无权在该组织录入资产" }, { status: 403 });
-  await prisma.asset.create({
-    data: {
-      orgId: d.orgId,
-      type: d.type,
-      name: d.name,
-      locationText: d.locationText,
-      specs: d.specs || null,
-      description: d.description || null,
-      refPriceMin: d.refPriceMin ?? null,
-      refPriceMax: d.refPriceMax ?? null,
-      status: d.status ?? AssetStatus.IDLE,
-      imagesJson: d.imagesJson || null,
-    },
-  });
+  try {
+    await prisma.asset.create({
+      data: {
+        orgId: d.orgId,
+        type: d.type,
+        name: d.name,
+        locationText: d.locationText,
+        specs: d.specs || null,
+        description: d.description || null,
+        refPriceMin: d.refPriceMin ?? null,
+        refPriceMax: d.refPriceMax ?? null,
+        status: d.status ?? AssetStatus.IDLE,
+        imagesJson: d.imagesJson || null,
+      },
+    });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2003") {
+      return NextResponse.json({ error: "组织不存在" }, { status: 400 });
+    }
+    throw e;
+  }
   await writeAudit(admin.id, "ASSET_CREATE", JSON.stringify({ name: d.name, type: d.type }));
   return NextResponse.json({ ok: true });
 }
