@@ -15,7 +15,9 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
 
   async function sign() {
     "use server";
-    await signContractAction(contractId);
+    const r = await signContractAction(contractId);
+    if ("error" in r) return;
+    redirect(`/m/contract/${contractId}`);
   }
 
   return (
