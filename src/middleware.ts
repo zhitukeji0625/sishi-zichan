@@ -20,9 +20,18 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // Protected mobile pages (my profile, orders, contracts)
+  const protectedMobilePages = pathname === "/m/me" || pathname === "/m/orders" || pathname.startsWith("/m/contract/");
+  if (protectedMobilePages) {
+    const session = request.cookies.get("sishi_user_session");
+    if (!session?.value) {
+      return NextResponse.redirect(new URL("/m/login", request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/m/:path*"],
+  matcher: ["/admin/:path*", "/api/m/:path*", "/m/me", "/m/orders", "/m/contract/:path*"],
 };
