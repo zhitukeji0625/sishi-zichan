@@ -29,6 +29,16 @@ export async function POST(req: Request) {
     });
     if (!reg) return NextResponse.json({ error: "未报名该项目" }, { status: 403 });
     if (reg.depositPaid) return NextResponse.json({ error: "保证金已缴纳" }, { status: 409 });
+    const existingDeposit = await prisma.payment.findFirst({
+      where: { auctionProjectId, endUserId: user.id, purpose: "AUCTION_DEPOSIT", status: "SUCCESS" },
+    });
+    if (existingDeposit) {
+      await prisma.auctionRegistration.updateMany({
+        where: { projectId: auctionProjectId, endUserId: user.id },
+        data: { depositPaid: true },
+      });
+      return NextResponse.json({ error: "保证金已缴纳" }, { status: 409 });
+    }
     const project = await prisma.auctionProject.findUnique({ where: { id: auctionProjectId } });
     if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
     amount = project.depositAmount;
