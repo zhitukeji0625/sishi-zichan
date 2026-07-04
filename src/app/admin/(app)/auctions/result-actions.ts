@@ -25,13 +25,19 @@ export async function generateAuctionResultAction(projectId: string) {
     where: { projectId },
     orderBy: { amount: "desc" },
   });
-  await prisma.auctionResult.create({
-    data: {
-      projectId,
-      winnerId: topBid?.endUserId ?? null,
-      status: "PENDING_REVIEW",
-    },
-  });
+  try {
+    await prisma.auctionResult.create({
+      data: {
+        projectId,
+        winnerId: topBid?.endUserId ?? null,
+        status: "PENDING_REVIEW",
+      },
+    });
+  } catch (e) {
+    const dup = e && typeof e === "object" && "code" in e && (e as { code: string }).code === "P2002";
+    if (dup) return { error: "已生成结果" };
+    throw e;
+  }
   await writeAudit(admin.id, "AUCTION_RESULT_GENERATE", JSON.stringify({ projectId }));
   revalidatePath("/admin/auctions");
   return { ok: true as const };
