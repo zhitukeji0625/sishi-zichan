@@ -20,6 +20,9 @@ export async function placeBid(params: {
     if (!project || project.status !== "LIVE") {
       throw new Error("竞拍未在进行中");
     }
+    if (project.endsAt <= new Date()) {
+      throw new Error("竞拍已结束");
+    }
     const reg = await tx.auctionRegistration.findUnique({
       where: { projectId_endUserId: { projectId, endUserId } },
     });
