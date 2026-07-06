@@ -6,7 +6,36 @@ const prisma = new PrismaClient();
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    // 刷新演示竞拍项目时间，避免种子数据过期导致演示不可用
+    const demoProject = await prisma.auctionProject.findFirst({
+      orderBy: { createdAt: "desc" },
+    });
+    if (demoProject && ["ENDED", "LIVE", "SCHEDULED"].includes(demoProject.status)) {
+      const starts = new Date(Date.now() - 60 * 1000);
+      const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await prisma.auctionProject.update({
+        where: { id: demoProject.id },
+        data: { startsAt: starts, endsAt: ends, status: "LIVE" },
+      });
+      const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+      if (demoUser) {
+        await prisma.auctionRegistration.upsert({
+          where: {
+            projectId_endUserId: { projectId: demoProject.id, endUserId: demoUser.id },
+          },
+          update: { status: "APPROVED", depositPaid: true },
+          create: {
+            projectId: demoProject.id,
+            endUserId: demoUser.id,
+            status: "APPROVED",
+            depositPaid: true,
+          },
+        });
+      }
+      console.log("Seed skipped: refreshed demo auction project dates.");
+    } else {
+      console.log("Seed skipped: data already present.");
+    }
     return;
   }
 
