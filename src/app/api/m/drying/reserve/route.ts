@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
-import { validateReservationRange } from "@/lib/drying";
+import { validateReservationRange, createDryingReservation } from "@/lib/drying";
 import { notifyUser } from "@/lib/messages";
 
 const schema = z.object({
@@ -31,19 +31,21 @@ export async function POST(req: Request) {
   if (!listing || listing.status !== "OPERATING") {
     return NextResponse.json({ error: "晒场不存在或未运营" }, { status: 404 });
   }
-  const check = await validateReservationRange(parsed.data.listingId, start, end);
-  if (!check.ok) {
-    return NextResponse.json({ error: check.message }, { status: 400 });
+  const bookingCheck = await validateReservationRange(parsed.data.listingId, start, end);
+  if (!bookingCheck.ok) {
+    return NextResponse.json({ error: bookingCheck.message }, { status: 400 });
   }
-  const res = await prisma.dryingReservation.create({
-    data: {
+  try {
+    const res = await createDryingReservation({
       listingId: parsed.data.listingId,
       endUserId: user.id,
       startDate: start,
       endDate: end,
-      status: "PENDING_REVIEW",
-    },
-  });
-  await notifyUser(user.id, "预约已提交", `申请单号 ${res.orderNo}，请等待审核。`, "RES_SUBMIT");
-  return NextResponse.json({ ok: true, orderNo: res.orderNo, id: res.id });
+    });
+    await notifyUser(user.id, "预约已提交", `申请单号 ${res.orderNo}，请等待审核。`, "RES_SUBMIT");
+    return NextResponse.json({ ok: true, orderNo: res.orderNo, id: res.id });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "预约失败";
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
 }
