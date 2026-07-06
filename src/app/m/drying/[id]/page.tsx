@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
 import { ReserveForm } from "./ReserveForm";
-import { eachDayOfInterval, format, startOfDay, addDays } from "date-fns";
-import { getCapacityForDay } from "@/lib/drying";
+import { format, startOfDay, addDays } from "date-fns";
+import { getCapacityForDay, safeEachDayOfInterval } from "@/lib/drying";
 
 export default async function DryingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,10 +15,10 @@ export default async function DryingDetailPage({ params }: { params: Promise<{ i
   });
   if (!listing) notFound();
   const rule = listing.bookingRules[0];
-  const maxAdvance = rule?.maxAdvanceDays ?? 7;
+  const maxAdvance = Math.max(0, rule?.maxAdvanceDays ?? 7);
   const today = startOfDay(new Date());
   const horizon = addDays(today, maxAdvance);
-  const days = eachDayOfInterval({ start: today, end: horizon }).slice(0, 8);
+  const days = safeEachDayOfInterval(today, horizon).slice(0, 8);
   const dayStats = await Promise.all(
     days.map(async (d) => {
       const s = await getCapacityForDay(listing.id, d);
