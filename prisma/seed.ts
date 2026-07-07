@@ -3,9 +3,41 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** 确保至少有一个进行中的演示竞拍，便于功能测试 */
+async function ensureLiveDemoProject() {
+  const live = await prisma.auctionProject.findFirst({ where: { status: "LIVE" } });
+  if (live) return;
+  const target = await prisma.auctionProject.findFirst({
+    where: { status: { in: ["ENDED", "SCHEDULED"] }, result: null },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!target) return;
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: target.id },
+    data: { status: "LIVE", startsAt: starts, endsAt: ends },
+  });
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (demoUser) {
+    await prisma.auctionRegistration.upsert({
+      where: { projectId_endUserId: { projectId: target.id, endUserId: demoUser.id } },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId: target.id,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+  }
+  console.log("Refreshed demo auction project to LIVE:", target.code);
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await ensureLiveDemoProject();
     console.log("Seed skipped: data already present.");
     return;
   }
