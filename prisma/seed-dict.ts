@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { fileURLToPath } from "url";
 
-const categories = [
+export const dictCategories = [
   {
     code: "asset_type",
     name: "资产类型",
@@ -161,14 +161,11 @@ const categories = [
   },
 ];
 
-async function main() {
-  for (const cat of categories) {
-    const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
-    if (existing) {
-      console.log(`  Skip: ${cat.code} (already exists)`);
-      continue;
-    }
-    await prisma.dictCategory.create({
+export async function seedDictCategories(client: PrismaClient) {
+  for (const cat of dictCategories) {
+    const existing = await client.dictCategory.findUnique({ where: { code: cat.code } });
+    if (existing) continue;
+    await client.dictCategory.create({
       data: {
         code: cat.code,
         name: cat.name,
@@ -177,11 +174,20 @@ async function main() {
         items: { create: cat.items },
       },
     });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
   }
-  console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+const isDirectRun = process.argv[1] === fileURLToPath(import.meta.url);
+if (isDirectRun) {
+  const prisma = new PrismaClient();
+  seedDictCategories(prisma)
+    .then(() => {
+      console.log("Dict seed done.");
+      return prisma.$disconnect();
+    })
+    .catch((e) => {
+      console.error(e);
+      prisma.$disconnect();
+      process.exit(1);
+    });
+}
