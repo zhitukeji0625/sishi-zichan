@@ -9,10 +9,19 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { refreshAuctionProjectStatuses } from "@/lib/cron";
 
-export default async function AdminAuctionsPage() {
+export default async function AdminAuctionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
-  await refreshAuctionProjectStatuses();
+  try {
+    await refreshAuctionProjectStatuses();
+  } catch {
+    /* 数据库未就绪时忽略 */
+  }
+  const { error } = await searchParams;
   const orgWhere = await orgFilterForAdmin(admin.role, admin.orgId);
   const projects = await prisma.auctionProject.findMany({
     where: { asset: orgWhere },
@@ -39,6 +48,11 @@ export default async function AdminAuctionsPage() {
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">竞拍项目</h1>
+      {error && (
+        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {decodeURIComponent(error)}
+        </p>
+      )}
       {isRegimentOrAbove(admin.role) && (
         <form
           action={createAction}
