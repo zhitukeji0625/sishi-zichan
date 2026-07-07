@@ -1,11 +1,71 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDictCategories } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+/** Ensure a LIVE demo auction exists for integration testing and demos. */
+async function ensureDemoLiveAuction() {
+  const live = await prisma.auctionProject.findFirst({ where: { status: "LIVE" } });
+  if (live) return;
+
+  let asset = await prisma.asset.findFirst({
+    where: { type: "LAND", status: "IDLE" },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!asset) {
+    const org = await prisma.organization.findFirst({ where: { level: "REGIMENT" } });
+    if (!org) return;
+    asset = await prisma.asset.create({
+      data: {
+        orgId: org.id,
+        type: AssetType.LAND,
+        name: "演示竞拍地块",
+        locationText: "演示用地",
+        status: AssetStatus.IDLE,
+      },
+    });
+  }
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `AP${Date.now()}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (demoUser) {
+    await prisma.auctionRegistration.upsert({
+      where: {
+        projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+      },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId: project.id,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+  }
+  console.log("Created demo LIVE auction:", project.code);
+}
+
 async function main() {
+  await seedDictCategories(prisma);
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await ensureDemoLiveAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
