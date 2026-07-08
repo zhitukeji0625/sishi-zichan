@@ -35,6 +35,20 @@ export async function POST(req: Request) {
   if (!check.ok) {
     return NextResponse.json({ error: check.message }, { status: 400 });
   }
+
+  const overlap = await prisma.dryingReservation.findFirst({
+    where: {
+      listingId: parsed.data.listingId,
+      endUserId: user.id,
+      status: { notIn: ["REJECTED", "CANCELLED"] },
+      startDate: { lte: end },
+      endDate: { gte: start },
+    },
+  });
+  if (overlap) {
+    return NextResponse.json({ error: "您在该时段已有预约" }, { status: 409 });
+  }
+
   const res = await prisma.dryingReservation.create({
     data: {
       listingId: parsed.data.listingId,
