@@ -59,16 +59,53 @@ async function main() {
 
   const prisma = new PrismaClient();
   let liveProject;
+  let minBidAmount;
   let dryingListing;
+  let dryingDateStr;
   try {
+    const demoUser = await prisma.endUser.findUnique({
+      where: { phone: "13800138000" },
+      select: { id: true },
+    });
     liveProject = await prisma.auctionProject.findFirst({
       where: { status: "LIVE" },
-      select: { id: true, startPrice: true },
+      select: { id: true, startPrice: true, bidStep: true },
     });
+    if (liveProject) {
+      const topBid = await prisma.auctionBid.findFirst({
+        where: { projectId: liveProject.id },
+        orderBy: { amount: "desc" },
+        select: { amount: true },
+      });
+      const start = Number(liveProject.startPrice);
+      const step = Number(liveProject.bidStep);
+      minBidAmount = topBid ? Number(topBid.amount) + step : start;
+    }
     dryingListing = await prisma.dryingFieldListing.findFirst({
       where: { status: "OPERATING" },
       select: { id: true },
     });
+    if (dryingListing && demoUser) {
+      for (let offset = 3; offset <= 30; offset++) {
+        const d = new Date();
+        d.setUTCDate(d.getUTCDate() + offset);
+        const candidate = d.toISOString().slice(0, 10);
+        const dayStart = new Date(candidate + "T00:00:00.000Z");
+        const overlap = await prisma.dryingReservation.findFirst({
+          where: {
+            listingId: dryingListing.id,
+            endUserId: demoUser.id,
+            status: { notIn: ["REJECTED", "CANCELLED"] },
+            startDate: { lte: dayStart },
+            endDate: { gte: dayStart },
+          },
+        });
+        if (!overlap) {
+          dryingDateStr = candidate;
+          break;
+        }
+      }
+    }
   } finally {
     await prisma.$disconnect();
   }
@@ -97,17 +134,19 @@ async function main() {
   }
 
   // 4. Valid bid on LIVE project
-  if (liveProject && userLogin.cookieHeader) {
+  if (liveProject && userLogin.cookieHeader && minBidAmount != null) {
     const bid = await fetchJson(`/api/m/auction/${liveProject.id}/bid`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Cookie: userLogin.cookieHeader,
       },
-      body: JSON.stringify({ amount: Number(liveProject.startPrice) }),
+      body: JSON.stringify({ amount: minBidAmount }),
     });
     if (bid.status === 200 && bid.json?.ok) ok("valid bid on LIVE project");
     else fail("valid bid on LIVE project", `${bid.status} ${JSON.stringify(bid.json)}`);
+  } else if (!liveProject) {
+    fail("valid bid on LIVE project", "no LIVE auction in DB");
   }
 
   // 5. Duplicate register → 409
@@ -120,10 +159,7 @@ async function main() {
   else fail("duplicate register returns 409", `got ${dupReg.status}`);
 
   // 6. Drying reserve
-  const reserveDate = new Date();
-  reserveDate.setDate(reserveDate.getDate() + 2);
-  const dateStr = reserveDate.toISOString().slice(0, 10);
-  if (dryingListing && userLogin.cookieHeader) {
+  if (dryingListing && userLogin.cookieHeader && dryingDateStr) {
     const reserve = await fetchJson("/api/m/drying/reserve", {
       method: "POST",
       headers: {
@@ -132,8 +168,8 @@ async function main() {
       },
       body: JSON.stringify({
         listingId: dryingListing.id,
-        startDate: dateStr,
-        endDate: dateStr,
+        startDate: dryingDateStr,
+        endDate: dryingDateStr,
       }),
     });
     if (reserve.status === 200 && reserve.json?.ok) ok("drying reserve");
@@ -148,14 +184,14 @@ async function main() {
       },
       body: JSON.stringify({
         listingId: dryingListing.id,
-        startDate: dateStr,
-        endDate: dateStr,
+        startDate: dryingDateStr,
+        endDate: dryingDateStr,
       }),
     });
     if (dupReserve.status === 409) ok("duplicate drying reserve returns 409");
     else fail("duplicate drying reserve returns 409", `got ${dupReserve.status} ${JSON.stringify(dupReserve.json)}`);
   } else {
-    fail("drying reserve", "no operating listing or user cookie");
+    fail("drying reserve", "no free drying date or listing");
     fail("duplicate drying reserve returns 409", "skipped");
   }
 
