@@ -178,16 +178,17 @@ export async function seedDictCategories(prisma: PrismaClient) {
 
 // CLI entry when run directly: npx tsx prisma/seed-dict.ts
 if (process.argv[1]?.includes("seed-dict")) {
-  const { PrismaClient: PC } = await import("@prisma/client");
-  const p = new PC();
-  seedDictCategories(p)
-    .then(() => {
-      console.log("Dict seed done.");
-      return p.$disconnect();
-    })
-    .catch((e) => {
-      console.error(e);
-      p.$disconnect();
-      process.exit(1);
-    });
+  import("@prisma/client").then(({ PrismaClient }) => {
+    const p = new PrismaClient();
+    return seedDictCategories(p)
+      .then(() => {
+        console.log("Dict seed done.");
+        return p.$disconnect();
+      })
+      .catch((e) => {
+        console.error(e);
+        p.$disconnect();
+        process.exit(1);
+      });
+  });
 }
