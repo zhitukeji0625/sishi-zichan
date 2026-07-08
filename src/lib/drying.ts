@@ -44,3 +44,26 @@ export async function validateReservationRange(
   }
   return { ok: true };
 }
+
+/** Reject when the same user already has an active reservation overlapping the range. */
+export async function hasOverlappingUserReservation(
+  listingId: string,
+  endUserId: string,
+  start: Date,
+  end: Date,
+): Promise<boolean> {
+  const existing = await prisma.dryingReservation.findMany({
+    where: {
+      listingId,
+      endUserId,
+      status: { notIn: ["REJECTED", "CANCELLED"] },
+    },
+  });
+  const reqStart = startOfDay(start);
+  const reqEnd = startOfDay(end);
+  return existing.some((r) => {
+    const rStart = startOfDay(r.startDate);
+    const rEnd = startOfDay(r.endDate);
+    return rStart <= reqEnd && rEnd >= reqStart;
+  });
+}
