@@ -1,4 +1,37 @@
 import { prisma } from "@/lib/prisma";
+import {
+  assetTypeLabels,
+  assetStatusLabels,
+  auctionStatusLabels,
+  registrationStatusLabels,
+  announcementStatusLabels,
+  dryingListingStatusLabels,
+  reservationStatusLabels,
+  contractTypeLabels,
+  contractStatusLabels,
+  paymentPurposeLabels,
+  paymentStatusLabels,
+  orgLevelLabels,
+  adminRoleLabels,
+  endUserTypeLabels,
+} from "@/lib/labels";
+
+const fallbackMaps: Record<string, Record<string, string>> = {
+  asset_type: assetTypeLabels,
+  asset_status: assetStatusLabels,
+  auction_status: auctionStatusLabels,
+  registration_status: registrationStatusLabels,
+  announcement_status: announcementStatusLabels,
+  drying_listing_status: dryingListingStatusLabels,
+  reservation_status: reservationStatusLabels,
+  contract_type: contractTypeLabels,
+  contract_status: contractStatusLabels,
+  payment_purpose: paymentPurposeLabels,
+  payment_status: paymentStatusLabels,
+  org_level: orgLevelLabels,
+  admin_role: adminRoleLabels,
+  user_type: endUserTypeLabels,
+};
 
 export type DictOption = { value: string; label: string };
 
@@ -12,8 +45,14 @@ export async function getDictItems(categoryCode: string): Promise<DictOption[]> 
       },
     },
   });
-  if (!cat) return [];
-  return cat.items.map((i) => ({ value: i.value, label: i.label }));
+  if (cat?.items.length) {
+    return cat.items.map((i) => ({ value: i.value, label: i.label }));
+  }
+  const fallback = fallbackMaps[categoryCode];
+  if (fallback) {
+    return Object.entries(fallback).map(([value, label]) => ({ value, label }));
+  }
+  return [];
 }
 
 export async function getDictLabel(
