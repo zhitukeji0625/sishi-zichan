@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import type { PrismaClient } from "@prisma/client";
 
 const categories = [
   {
@@ -161,13 +160,10 @@ const categories = [
   },
 ];
 
-async function main() {
+export async function seedDictCategories(prisma: PrismaClient) {
   for (const cat of categories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
-    if (existing) {
-      console.log(`  Skip: ${cat.code} (already exists)`);
-      continue;
-    }
+    if (existing) continue;
     await prisma.dictCategory.create({
       data: {
         code: cat.code,
@@ -177,11 +173,21 @@ async function main() {
         items: { create: cat.items },
       },
     });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
   }
-  console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+// CLI entry when run directly: npx tsx prisma/seed-dict.ts
+if (process.argv[1]?.includes("seed-dict")) {
+  const { PrismaClient: PC } = await import("@prisma/client");
+  const p = new PC();
+  seedDictCategories(p)
+    .then(() => {
+      console.log("Dict seed done.");
+      return p.$disconnect();
+    })
+    .catch((e) => {
+      console.error(e);
+      p.$disconnect();
+      process.exit(1);
+    });
+}
