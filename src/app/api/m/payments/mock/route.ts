@@ -64,30 +64,33 @@ export async function POST(req: Request) {
   }
 
   const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  const pay = await prisma.payment.create({
-    data: {
-      orderNo,
-      amount,
-      purpose,
-      status: "SUCCESS",
-      endUserId: user.id,
-      auctionProjectId: auctionProjectId ?? null,
-      reservationId: reservationId ?? null,
-      paidAt: new Date(),
-      channel: "ABC_MOCK",
-    },
+  const pay = await prisma.$transaction(async (tx) => {
+    const created = await tx.payment.create({
+      data: {
+        orderNo,
+        amount,
+        purpose,
+        status: "SUCCESS",
+        endUserId: user.id,
+        auctionProjectId: auctionProjectId ?? null,
+        reservationId: reservationId ?? null,
+        paidAt: new Date(),
+        channel: "ABC_MOCK",
+      },
+    });
+    if (auctionProjectId && purpose === "AUCTION_DEPOSIT") {
+      await tx.auctionRegistration.updateMany({
+        where: { projectId: auctionProjectId, endUserId: user.id },
+        data: { depositPaid: true },
+      });
+    }
+    if (reservationId && purpose === "DRYING_DEPOSIT") {
+      await tx.dryingReservation.updateMany({
+        where: { id: reservationId, endUserId: user.id },
+        data: { status: "CONTRACT_PENDING" },
+      });
+    }
+    return created;
   });
-  if (auctionProjectId && purpose === "AUCTION_DEPOSIT") {
-    await prisma.auctionRegistration.updateMany({
-      where: { projectId: auctionProjectId, endUserId: user.id },
-      data: { depositPaid: true },
-    });
-  }
-  if (reservationId && purpose === "DRYING_DEPOSIT") {
-    await prisma.dryingReservation.updateMany({
-      where: { id: reservationId, endUserId: user.id },
-      data: { status: "CONTRACT_PENDING" },
-    });
-  }
   return NextResponse.json({ ok: true, orderNo: pay.orderNo, paidAt: pay.paidAt });
 }
