@@ -1,6 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import { startOfDay, eachDayOfInterval, format } from "date-fns";
 
+/** Parse YYYY-MM-DD as local midnight (avoids UTC off-by-one). */
+export function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  if (!y || !m || !d) return new Date(NaN);
+  return new Date(y, m - 1, d);
+}
+
+const CAPACITY_STATUSES = [
+  "APPROVED",
+  "PENDING_PAYMENT",
+  "PAID",
+  "CONTRACT_PENDING",
+  "ACTIVE",
+] as const;
+
 export async function getCapacityForDay(listingId: string, day: Date) {
   const d = startOfDay(day);
   const rule = await prisma.dryingCapacityRule.findFirst({
@@ -14,7 +29,7 @@ export async function getCapacityForDay(listingId: string, day: Date) {
   const reservations = await prisma.dryingReservation.findMany({
     where: {
       listingId,
-      status: { notIn: ["REJECTED", "CANCELLED"] },
+      status: { in: [...CAPACITY_STATUSES] },
     },
   });
   let booked = 0;

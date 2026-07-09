@@ -82,4 +82,18 @@ describe.skipIf(skipDb)("placeBid", () => {
       placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
     ).rejects.toThrow();
   });
+
+  it("rejects bid after auction ends", async () => {
+    await prisma.auctionProject.update({
+      where: { id: projectId },
+      data: { endsAt: new Date(Date.now() - 1000) },
+    });
+    await expect(
+      placeBid({ projectId, endUserId: userId, amount: new Decimal(110) }),
+    ).rejects.toThrow("竞拍已结束");
+    await prisma.auctionProject.update({
+      where: { id: projectId },
+      data: { endsAt: new Date(Date.now() + 86400000) },
+    });
+  });
 });
