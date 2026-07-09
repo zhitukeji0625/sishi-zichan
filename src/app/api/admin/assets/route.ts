@@ -22,8 +22,18 @@ const schema = z.object({
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formData = await req.formData();
-  const raw = Object.fromEntries(formData.entries());
+  let raw: Record<string, FormDataEntryValue>;
+  const contentType = req.headers.get("content-type") ?? "";
+  try {
+    if (contentType.includes("application/json")) {
+      raw = (await req.json()) as Record<string, FormDataEntryValue>;
+    } else {
+      const formData = await req.formData();
+      raw = Object.fromEntries(formData.entries());
+    }
+  } catch {
+    return NextResponse.json({ error: "请求体格式无效" }, { status: 400 });
+  }
   const parsed = schema.safeParse({
     ...raw,
     refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,

@@ -28,8 +28,18 @@ export async function POST(
   if (!asset) return NextResponse.json({ error: "资产不存在" }, { status: 404 });
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return NextResponse.json({ error: "无权操作" }, { status: 403 });
-  const formData = await req.formData();
-  const raw = Object.fromEntries(formData.entries());
+  let raw: Record<string, FormDataEntryValue>;
+  const contentType = req.headers.get("content-type") ?? "";
+  try {
+    if (contentType.includes("application/json")) {
+      raw = (await req.json()) as Record<string, FormDataEntryValue>;
+    } else {
+      const formData = await req.formData();
+      raw = Object.fromEntries(formData.entries());
+    }
+  } catch {
+    return NextResponse.json({ error: "请求体格式无效" }, { status: 400 });
+  }
   const parsed = updateSchema.safeParse({
     ...raw,
     refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
