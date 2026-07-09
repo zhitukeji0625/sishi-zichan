@@ -9,7 +9,12 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { refreshAuctionProjectStatuses } from "@/lib/cron";
 
-export default async function AdminAuctionsPage() {
+export default async function AdminAuctionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error: actionError } = await searchParams;
   const admin = await getCurrentAdmin();
   if (!admin) return null;
   await refreshAuctionProjectStatuses();
@@ -39,6 +44,11 @@ export default async function AdminAuctionsPage() {
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">竞拍项目</h1>
+      {actionError && (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {decodeURIComponent(actionError)}
+        </div>
+      )}
       {isRegimentOrAbove(admin.role) && (
         <form
           action={createAction}
@@ -122,7 +132,11 @@ export default async function AdminAuctionsPage() {
                         <form
                           action={async () => {
                             "use server";
-                            await generateAuctionResultAction(projectId);
+                            const r = await generateAuctionResultAction(projectId);
+                            if (r.error) {
+                              redirect(`/admin/auctions?error=${encodeURIComponent(r.error)}`);
+                            }
+                            redirect("/admin/auctions");
                           }}
                         >
                           <button type="submit" className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs text-white">
