@@ -107,7 +107,7 @@ async function main() {
   let project = await prisma.auctionProject.findFirst({ where: { status: "LIVE" } });
   assert("LIVE auction exists", !!project);
 
-  const dayOffset = (Math.floor(Date.now() / 86400000) % 300) + 30;
+  const dayOffset = 30 + (Math.floor(Date.now() / 1000) % 250);
   const start = new Date();
   start.setDate(start.getDate() + dayOffset);
   const end = new Date(start);
