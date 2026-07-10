@@ -182,6 +182,8 @@ async function main() {
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+if (process.argv[1]?.includes("seed-dict")) {
+  main()
+    .then(() => prisma.$disconnect())
+    .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+}
