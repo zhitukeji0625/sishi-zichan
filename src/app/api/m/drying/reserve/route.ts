@@ -31,9 +31,9 @@ export async function POST(req: Request) {
   if (!listing || listing.status !== "OPERATING") {
     return NextResponse.json({ error: "晒场不存在或未运营" }, { status: 404 });
   }
-  const check = await validateReservationRange(parsed.data.listingId, start, end);
+  const check = await validateReservationRange(parsed.data.listingId, start, end, user.id);
   if (!check.ok) {
-    return NextResponse.json({ error: check.message }, { status: 400 });
+    return NextResponse.json({ error: check.message }, { status: check.status ?? 400 });
   }
   const res = await prisma.dryingReservation.create({
     data: {
