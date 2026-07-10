@@ -3,9 +3,26 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** Renew demo auction if ended or expired so functional tests always have a LIVE project. */
+async function renewDemoAuctionIfNeeded() {
+  const project = await prisma.auctionProject.findFirst({ orderBy: { createdAt: "desc" } });
+  if (!project) return;
+  const expired = project.endsAt.getTime() < Date.now();
+  if (project.status === "ENDED" || expired) {
+    const starts = new Date(Date.now() - 60 * 1000);
+    const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await prisma.auctionProject.update({
+      where: { id: project.id },
+      data: { status: "LIVE", startsAt: starts, endsAt: ends },
+    });
+    console.log(`Renewed demo auction ${project.code} → LIVE until ${ends.toISOString()}`);
+  }
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await renewDemoAuctionIfNeeded();
     console.log("Seed skipped: data already present.");
     return;
   }
