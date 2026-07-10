@@ -195,7 +195,10 @@ async function main() {
       }),
     });
     if (reserve.status === 200 && reserve.json?.ok) pass("晒场预约");
-    else if (reserve.status === 400 && reserve.json?.error?.includes("已有预约")) {
+    else if (
+      (reserve.status === 400 || reserve.status === 409) &&
+      reserve.json?.error?.includes("已有预约")
+    ) {
       pass("晒场预约（时段冲突，预期）");
     } else fail("晒场预约", JSON.stringify(reserve));
 
