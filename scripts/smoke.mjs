@@ -18,8 +18,8 @@ function assert(name, cond, detail = "") {
   }
 }
 
-async function req(method, path, { body, cookie, headers } = {}) {
-  const opts = { method, headers: { ...headers } };
+async function req(method, path, { body, cookie, headers, redirect } = {}) {
+  const opts = { method, headers: { ...headers }, redirect: redirect ?? "follow" };
   if (cookie) opts.headers.Cookie = cookie;
   if (body !== undefined) {
     opts.headers["Content-Type"] = "application/json";
@@ -58,7 +58,7 @@ async function main() {
   assert("GET /admin/login → 200", r.status === 200);
 
   // --- Auth guards ---
-  r = await req("GET", "/admin");
+  r = await req("GET", "/admin", { redirect: "manual" });
   assert("GET /admin unauthenticated → redirect", r.status === 307 || r.status === 302);
 
   r = await req("POST", "/api/m/auction/fake/bid", { body: { amount: 100 } });
@@ -123,8 +123,10 @@ async function main() {
     select: { id: true },
   });
   if (drying) {
+    // Use a unique far-future window to avoid collisions across runs
+    const dayOffset = 60 + (Date.now() % 300);
     const start = new Date();
-    start.setDate(start.getDate() + 30);
+    start.setDate(start.getDate() + dayOffset);
     const end = new Date(start);
     end.setDate(end.getDate() + 2);
     const fmt = (d) => d.toISOString().slice(0, 10);
