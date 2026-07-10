@@ -3,9 +3,69 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** 无 LIVE 竞拍时幂等创建演示项目，便于 cron 冒烟测试与演示。 */
+export async function ensureDemoLiveAuction() {
+  const live = await prisma.auctionProject.count({ where: { status: "LIVE" } });
+  if (live > 0) return;
+
+  let asset = await prisma.asset.findFirst({
+    where: { type: AssetType.LAND, status: AssetStatus.IDLE },
+  });
+  if (!asset) {
+    const org = await prisma.organization.findFirst({ where: { level: OrgLevel.REGIMENT } });
+    if (!org) return;
+    asset = await prisma.asset.create({
+      data: {
+        orgId: org.id,
+        type: AssetType.LAND,
+        name: "演示竞拍地块",
+        locationText: "演示用地",
+        specs: "面积约 3 亩",
+        description: "<p>演示竞拍用。</p>",
+        refPriceMin: 5000,
+        refPriceMax: 8000,
+        status: AssetStatus.IDLE,
+      },
+    });
+  }
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `AP${Date.now()}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (demoUser) {
+    await prisma.auctionRegistration.upsert({
+      where: {
+        projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+      },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId: project.id,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+  }
+  console.log("ensureDemoLiveAuction: created LIVE project", project.code);
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await ensureDemoLiveAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
