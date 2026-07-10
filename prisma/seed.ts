@@ -10,6 +10,7 @@ async function refreshDemoAuction() {
   if (!project) return;
   const starts = new Date(Date.now() - 60 * 1000);
   const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
   await prisma.auctionProject.update({
     where: { id: project.id },
     data: { status: "LIVE", startsAt: starts, endsAt: ends },
