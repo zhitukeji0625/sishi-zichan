@@ -3,9 +3,35 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** Keep demo auction LIVE when seed data already exists but the project has ended. */
+async function renewDemoAuctionIfNeeded() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id, depositPaid: true, status: "APPROVED" },
+    include: { project: true },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!reg?.project) return;
+
+  const now = new Date();
+  const expired = reg.project.status === "ENDED" || reg.project.endsAt <= now;
+  if (!expired) return;
+
+  const starts = new Date(now.getTime() - 60 * 1000);
+  const ends = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: reg.project.id },
+    data: { status: "LIVE", startsAt: starts, endsAt: ends },
+  });
+  console.log(`Renewed demo auction ${reg.project.code} → LIVE until ${ends.toISOString()}`);
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await renewDemoAuctionIfNeeded();
     console.log("Seed skipped: data already present.");
     return;
   }
