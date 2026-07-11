@@ -183,13 +183,14 @@ export async function seedDict(prisma: PrismaClient) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const { PrismaClient } = await import("@prisma/client");
-  const prisma = new PrismaClient();
-  seedDict(prisma)
-    .then(() => prisma.$disconnect())
-    .catch((e) => {
-      console.error(e);
-      prisma.$disconnect();
-      process.exit(1);
-    });
+  import("@prisma/client").then(({ PrismaClient }) => {
+    const prisma = new PrismaClient();
+    return seedDict(prisma)
+      .then(() => prisma.$disconnect())
+      .catch((e) => {
+        console.error(e);
+        prisma.$disconnect();
+        process.exit(1);
+      });
+  });
 }
