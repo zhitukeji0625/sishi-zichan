@@ -93,7 +93,8 @@ async function main() {
   assert("user auction LIVE label", mAuctionHtml.includes("进行中"), "expected LIVE label");
 
   // Find live project id from DB via auction page link pattern
-  const projectMatch = mAuctionHtml.match(/\/m\/auction\/([a-z0-9]+)/i);
+  // Prisma cuid ids are ~25 chars; avoid matching Next.js RSC paths like /m/auction/page
+  const projectMatch = mAuctionHtml.match(/\/m\/auction\/([a-z0-9]{20,})/i);
   assert("found auction project link", !!projectMatch);
   const projectId = projectMatch?.[1];
 
@@ -121,7 +122,7 @@ async function main() {
   const dryingPage = await fetch(`${BASE}/m/drying`, { headers: { Cookie: userCookie } });
   const dryingHtml = await dryingPage.text();
   assert("drying list page", dryingPage.status === 200);
-  const listingMatch = dryingHtml.match(/\/m\/drying\/([a-z0-9]+)/i);
+  const listingMatch = dryingHtml.match(/\/m\/drying\/([a-z0-9]{20,})/i);
   assert("found drying listing link", !!listingMatch);
   const listingId = listingMatch?.[1];
 
