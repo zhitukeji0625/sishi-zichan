@@ -123,6 +123,26 @@ async function testAdminAuth() {
   return adminCookies;
 }
 
+async function testAdminApiValidation(adminCookies) {
+  console.log("\n[管理员 API 校验]");
+
+  const upload = await fetchJson("/api/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookieHeader(adminCookies) },
+    body: JSON.stringify({}),
+  });
+  if (upload.res.status === 400) ok("上传非 multipart 返回 400");
+  else fail("上传非 multipart", `status ${upload.res.status}`);
+
+  const asset = await fetchJson("/api/admin/assets", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookieHeader(adminCookies) },
+    body: JSON.stringify({}),
+  });
+  if (asset.res.status === 400) ok("创建资产非 multipart 返回 400");
+  else fail("创建资产非 multipart", `status ${asset.res.status}`);
+}
+
 async function testAuctionFlow(userCookies) {
   console.log("\n[竞拍流程]");
 
@@ -141,11 +161,18 @@ async function testAuctionFlow(userCookies) {
   const { PrismaClient } = await import("@prisma/client");
   const prisma = new PrismaClient();
   let project;
+  let topBid;
   try {
     project = await prisma.auctionProject.findFirst({
       where: { status: "LIVE" },
       orderBy: { createdAt: "desc" },
     });
+    if (project) {
+      topBid = await prisma.auctionBid.findFirst({
+        where: { projectId: project.id },
+        orderBy: { amount: "desc" },
+      });
+    }
   } finally {
     await prisma.$disconnect();
   }
@@ -162,7 +189,9 @@ async function testAuctionFlow(userCookies) {
   if (detail.res.ok) ok("竞拍详情页可访问");
   else fail("竞拍详情页", `status ${detail.res.status}`);
 
-  const minBid = Number(project.startPrice);
+  const minBid = topBid
+    ? Number(topBid.amount) + Number(project.bidStep)
+    : Number(project.startPrice);
   const bid = await fetchJson(`/api/m/auction/${project.id}/bid`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Cookie: cookieHeader(userCookies) },
@@ -221,7 +250,21 @@ async function testDryingFlow(userCookies) {
     }),
   });
   if (reserve.res.ok && reserve.json?.ok) ok("晒场预约提交成功");
+  else if (reserve.res.status === 409) ok("晒场预约（时段已存在，预期）");
   else fail("晒场预约", reserve.json?.error || reserve.res.status);
+
+  const dup = await fetchJson("/api/m/drying/reserve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookieHeader(userCookies) },
+    body: JSON.stringify({
+      listingId: listing.id,
+      startDate: fmt(start),
+      endDate: fmt(end),
+    }),
+  });
+  if (dup.res.status === 409) ok("晒场重复预约返回 409");
+  else if (reserve.res.ok) ok("晒场重复预约（首次成功则跳过）");
+  else fail("晒场重复预约", dup.json?.error || dup.res.status);
 }
 
 async function testPayments(userCookies) {
@@ -293,7 +336,8 @@ async function main() {
 
   await testPublicPages();
   const userCookies = await testUserAuth();
-  await testAdminAuth();
+  const adminCookies = await testAdminAuth();
+  if (adminCookies.size > 0) await testAdminApiValidation(adminCookies);
   if (userCookies.size > 0) {
     await testAuctionFlow(userCookies);
     await testDryingFlow(userCookies);
