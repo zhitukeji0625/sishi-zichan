@@ -34,6 +34,17 @@ export async function fetchExternalUserProfile(externalUserId: string): Promise<
   return profile;
 }
 
+async function generatePlaceholderPhone() {
+  for (let i = 0; i < 20; i++) {
+    const cand = `190${Math.floor(Math.random() * 1e8)
+      .toString()
+      .padStart(8, "0")}`;
+    const taken = await prisma.endUser.findUnique({ where: { phone: cand } });
+    if (!taken) return cand;
+  }
+  return `190${randomBytes(4).toString("hex")}`.slice(0, 11);
+}
+
 export async function upsertEndUserFromExternal(
   externalUserId: string,
   provider = "third_party",
@@ -46,33 +57,32 @@ export async function upsertEndUserFromExternal(
   }
   const existing = await prisma.externalIdentity.findUnique({
     where: { provider_externalUserId: { provider, externalUserId } },
-    include: { endUser: true },
   });
   if (existing) {
-    await prisma.endUser.update({
-      where: { id: existing.endUserId },
-      data: {
+    const linked = await prisma.endUser.findUnique({ where: { id: existing.endUserId } });
+    if (!linked) {
+      await prisma.externalIdentity.delete({ where: { id: existing.id } });
+    } else {
+      const updateData: { name: string; phone?: string; orgId?: string | null } = {
         name: profile.displayName,
-        ...(profile.phone ? { phone: profile.phone } : {}),
-        ...(orgId ? { orgId } : {}),
-      },
-    });
-    return prisma.endUser.findUnique({ where: { id: existing.endUserId }, include: { org: true } });
-  }
-  let phone = profile.phone ?? null;
-  if (!phone) {
-    for (let i = 0; i < 20; i++) {
-      const cand = `190${Math.floor(Math.random() * 1e8)
-        .toString()
-        .padStart(8, "0")}`;
-      const taken = await prisma.endUser.findUnique({ where: { phone: cand } });
-      if (!taken) {
-        phone = cand;
-        break;
+      };
+      if (profile.phone && profile.phone !== linked.phone) {
+        const phoneTaken = await prisma.endUser.findFirst({
+          where: { phone: profile.phone, NOT: { id: linked.id } },
+        });
+        if (!phoneTaken) updateData.phone = profile.phone;
       }
+      if (orgId) updateData.orgId = orgId;
+      await prisma.endUser.update({ where: { id: linked.id }, data: updateData });
+      return prisma.endUser.findUnique({ where: { id: linked.id }, include: { org: true } });
     }
   }
-  if (!phone) phone = `190${randomBytes(4).toString("hex")}`.slice(0, 11);
+  let phone = profile.phone ?? null;
+  if (phone) {
+    const taken = await prisma.endUser.findUnique({ where: { phone } });
+    if (taken) phone = null;
+  }
+  if (!phone) phone = await generatePlaceholderPhone();
   const endUser = await prisma.endUser.create({
     data: {
       phone,
