@@ -114,10 +114,17 @@ async function main() {
     } else {
       ok(`竞拍项目 LIVE (${project.id.slice(0, 8)}…)`);
     }
+    const topBid = await prisma.auctionBid.findFirst({
+      where: { projectId: project.id },
+      orderBy: { amount: "desc" },
+    });
+    const minBid = topBid
+      ? Number(topBid.amount) + Number(project.bidStep)
+      : Number(project.startPrice);
     const bid = await fetchJson(`/api/m/auction/${project.id}/bid`, {
       method: "POST",
       headers: { Cookie: userCookie },
-      body: JSON.stringify({ amount: Number(project.startPrice) + Number(project.bidStep) }),
+      body: JSON.stringify({ amount: minBid }),
     });
     if (bid.res.status === 200 && bid.json?.ok) ok("竞拍出价");
     else fail("竞拍出价", JSON.stringify(bid.json));
