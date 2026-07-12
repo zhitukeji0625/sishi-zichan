@@ -12,6 +12,7 @@ const auditActionLabels: Record<string, string> = {
   AUCTION_RESULT_REVIEW: "审核竞拍结果",
   REGISTRATION_REVIEW: "审核报名",
   ANNOUNCEMENT_CREATE: "发布公告",
+  ANNOUNCEMENT_DELETE: "删除公告",
   ANNOUNCEMENT_REVIEW: "审核公告",
   DRYING_REVIEW: "审核晒场预约",
   ADMIN_CREATE: "创建管理员",
