@@ -56,8 +56,8 @@ async function main() {
     check(`GET ${path}`, r.status === 200, `status ${r.status}`);
   }
 
-  // Admin protected
-  const adminRedirect = await http("GET", "/admin");
+  // Admin protected (do not follow redirect)
+  const adminRedirect = await fetch(`${BASE}/admin`, { redirect: "manual" });
   check("GET /admin (no auth → redirect)", adminRedirect.status === 307, `status ${adminRedirect.status}`);
 
   // User login
@@ -105,7 +105,14 @@ async function main() {
   check("DB: demo auction is LIVE", project?.status === "LIVE", `status=${project?.status}`);
 
   if (project) {
-    const bid = await http("POST", `/api/m/auction/${project.id}/bid`, { jar: userJar, body: { amount: 8200 } });
+    const topBid = await prisma.auctionBid.findFirst({
+      where: { projectId: project.id },
+      orderBy: { amount: "desc" },
+    });
+    const minBid = topBid
+      ? Number(topBid.amount) + Number(project.bidStep)
+      : Number(project.startPrice);
+    const bid = await http("POST", `/api/m/auction/${project.id}/bid`, { jar: userJar, body: { amount: minBid } });
     check("POST /api/m/auction/:id/bid", bid.json?.ok === true, bid.text);
 
     // Duplicate deposit should 409
