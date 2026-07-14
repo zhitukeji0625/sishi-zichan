@@ -28,6 +28,7 @@ export async function POST(req: Request) {
       where: { projectId_endUserId: { projectId: auctionProjectId, endUserId: user.id } },
     });
     if (!reg) return NextResponse.json({ error: "未报名该项目" }, { status: 403 });
+    if (reg.status !== "APPROVED") return NextResponse.json({ error: "报名未通过审核" }, { status: 403 });
     if (reg.depositPaid) return NextResponse.json({ error: "保证金已缴纳" }, { status: 409 });
     const project = await prisma.auctionProject.findUnique({ where: { id: auctionProjectId } });
     if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
@@ -64,30 +65,52 @@ export async function POST(req: Request) {
   }
 
   const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  const pay = await prisma.payment.create({
-    data: {
-      orderNo,
-      amount,
-      purpose,
-      status: "SUCCESS",
-      endUserId: user.id,
-      auctionProjectId: auctionProjectId ?? null,
-      reservationId: reservationId ?? null,
-      paidAt: new Date(),
-      channel: "ABC_MOCK",
-    },
-  });
-  if (auctionProjectId && purpose === "AUCTION_DEPOSIT") {
-    await prisma.auctionRegistration.updateMany({
-      where: { projectId: auctionProjectId, endUserId: user.id },
-      data: { depositPaid: true },
+  try {
+    const pay = await prisma.$transaction(async (tx) => {
+      if (purpose === "AUCTION_DEPOSIT" && auctionProjectId) {
+        const reg = await tx.auctionRegistration.findUnique({
+          where: { projectId_endUserId: { projectId: auctionProjectId, endUserId: user.id } },
+        });
+        if (!reg || reg.depositPaid) {
+          throw new Error(reg?.depositPaid ? "保证金已缴纳" : "未报名该项目");
+        }
+      }
+      if (purpose === "DRYING_DEPOSIT" && reservationId) {
+        const existingDeposit = await tx.payment.findFirst({
+          where: { reservationId, endUserId: user.id, purpose: "DRYING_DEPOSIT", status: "SUCCESS" },
+        });
+        if (existingDeposit) throw new Error("保证金已缴纳");
+      }
+      const payment = await tx.payment.create({
+        data: {
+          orderNo,
+          amount,
+          purpose,
+          status: "SUCCESS",
+          endUserId: user.id,
+          auctionProjectId: auctionProjectId ?? null,
+          reservationId: reservationId ?? null,
+          paidAt: new Date(),
+          channel: "ABC_MOCK",
+        },
+      });
+      if (auctionProjectId && purpose === "AUCTION_DEPOSIT") {
+        await tx.auctionRegistration.updateMany({
+          where: { projectId: auctionProjectId, endUserId: user.id },
+          data: { depositPaid: true },
+        });
+      }
+      if (reservationId && purpose === "DRYING_DEPOSIT") {
+        await tx.dryingReservation.updateMany({
+          where: { id: reservationId, endUserId: user.id },
+          data: { status: "CONTRACT_PENDING" },
+        });
+      }
+      return payment;
     });
+    return NextResponse.json({ ok: true, orderNo: pay.orderNo, paidAt: pay.paidAt });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "支付失败";
+    return NextResponse.json({ error: msg }, { status: 409 });
   }
-  if (reservationId && purpose === "DRYING_DEPOSIT") {
-    await prisma.dryingReservation.updateMany({
-      where: { id: reservationId, endUserId: user.id },
-      data: { status: "CONTRACT_PENDING" },
-    });
-  }
-  return NextResponse.json({ ok: true, orderNo: pay.orderNo, paidAt: pay.paidAt });
 }
