@@ -35,7 +35,12 @@ export async function POST(req: Request) {
   } else if (purpose === "AUCTION_RENT") {
     if (!auctionProjectId) return NextResponse.json({ error: "缺少项目ID" }, { status: 400 });
     const existingRent = await prisma.payment.findFirst({
-      where: { auctionProjectId, endUserId: user.id, purpose: "AUCTION_RENT", status: "SUCCESS" },
+      where: {
+        auctionProjectId,
+        endUserId: user.id,
+        purpose: "AUCTION_RENT",
+        status: "SUCCESS",
+      },
     });
     if (existingRent) return NextResponse.json({ error: "租金已支付" }, { status: 409 });
     const result = await prisma.auctionResult.findUnique({ where: { projectId: auctionProjectId } });
