@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
@@ -15,7 +16,9 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
 
   async function sign() {
     "use server";
-    await signContractAction(contractId);
+    const result = await signContractAction(contractId);
+    if (result?.error) throw new Error(result.error);
+    revalidatePath(`/m/contract/${contractId}`);
   }
 
   return (
