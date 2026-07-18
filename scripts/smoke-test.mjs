@@ -147,7 +147,7 @@ async function testAuctionFlow(userCookies) {
   try {
     const page = await fetch(`${BASE}/m/auction`, { headers: { Cookie: userCookies } });
     const html = await page.text();
-    const match = html.match(/\/m\/auction\/([a-z0-9]+)/i);
+    const match = html.match(/href="\/m\/auction\/([^"]+)"/);
     if (!match) {
       fail("find auction project", "no auction link in /m/auction");
       return;
