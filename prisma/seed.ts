@@ -4,7 +4,6 @@ import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
-<<<<<<< HEAD
 /** 将演示竞拍刷新为进行中，便于功能测试 */
 async function refreshDemoAuction() {
   const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
@@ -20,6 +19,15 @@ async function refreshDemoAuction() {
     project = await prisma.auctionProject.findFirst({ orderBy: { createdAt: "desc" } });
   }
   if (!project) return;
+
+  const now = new Date();
+  if (project.status === "LIVE" && project.endsAt > now) {
+    // 已进行中且未过期，仅清除历史出价以便重复测试
+    await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+    await prisma.auctionResult.deleteMany({ where: { projectId: project.id } });
+    console.log(`Demo auction ${project.code} already LIVE, bids cleared.`);
+    return;
+  }
 
   const starts = new Date(Date.now() - 60 * 1000);
   const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -43,36 +51,6 @@ async function refreshDemoAuction() {
     },
   });
   console.log(`Demo auction refreshed: ${project.code} -> LIVE`);
-=======
-/** Keep demo auction usable when seed is re-run against an existing database. */
-async function refreshDemoAuctionIfNeeded() {
-  const project = await prisma.auctionProject.findFirst({ orderBy: { createdAt: "asc" } });
-  if (!project) return;
-  const now = new Date();
-  if (project.status === "LIVE" && project.endsAt > now) return;
-  await prisma.auctionProject.update({
-    where: { id: project.id },
-    data: {
-      status: "LIVE",
-      startsAt: new Date(Date.now() - 60 * 1000),
-      endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    },
-  });
-  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
-  if (demoUser) {
-    await prisma.auctionRegistration.upsert({
-      where: { projectId_endUserId: { projectId: project.id, endUserId: demoUser.id } },
-      update: { status: "APPROVED", depositPaid: true },
-      create: {
-        projectId: project.id,
-        endUserId: demoUser.id,
-        status: "APPROVED",
-        depositPaid: true,
-      },
-    });
-  }
-  console.log("Refreshed demo auction project to LIVE.");
->>>>>>> 229c1086 (fix: 修复功能测试中发现的多处业务逻辑问题)
 }
 
 async function main() {
@@ -81,13 +59,8 @@ async function main() {
 
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-<<<<<<< HEAD
     console.log("Business data already present, refreshing demo auction...");
     await refreshDemoAuction();
-=======
-    await refreshDemoAuctionIfNeeded();
-    console.log("Seed skipped: data already present.");
->>>>>>> 229c1086 (fix: 修复功能测试中发现的多处业务逻辑问题)
     return;
   }
 
