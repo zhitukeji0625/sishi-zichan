@@ -22,12 +22,12 @@ async function refreshDemoAuction() {
   const endsAt = new Date(now + 7 * 24 * 60 * 60 * 1000);
 
   if (project.status === "LIVE" && project.endsAt > new Date()) {
-    await prisma.bid.deleteMany({ where: { projectId: project.id } });
+    await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
     console.log("Demo auction already LIVE; cleared bids.");
     return;
   }
 
-  await prisma.bid.deleteMany({ where: { projectId: project.id } });
+  await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
   await prisma.auctionProject.update({
     where: { id: project.id },
     data: { status: "LIVE", startsAt, endsAt },
