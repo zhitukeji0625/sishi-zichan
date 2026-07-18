@@ -20,6 +20,15 @@ async function refreshDemoAuction() {
   }
   if (!project) return;
 
+  const now = new Date();
+  if (project.status === "LIVE" && project.endsAt > now) {
+    // 已进行中且未过期，仅清除历史出价以便重复测试
+    await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+    await prisma.auctionResult.deleteMany({ where: { projectId: project.id } });
+    console.log(`Demo auction ${project.code} already LIVE, bids cleared.`);
+    return;
+  }
+
   const starts = new Date(Date.now() - 60 * 1000);
   const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
