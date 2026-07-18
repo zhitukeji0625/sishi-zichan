@@ -1,12 +1,65 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+/** 将演示竞拍刷新为进行中，便于功能测试 */
+async function refreshDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  let project = await prisma.auctionProject.findFirst({
+    where: {
+      registrations: { some: { endUserId: demoUser.id } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!project) {
+    project = await prisma.auctionProject.findFirst({ orderBy: { createdAt: "desc" } });
+  }
+  if (!project) return;
+
+  const now = new Date();
+  if (project.status === "LIVE" && project.endsAt > now) {
+    await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+    await prisma.auctionResult.deleteMany({ where: { projectId: project.id } });
+    console.log(`Demo auction ${project.code} already LIVE, bids cleared.`);
+    return;
+  }
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+  await prisma.auctionResult.deleteMany({ where: { projectId: project.id } });
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: { startsAt: starts, endsAt: ends, status: "LIVE" },
+  });
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log(`Demo auction refreshed: ${project.code} -> LIVE`);
+}
+
 async function main() {
+  console.log("Seeding dictionaries...");
+  await seedDict(prisma);
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    console.log("Business data already present, refreshing demo auction...");
+    await refreshDemoAuction();
     return;
   }
 
