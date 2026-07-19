@@ -300,7 +300,12 @@ async function testDevToken() {
   console.log("\n[开发工具]");
   const { res, json } = await fetchJson("/api/dev/third-party-token");
   if (res.ok && json?.token) ok("第三方 SSO token 可生成");
-  else fail("第三方 SSO token", json?.error || res.status);
+  else if (res.status === 404) {
+    fail(
+      "第三方 SSO token",
+      "开发路由不可用（build 后需 rm -rf .next 并以 NODE_ENV=development 重启 dev server）"
+    );
+  } else fail("第三方 SSO token", json?.error || res.status);
 }
 
 async function main() {
