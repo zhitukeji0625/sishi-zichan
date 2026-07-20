@@ -104,10 +104,29 @@ async function main() {
   assert("extract auction ID", !!auctionId, auctionId || "not found");
 
   if (auctionId) {
+    let minBid = 8200;
+    try {
+      const { PrismaClient } = await import("@prisma/client");
+      const prisma = new PrismaClient();
+      const project = await prisma.auctionProject.findUnique({ where: { id: auctionId } });
+      const top = await prisma.auctionBid.findFirst({
+        where: { projectId: auctionId },
+        orderBy: { amount: "desc" },
+      });
+      if (project) {
+        minBid = top
+          ? Number(top.amount) + Number(project.bidStep)
+          : Number(project.startPrice);
+      }
+      await prisma.$disconnect();
+    } catch {
+      /* fallback to default */
+    }
+
     const bid = await req(`/api/m/auction/${auctionId}/bid`, {
       method: "POST",
       headers: { Cookie: cookieHeader(userCookies) },
-      body: JSON.stringify({ amount: 8200 }),
+      body: JSON.stringify({ amount: minBid }),
     });
     assert("POST bid", bid.status === 200 && bid.json?.ok, `status=${bid.status} ${bid.json?.error || ""}`);
 
@@ -129,10 +148,12 @@ async function main() {
   assert("extract listing ID", !!listingId, listingId || "not found");
 
   if (listingId) {
+    // 使用动态日期偏移，避免重复运行冒烟测试时与历史预约冲突
+    const dayOffset = 30 + (Date.now() % 150);
     const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setDate(tomorrow.getDate() + dayOffset);
     const dayAfter = new Date();
-    dayAfter.setDate(dayAfter.getDate() + 2);
+    dayAfter.setDate(dayAfter.getDate() + dayOffset + 1);
     const reserve = await req("/api/m/drying/reserve", {
       method: "POST",
       headers: { Cookie: cookieHeader(userCookies) },
