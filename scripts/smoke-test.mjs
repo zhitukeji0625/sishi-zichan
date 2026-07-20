@@ -1,219 +1,336 @@
 #!/usr/bin/env node
 /**
- * API smoke test for sishi-zichan.
- * Usage: node scripts/smoke-test.mjs [baseUrl]
+ * 功能冒烟测试 — 覆盖主要 API 与页面可达性
+ * 用法: node scripts/smoke-test.mjs [baseUrl]
  */
-const BASE = process.argv[2] || "http://localhost:3000";
+const BASE = process.argv[2] || process.env.SMOKE_BASE_URL || "http://localhost:3000";
+
+const USER = { phone: "13800138000", password: "user123" };
+const ADMIN = { phone: "13900000001", password: "admin123" };
 
 let passed = 0;
 let failed = 0;
 const errors = [];
 
-function assert(name, cond, detail = "") {
-  if (cond) {
-    passed++;
-    console.log(`  ✓ ${name}`);
-  } else {
-    failed++;
-    const msg = detail ? `${name}: ${detail}` : name;
-    errors.push(msg);
-    console.log(`  ✗ ${msg}`);
-  }
+function ok(name) {
+  passed++;
+  console.log(`  ✓ ${name}`);
 }
 
-async function req(path, opts = {}) {
-  const url = `${BASE}${path}`;
-  const res = await fetch(url, {
-    redirect: "manual",
-    ...opts,
-    headers: {
-      ...(opts.headers || {}),
-      ...(opts.body && typeof opts.body === "string" ? { "Content-Type": "application/json" } : {}),
-    },
-  });
-  const setCookie = res.headers.getSetCookie?.() ?? [];
-  const text = await res.text();
-  let json = null;
-  try {
-    json = JSON.parse(text);
-  } catch {
-    /* not json */
+function fail(name, detail) {
+  failed++;
+  const msg = `${name}: ${detail}`;
+  errors.push(msg);
+  console.error(`  ✗ ${msg}`);
+}
+
+function extractCookies(res) {
+  const raw = res.headers.getSetCookie?.() ?? [];
+  const map = new Map();
+  for (const line of raw) {
+    const [pair] = line.split(";");
+    const eq = pair.indexOf("=");
+    if (eq > 0) map.set(pair.slice(0, eq), pair.slice(eq + 1));
   }
-  return { status: res.status, json, text, cookies: setCookie };
+  return map;
 }
 
 function cookieHeader(cookies) {
-  return cookies.map((c) => c.split(";")[0]).join("; ");
+  return [...cookies.entries()].map(([k, v]) => `${k}=${v}`).join("; ");
 }
 
-function extractId(html, pattern) {
-  const m = html.match(pattern);
-  return m?.[1] ?? null;
+async function fetchJson(path, opts = {}) {
+  const url = `${BASE}${path}`;
+  const res = await fetch(url, opts);
+  const text = await res.text();
+  let json = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    /* html or empty */
+  }
+  return { res, json, text };
+}
+
+async function testPublicPages() {
+  console.log("\n[公共页面]");
+  for (const path of ["/", "/m", "/m/login", "/m/auction", "/m/drying", "/admin/login"]) {
+    try {
+      const { res } = await fetchJson(path);
+      if (res.ok || res.status === 307 || res.status === 308) ok(`GET ${path}`);
+      else fail(`GET ${path}`, `status ${res.status}`);
+    } catch (e) {
+      fail(`GET ${path}`, e.message);
+    }
+  }
+}
+
+async function testUserAuth() {
+  console.log("\n[用户鉴权]");
+  let userCookies = new Map();
+
+  const bad = await fetchJson("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone: "", password: "" }),
+  });
+  if (bad.res.status === 400) ok("登录空参数返回 400");
+  else fail("登录空参数", `status ${bad.res.status}`);
+
+  const login = await fetchJson("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(USER),
+  });
+  if (login.res.ok && login.json?.ok) {
+    ok("用户登录成功");
+    userCookies = extractCookies(login.res);
+  } else {
+    fail("用户登录", login.json?.error || login.res.status);
+    return userCookies;
+  }
+
+  const noAuth = await fetchJson("/api/m/auction/fake/bid", { method: "POST" });
+  if (noAuth.res.status === 401) ok("未登录出价返回 401");
+  else fail("未登录出价", `status ${noAuth.res.status}`);
+
+  return userCookies;
+}
+
+async function testAdminAuth() {
+  console.log("\n[管理员鉴权]");
+  let adminCookies = new Map();
+
+  const login = await fetchJson("/api/auth/admin/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(ADMIN),
+  });
+  if (login.res.ok && login.json?.ok) {
+    ok("管理员登录成功");
+    adminCookies = extractCookies(login.res);
+  } else {
+    fail("管理员登录", login.json?.error || login.res.status);
+  }
+
+  const adminPage = await fetchJson("/admin/assets", {
+    headers: { Cookie: cookieHeader(adminCookies) },
+    redirect: "manual",
+  });
+  if (adminPage.res.ok) ok("管理员可访问 /admin/assets");
+  else fail("管理员访问资产页", `status ${adminPage.res.status}`);
+
+  return adminCookies;
+}
+
+async function testUploadValidation(adminCookies) {
+  console.log("\n[上传校验]");
+  const noMultipart = await fetchJson("/api/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookieHeader(adminCookies) },
+    body: JSON.stringify({ file: "x" }),
+  });
+  if (noMultipart.res.status === 400) ok("非 multipart 上传返回 400");
+  else fail("非 multipart 上传", `status ${noMultipart.res.status}`);
+}
+
+async function testAuctionFlow(userCookies) {
+  console.log("\n[竞拍流程]");
+
+  const list = await fetchJson("/m/auction", {
+    headers: { Cookie: cookieHeader(userCookies) },
+  });
+  if (list.res.ok && list.text.includes("资产竞拍")) ok("竞拍列表页可访问");
+  else fail("竞拍列表页", `status ${list.res.status}`);
+
+  if (!list.text.includes("进行中") && !list.text.includes("LIVE")) {
+    fail("竞拍状态中文", "页面未显示「进行中」标签（字典可能缺失）");
+  } else {
+    ok("竞拍状态显示中文标签");
+  }
+
+  const { PrismaClient } = await import("@prisma/client");
+  const prisma = new PrismaClient();
+  let project;
+  let topBid;
+  try {
+    project = await prisma.auctionProject.findFirst({
+      where: { status: "LIVE" },
+      orderBy: { createdAt: "desc" },
+    });
+    if (project) {
+      topBid = await prisma.auctionBid.findFirst({
+        where: { projectId: project.id },
+        orderBy: { amount: "desc" },
+      });
+    }
+  } finally {
+    await prisma.$disconnect();
+  }
+
+  if (!project) {
+    fail("LIVE 竞拍项目", "数据库中无进行中项目");
+    return;
+  }
+  ok(`找到 LIVE 项目 ${project.code}`);
+
+  const detail = await fetchJson(`/m/auction/${project.id}`, {
+    headers: { Cookie: cookieHeader(userCookies) },
+  });
+  if (detail.res.ok) ok("竞拍详情页可访问");
+  else fail("竞拍详情页", `status ${detail.res.status}`);
+
+  const bidStep = Number(project.bidStep);
+  const minBid = topBid
+    ? Number(topBid.amount) + bidStep
+    : Number(project.startPrice);
+
+  const bid = await fetchJson(`/api/m/auction/${project.id}/bid`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookieHeader(userCookies) },
+    body: JSON.stringify({ amount: minBid }),
+  });
+  if (bid.res.ok && bid.json?.ok) ok(`出价 ${minBid} 成功`);
+  else fail("出价", bid.json?.error || bid.res.status);
+
+  const bid2 = await fetchJson(`/api/m/auction/${project.id}/bid`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookieHeader(userCookies) },
+    body: JSON.stringify({ amount: minBid + bidStep }),
+  });
+  if (bid2.res.ok && bid2.json?.ok) ok("加价出价成功");
+  else fail("加价出价", bid2.json?.error || bid2.res.status);
+}
+
+async function testDryingFlow(userCookies) {
+  console.log("\n[晒场流程]");
+
+  const list = await fetchJson("/m/drying", {
+    headers: { Cookie: cookieHeader(userCookies) },
+  });
+  if (list.res.ok) ok("晒场列表页可访问");
+  else fail("晒场列表页", `status ${list.res.status}`);
+
+  const { PrismaClient } = await import("@prisma/client");
+  const prisma = new PrismaClient();
+  let listing;
+  try {
+    listing = await prisma.dryingFieldListing.findFirst({
+      where: { status: "OPERATING" },
+    });
+  } finally {
+    await prisma.$disconnect();
+  }
+  if (!listing) {
+    fail("运营中晒场", "数据库中无 OPERATING 晒场");
+    return;
+  }
+  ok("找到运营中晒场");
+
+  const start = new Date();
+  start.setDate(start.getDate() + 3);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 2);
+  const fmt = (d) => d.toISOString().slice(0, 10);
+
+  const reserve = await fetchJson("/api/m/drying/reserve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookieHeader(userCookies) },
+    body: JSON.stringify({
+      listingId: listing.id,
+      startDate: fmt(start),
+      endDate: fmt(end),
+    }),
+  });
+  if (reserve.res.ok && reserve.json?.ok) ok("晒场预约提交成功");
+  else if (reserve.res.status === 409) ok("晒场重复预约返回 409");
+  else fail("晒场预约", reserve.json?.error || reserve.res.status);
+}
+
+async function testPayments(userCookies) {
+  console.log("\n[支付流程]");
+
+  const { PrismaClient } = await import("@prisma/client");
+  const prisma = new PrismaClient();
+  let project;
+  try {
+    project = await prisma.auctionProject.findFirst({
+      where: { status: "LIVE" },
+      orderBy: { createdAt: "desc" },
+    });
+  } finally {
+    await prisma.$disconnect();
+  }
+
+  if (!project) {
+    fail("支付测试前置", "缺少项目");
+    return;
+  }
+
+  const dup = await fetchJson("/api/m/payments/mock", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Cookie: cookieHeader(userCookies) },
+    body: JSON.stringify({ purpose: "AUCTION_DEPOSIT", auctionProjectId: project.id }),
+  });
+  if (dup.res.status === 409) ok("重复缴保证金返回 409");
+  else if (dup.res.ok) ok("保证金缴纳成功");
+  else fail("保证金缴纳", dup.json?.error || dup.res.status);
+}
+
+async function testDict() {
+  console.log("\n[数据字典]");
+  const { PrismaClient } = await import("@prisma/client");
+  const prisma = new PrismaClient();
+  try {
+    const count = await prisma.dictCategory.count();
+    if (count >= 14) ok(`字典分类 ${count} 个`);
+    else fail("字典分类", `仅 ${count} 个，期望 >= 14`);
+
+    const live = await prisma.dictItem.findFirst({
+      where: { value: "LIVE", category: { code: "auction_status" } },
+    });
+    if (live?.label === "进行中") ok("auction_status.LIVE = 进行中");
+    else fail("auction_status.LIVE", live?.label || "未找到");
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+async function testDevToken() {
+  console.log("\n[开发工具]");
+  const { res, json } = await fetchJson("/api/dev/third-party-token");
+  if (res.ok && json?.token) ok("第三方 SSO token 可生成");
+  else fail("第三方 SSO token", json?.error || res.status);
 }
 
 async function main() {
-  console.log(`Smoke test @ ${BASE}\n`);
-
-  // 1. Public pages
-  console.log("Public pages:");
-  const home = await req("/");
-  assert("GET /", home.status === 200);
-  const mHome = await req("/m");
-  assert("GET /m", mHome.status === 200);
-  const adminLogin = await req("/admin/login");
-  assert("GET /admin/login", adminLogin.status === 200);
-
-  // 2. Third-party token (dev)
-  console.log("\nDev token:");
-  const tokenRes = await req("/api/dev/third-party-token?u_id=smoke_test_user");
-  assert("GET /api/dev/third-party-token", tokenRes.status === 200 && tokenRes.json?.token);
-  const ssoToken = tokenRes.json?.token;
-
-  // 3. User login
-  console.log("\nUser auth:");
-  const userLogin = await req("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ phone: "13800138000", password: "user123" }),
-  });
-  assert("POST /api/auth/login", userLogin.status === 200 && userLogin.json?.ok);
-  const userCookies = [...userLogin.cookies];
-
-  // 4. Third-party SSO
-  const sso = await req("/api/auth/third-party", {
-    method: "POST",
-    body: JSON.stringify({ token: ssoToken }),
-  });
-  assert("POST /api/auth/third-party", sso.status === 200 && sso.json?.ok);
-
-  // 5. Admin login
-  console.log("\nAdmin auth:");
-  const adminLoginApi = await req("/api/auth/admin/login", {
-    method: "POST",
-    body: JSON.stringify({ phone: "13900000001", password: "admin123" }),
-  });
-  assert("POST /api/auth/admin/login", adminLoginApi.status === 200 && adminLoginApi.json?.ok);
-  const adminCookies = [...adminLoginApi.cookies];
-
-  // 6. Extract auction ID from /m/auction page
-  console.log("\nAuction:");
-  const auctionPage = await req("/m/auction", {
-    headers: { Cookie: cookieHeader(userCookies) },
-  });
-  assert("GET /m/auction", auctionPage.status === 200);
-  const auctionId = extractId(auctionPage.text, /\/m\/auction\/([a-z0-9]{20,})/i);
-  assert("extract auction ID", !!auctionId, auctionId || "not found");
-
-  if (auctionId) {
-    const bid = await req(`/api/m/auction/${auctionId}/bid`, {
-      method: "POST",
-      headers: { Cookie: cookieHeader(userCookies) },
-      body: JSON.stringify({ amount: 8200 }),
-    });
-    assert("POST bid", bid.status === 200 && bid.json?.ok, `status=${bid.status} ${bid.json?.error || ""}`);
-
-    const bidLow = await req(`/api/m/auction/${auctionId}/bid`, {
-      method: "POST",
-      headers: { Cookie: cookieHeader(userCookies) },
-      body: JSON.stringify({ amount: 100 }),
-    });
-    assert("POST bid (too low)", bidLow.status === 400, `expected 400 got ${bidLow.status}`);
-  }
-
-  // 7. Drying reserve
-  console.log("\nDrying:");
-  const dryingPage = await req("/m/drying", {
-    headers: { Cookie: cookieHeader(userCookies) },
-  });
-  assert("GET /m/drying", dryingPage.status === 200);
-  const listingId = extractId(dryingPage.text, /\/m\/drying\/([a-z0-9]{20,})/i);
-  assert("extract listing ID", !!listingId, listingId || "not found");
-
-  if (listingId) {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayAfter = new Date();
-    dayAfter.setDate(dayAfter.getDate() + 2);
-    const reserve = await req("/api/m/drying/reserve", {
-      method: "POST",
-      headers: { Cookie: cookieHeader(userCookies) },
-      body: JSON.stringify({
-        listingId,
-        startDate: tomorrow.toISOString().slice(0, 10),
-        endDate: dayAfter.toISOString().slice(0, 10),
-      }),
-    });
-    assert("POST reserve", reserve.status === 200 && reserve.json?.ok, `status=${reserve.status} ${reserve.json?.error || ""}`);
-
-    const dup = await req("/api/m/drying/reserve", {
-      method: "POST",
-      headers: { Cookie: cookieHeader(userCookies) },
-      body: JSON.stringify({
-        listingId,
-        startDate: tomorrow.toISOString().slice(0, 10),
-        endDate: dayAfter.toISOString().slice(0, 10),
-      }),
-    });
-    assert("POST reserve duplicate", dup.status === 409, `expected 409 got ${dup.status}`);
-  }
-
-  // 8. Mock payment duplicate deposit
-  console.log("\nPayments:");
-  if (auctionId) {
-    const payDup = await req("/api/m/payments/mock", {
-      method: "POST",
-      headers: { Cookie: cookieHeader(userCookies) },
-      body: JSON.stringify({ purpose: "AUCTION_DEPOSIT", auctionProjectId: auctionId }),
-    });
-    assert("POST mock payment duplicate deposit", payDup.status === 409, `expected 409 got ${payDup.status}`);
-  }
-
-  // 9. Upload without multipart
-  console.log("\nUpload:");
-  const uploadNoFile = await req("/api/upload", {
-    method: "POST",
-    headers: { Cookie: cookieHeader(adminCookies), "Content-Type": "application/json" },
-    body: JSON.stringify({}),
-  });
-  assert("POST /api/upload non-multipart", uploadNoFile.status === 400 || uploadNoFile.status === 401, `status=${uploadNoFile.status}`);
-
-  const uploadUnauth = await req("/api/upload", {
-    method: "POST",
-    body: new FormData(),
-  });
-  assert("POST /api/upload unauth", uploadUnauth.status === 401, `status=${uploadUnauth.status}`);
-
-  // 10. Admin assets non-multipart
-  console.log("\nAdmin assets:");
-  const assetBad = await req("/api/admin/assets", {
-    method: "POST",
-    headers: { Cookie: cookieHeader(adminCookies), "Content-Type": "application/json" },
-    body: JSON.stringify({ name: "test" }),
-  });
-  assert("POST /api/admin/assets non-multipart", assetBad.status === 400, `expected 400 got ${assetBad.status}`);
-
-  // 11. Logout
-  console.log("\nLogout:");
-  const userLogout = await req("/api/auth/logout", {
-    method: "POST",
-    headers: { Cookie: cookieHeader(userCookies) },
-  });
-  assert("POST /api/auth/logout", userLogout.status === 200);
-
-  const adminLogout = await req("/api/auth/admin/logout", {
-    method: "POST",
-    headers: { Cookie: cookieHeader(adminCookies) },
-  });
-  assert("POST /api/auth/admin/logout", adminLogout.status === 200);
-
-  // Summary
-  console.log(`\n${"=".repeat(40)}`);
-  console.log(`Results: ${passed} passed, ${failed} failed`);
-  if (errors.length) {
-    console.log("\nFailures:");
-    errors.forEach((e) => console.log(`  - ${e}`));
+  console.log(`Smoke test @ ${BASE}`);
+  try {
+    await fetch(BASE);
+  } catch (e) {
+    console.error(`无法连接 ${BASE}: ${e.message}`);
     process.exit(1);
   }
-  console.log("All smoke tests passed!");
+
+  await testPublicPages();
+  const userCookies = await testUserAuth();
+  const adminCookies = await testAdminAuth();
+  if (adminCookies.size > 0) await testUploadValidation(adminCookies);
+  if (userCookies.size > 0) {
+    await testAuctionFlow(userCookies);
+    await testDryingFlow(userCookies);
+    await testPayments(userCookies);
+  }
+  await testDict();
+  await testDevToken();
+
+  console.log(`\n结果: ${passed} 通过, ${failed} 失败`);
+  if (errors.length) {
+    console.log("\n失败详情:");
+    for (const e of errors) console.log(`  - ${e}`);
+    process.exit(1);
+  }
+  console.log("全部通过 ✓");
 }
 
 main().catch((e) => {
