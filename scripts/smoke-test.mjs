@@ -104,10 +104,27 @@ async function main() {
   assert("extract auction ID", !!auctionId, auctionId || "not found");
 
   if (auctionId) {
+    const { PrismaClient } = await import("@prisma/client");
+    const prisma = new PrismaClient();
+    let minBid = 8200;
+    try {
+      const project = await prisma.auctionProject.findUnique({ where: { id: auctionId } });
+      const topBid = await prisma.auctionBid.findFirst({
+        where: { projectId: auctionId },
+        orderBy: { amount: "desc" },
+      });
+      if (project) {
+        const bidStep = Number(project.bidStep);
+        minBid = topBid ? Number(topBid.amount) + bidStep : Number(project.startPrice);
+      }
+    } finally {
+      await prisma.$disconnect();
+    }
+
     const bid = await req(`/api/m/auction/${auctionId}/bid`, {
       method: "POST",
       headers: { Cookie: cookieHeader(userCookies) },
-      body: JSON.stringify({ amount: 8200 }),
+      body: JSON.stringify({ amount: minBid }),
     });
     assert("POST bid", bid.status === 200 && bid.json?.ok, `status=${bid.status} ${bid.json?.error || ""}`);
 
@@ -129,10 +146,11 @@ async function main() {
   assert("extract listing ID", !!listingId, listingId || "not found");
 
   if (listingId) {
+    const dayOffset = 30 + (Date.now() % 150);
     const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setDate(tomorrow.getDate() + dayOffset);
     const dayAfter = new Date();
-    dayAfter.setDate(dayAfter.getDate() + 2);
+    dayAfter.setDate(dayAfter.getDate() + dayOffset + 1);
     const reserve = await req("/api/m/drying/reserve", {
       method: "POST",
       headers: { Cookie: cookieHeader(userCookies) },
