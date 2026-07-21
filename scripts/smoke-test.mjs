@@ -104,10 +104,16 @@ async function main() {
   assert("extract auction ID", !!auctionId, auctionId || "not found");
 
   if (auctionId) {
+    const auctionDetail = await req(`/m/auction/${auctionId}`, {
+      headers: { Cookie: cookieHeader(userCookies) },
+    });
+    const minBidMatch = auctionDetail.text.match(/placeholder="([0-9.]+)"/);
+    const minBid = minBidMatch ? parseFloat(minBidMatch[1]) : 8200;
+
     const bid = await req(`/api/m/auction/${auctionId}/bid`, {
       method: "POST",
       headers: { Cookie: cookieHeader(userCookies) },
-      body: JSON.stringify({ amount: 8200 }),
+      body: JSON.stringify({ amount: minBid }),
     });
     assert("POST bid", bid.status === 200 && bid.json?.ok, `status=${bid.status} ${bid.json?.error || ""}`);
 
@@ -129,17 +135,19 @@ async function main() {
   assert("extract listing ID", !!listingId, listingId || "not found");
 
   if (listingId) {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayAfter = new Date();
-    dayAfter.setDate(dayAfter.getDate() + 2);
+    // Use a unique future window per run to avoid collisions with prior smoke tests
+    const offset = 30 + (Date.now() % 300);
+    const start = new Date();
+    start.setDate(start.getDate() + offset);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
     const reserve = await req("/api/m/drying/reserve", {
       method: "POST",
       headers: { Cookie: cookieHeader(userCookies) },
       body: JSON.stringify({
         listingId,
-        startDate: tomorrow.toISOString().slice(0, 10),
-        endDate: dayAfter.toISOString().slice(0, 10),
+        startDate: start.toISOString().slice(0, 10),
+        endDate: end.toISOString().slice(0, 10),
       }),
     });
     assert("POST reserve", reserve.status === 200 && reserve.json?.ok, `status=${reserve.status} ${reserve.json?.error || ""}`);
@@ -149,8 +157,8 @@ async function main() {
       headers: { Cookie: cookieHeader(userCookies) },
       body: JSON.stringify({
         listingId,
-        startDate: tomorrow.toISOString().slice(0, 10),
-        endDate: dayAfter.toISOString().slice(0, 10),
+        startDate: start.toISOString().slice(0, 10),
+        endDate: end.toISOString().slice(0, 10),
       }),
     });
     assert("POST reserve duplicate", dup.status === 409, `expected 409 got ${dup.status}`);
