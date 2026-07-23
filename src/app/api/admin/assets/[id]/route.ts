@@ -28,7 +28,8 @@ export async function POST(
   if (!asset) return NextResponse.json({ error: "资产不存在" }, { status: 404 });
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return NextResponse.json({ error: "无权操作" }, { status: 403 });
-  const formData = await req.formData();
+  const formData = await req.formData().catch(() => null);
+  if (!formData) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
   const raw = Object.fromEntries(formData.entries());
   const parsed = updateSchema.safeParse({
     ...raw,
