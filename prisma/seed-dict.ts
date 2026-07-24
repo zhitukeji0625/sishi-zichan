@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { pathToFileURL } from "url";
 
 const categories = [
   {
@@ -184,8 +185,16 @@ export async function seedDict(prisma: PrismaClient) {
 async function main() {
   const prisma = new PrismaClient();
   await seedDict(prisma);
+  await prisma.$disconnect();
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+const isDirectRun =
+  typeof process.argv[1] === "string" &&
+  import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isDirectRun) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
