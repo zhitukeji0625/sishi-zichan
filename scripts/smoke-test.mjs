@@ -144,9 +144,25 @@ async function main() {
   }
 
   if (listing) {
-    const day = 10 + (Date.now() % 15);
-    const start = `2026-10-${String(day).padStart(2, "0")}`;
-    const end = `2026-10-${String(day + 1).padStart(2, "0")}`;
+    const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+    let start = "";
+    let end = "";
+    for (let i = 90; i < 400; i++) {
+      const base = new Date(Date.now() + i * 24 * 60 * 60 * 1000);
+      start = base.toISOString().slice(0, 10);
+      end = new Date(base.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      if (!demoUser) break;
+      const clash = await prisma.dryingReservation.findFirst({
+        where: {
+          listingId: listing.id,
+          endUserId: demoUser.id,
+          status: { notIn: ["REJECTED", "CANCELLED"] },
+          startDate: { lte: new Date(end) },
+          endDate: { gte: new Date(start) },
+        },
+      });
+      if (!clash) break;
+    }
     r = await fetchWithJar(
       "/api/m/drying/reserve",
       {
