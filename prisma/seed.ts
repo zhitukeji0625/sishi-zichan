@@ -41,6 +41,18 @@ async function refreshDemoAuction() {
       depositPaid: true,
     },
   });
+
+  const demoReservations = await prisma.dryingReservation.findMany({
+    where: { endUserId: demoUser.id },
+    select: { id: true },
+  });
+  const reservationIds = demoReservations.map((r) => r.id);
+  if (reservationIds.length > 0) {
+    await prisma.payment.deleteMany({ where: { reservationId: { in: reservationIds } } });
+    await prisma.contract.deleteMany({ where: { reservationId: { in: reservationIds } } });
+    await prisma.dryingReservation.deleteMany({ where: { id: { in: reservationIds } } });
+  }
+
   console.log(`Demo auction refreshed: ${project.code} -> LIVE`);
 }
 
