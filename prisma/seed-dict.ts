@@ -161,27 +161,53 @@ const categories = [
   },
 ];
 
-async function main() {
+export async function seedDictCategories(prismaClient: PrismaClient = prisma) {
   for (const cat of categories) {
-    const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
-    if (existing) {
-      console.log(`  Skip: ${cat.code} (already exists)`);
-      continue;
+    let category = await prismaClient.dictCategory.findUnique({ where: { code: cat.code } });
+    if (!category) {
+      try {
+        category = await prismaClient.dictCategory.create({
+          data: {
+            code: cat.code,
+            name: cat.name,
+            description: cat.description ?? null,
+            builtIn: cat.builtIn,
+            items: { create: cat.items },
+          },
+        });
+        console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+        continue;
+      } catch (e: unknown) {
+        const code = e && typeof e === "object" && "code" in e ? (e as { code: string }).code : "";
+        if (code !== "P2002") throw e;
+        category = await prismaClient.dictCategory.findUnique({ where: { code: cat.code } });
+      }
     }
-    await prisma.dictCategory.create({
-      data: {
-        code: cat.code,
-        name: cat.name,
-        description: cat.description ?? null,
-        builtIn: cat.builtIn,
-        items: { create: cat.items },
-      },
-    });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+    if (!category) continue;
+    const itemCount = await prismaClient.dictItem.count({ where: { categoryId: category.id } });
+    if (itemCount === 0) {
+      await prismaClient.dictItem.createMany({
+        data: cat.items.map((i) => ({ ...i, categoryId: category!.id })),
+      });
+      console.log(`  Backfilled items: ${cat.code}`);
+    } else {
+      console.log(`  Skip: ${cat.code} (${itemCount} items)`);
+    }
   }
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+async function runCli() {
+  await seedDictCategories();
+}
+
+const isDirectRun = process.argv[1]?.replace(/\\/g, "/").endsWith("prisma/seed-dict.ts");
+if (isDirectRun) {
+  runCli()
+    .then(() => prisma.$disconnect())
+    .catch((e) => {
+      console.error(e);
+      prisma.$disconnect();
+      process.exit(1);
+    });
+}
