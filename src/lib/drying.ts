@@ -44,3 +44,21 @@ export async function validateReservationRange(
   }
   return { ok: true };
 }
+
+/** Same user cannot book overlapping date ranges on one listing. */
+export async function findUserOverlappingReservation(
+  listingId: string,
+  endUserId: string,
+  start: Date,
+  end: Date,
+) {
+  return prisma.dryingReservation.findFirst({
+    where: {
+      listingId,
+      endUserId,
+      status: { notIn: ["REJECTED", "CANCELLED"] },
+      startDate: { lte: end },
+      endDate: { gte: start },
+    },
+  });
+}
