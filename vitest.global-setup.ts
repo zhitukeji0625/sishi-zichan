@@ -1,4 +1,15 @@
+import { config as loadEnv } from "dotenv";
+import path from "path";
 import { PrismaClient } from "@prisma/client";
+
+const root = path.resolve(__dirname);
+
+loadEnv({ path: path.join(root, ".env"), quiet: true });
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL =
+    process.env.TEST_DATABASE_URL ??
+    "mysql://root:root@127.0.0.1:3306/sishi";
+}
 
 /**
  * 集成测试依赖 MySQL/MariaDB。无库时默认跳过相关用例，避免 `npm run test` 直接失败。
