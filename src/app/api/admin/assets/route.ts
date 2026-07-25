@@ -5,7 +5,7 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 import { AssetType, AssetStatus } from "@prisma/client";
-import { requireMultipartForm } from "@/lib/multipart";
+import { readMultipartForm } from "@/lib/http";
 
 const schema = z.object({
   orgId: z.string(),
@@ -23,9 +23,8 @@ const schema = z.object({
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formOrErr = await requireMultipartForm(req);
-  if (formOrErr instanceof NextResponse) return formOrErr;
-  const formData = formOrErr;
+  const formData = await readMultipartForm(req);
+  if (formData instanceof Response) return formData;
   const raw = Object.fromEntries(formData.entries());
   const parsed = schema.safeParse({
     ...raw,

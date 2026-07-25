@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { getCurrentAdmin } from "@/lib/auth/session";
-import { requireMultipartForm } from "@/lib/multipart";
+import { readMultipartForm } from "@/lib/http";
 
 const UPLOAD_DIR = join(process.cwd(), "data", "uploads");
 
@@ -10,9 +10,8 @@ export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
 
-  const formOrErr = await requireMultipartForm(req);
-  if (formOrErr instanceof NextResponse) return formOrErr;
-  const formData = formOrErr;
+  const formData = await readMultipartForm(req);
+  if (formData instanceof Response) return formData;
   const file = formData.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "缺少文件" }, { status: 400 });
   
