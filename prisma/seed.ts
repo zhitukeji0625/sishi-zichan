@@ -3,13 +3,56 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const existing = await prisma.auctionProject.count();
-  if (existing > 0) {
-    console.log("Seed skipped: data already present.");
-    return;
+const DEMO_AUCTION_ASSET_NAME = "团部东侧闲置地块";
+const DEMO_USER_PHONE = "13800138000";
+
+/** 演示环境需始终有一条可出价的进行中竞拍（历史已结束项目保留不动）。 */
+async function ensureDemoAuctionLive() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+
+  const asset = await prisma.asset.findFirst({ where: { name: DEMO_AUCTION_ASSET_NAME } });
+  if (!asset) return;
+
+  const now = new Date();
+  let project = await prisma.auctionProject.findFirst({
+    where: { assetId: asset.id, status: "LIVE", endsAt: { gt: now } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!project) {
+    const starts = new Date(Date.now() - 60 * 1000);
+    const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    project = await prisma.auctionProject.create({
+      data: {
+        code: `DEMO_AP${Date.now()}`,
+        assetId: asset.id,
+        startPrice: 8000,
+        bidStep: 200,
+        startsAt: starts,
+        endsAt: ends,
+        depositAmount: 500,
+        status: "LIVE",
+      },
+    });
+    console.log(`Created demo LIVE auction: ${project.code}`);
   }
 
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+}
+
+async function seedInitialData() {
   const div = await prisma.organization.upsert({
     where: { code: "DIV1" },
     update: {},
@@ -208,6 +251,16 @@ async function main() {
     },
   });
 
+}
+
+async function main() {
+  const existing = await prisma.auctionProject.count();
+  if (existing > 0) {
+    console.log("Seed skipped: data already present.");
+  } else {
+    await seedInitialData();
+  }
+  await ensureDemoAuctionLive();
   console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
 }
 
