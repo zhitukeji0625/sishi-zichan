@@ -3,9 +3,39 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_USER_PHONE = "13800138000";
+
+/** 演示竞拍过期后，在无公示结果时延长窗口并恢复 LIVE，便于重复验收。 */
+async function refreshDemoAuctionIfNeeded() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: {
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+      project: { result: null },
+    },
+    orderBy: { createdAt: "desc" },
+    include: { project: true },
+  });
+  if (!reg) return;
+  const { project } = reg;
+  const now = Date.now();
+  if (project.status === "LIVE" && project.endsAt.getTime() > now) return;
+  const starts = new Date(now - 60_000);
+  const ends = new Date(now + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: { status: "LIVE", startsAt: starts, endsAt: ends },
+  });
+  console.log(`Demo auction ${project.code} refreshed to LIVE until ${ends.toISOString()}`);
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuctionIfNeeded();
     console.log("Seed skipped: data already present.");
     return;
   }
