@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
-import { getHighestBid } from "@/lib/auction";
+import { getHighestBid, resolveAuctionProjectId } from "@/lib/auction";
 import { format } from "date-fns";
 import { ChevronLeft } from "lucide-react";
 import { registerAuctionAction } from "../actions";
@@ -24,8 +24,10 @@ function parseImageUrls(imagesJson: string | null): string[] {
 export default async function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await getCurrentEndUser();
+  const resolvedId = await resolveAuctionProjectId(id);
+  if (!resolvedId) notFound();
   const project = await prisma.auctionProject.findUnique({
-    where: { id },
+    where: { id: resolvedId },
     include: { asset: true, result: true },
   });
   if (!project) notFound();
