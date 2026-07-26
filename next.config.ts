@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
     },
   },
   async rewrites() {
-    return [{ source: "/favicon.ico", destination: "/icon" }];
+    return [{ source: "/favicon.ico", destination: "/favicon.svg" }];
   },
 };
 
