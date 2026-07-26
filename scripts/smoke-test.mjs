@@ -51,6 +51,50 @@ function extractId(html, pattern) {
   return m?.[1] ?? null;
 }
 
+/** 从竞拍详情页解析当前价、起拍价、加价幅度，计算最低有效出价 */
+function minBidFromDetailHtml(html) {
+  const currentBlock = html.match(
+    /当前最高出价<\/div>\s*<div[^>]*>\s*¥([\d.]+)/,
+  );
+  const startBlock = html.match(/起拍价<\/div>\s*<div[^>]*>\s*¥([\d.]+)/);
+  const stepBlock = html.match(/加价幅度<\/div>\s*<div[^>]*>\s*¥([\d.]+)/);
+  const cur = currentBlock ? parseFloat(currentBlock[1]) : NaN;
+  const st = startBlock ? parseFloat(startBlock[1]) : 8000;
+  const stp = stepBlock ? parseFloat(stepBlock[1]) : 200;
+  const base = Number.isFinite(cur) && cur > 0 ? cur : st;
+  return Math.ceil((base + stp) * 100) / 100;
+}
+
+function reserveDateRange(offsetDays) {
+  const start = new Date();
+  start.setDate(start.getDate() + offsetDays);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return {
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
+  };
+}
+
+async function reserveWithFreshDates(listingId, userCookies) {
+  const base = 30 + (Math.floor(Date.now() / 3_600_000) % 200);
+  for (let i = 0; i < 12; i++) {
+    const { startDate, endDate } = reserveDateRange(base + i * 3);
+    const res = await req("/api/m/drying/reserve", {
+      method: "POST",
+      headers: { Cookie: cookieHeader(userCookies) },
+      body: JSON.stringify({ listingId, startDate, endDate }),
+    });
+    if (res.status === 200 && res.json?.ok) {
+      return { res, startDate, endDate };
+    }
+    if (res.status !== 409) {
+      return { res, startDate, endDate };
+    }
+  }
+  return { res: { status: 409, json: { error: "no free slot" } }, startDate: "", endDate: "" };
+}
+
 async function main() {
   console.log(`Smoke test @ ${BASE}\n`);
 
@@ -104,11 +148,25 @@ async function main() {
   assert("extract auction ID", !!auctionId, auctionId || "not found");
 
   if (auctionId) {
-    const bid = await req(`/api/m/auction/${auctionId}/bid`, {
+    const auctionDetail = await req(`/m/auction/${auctionId}`, {
+      headers: { Cookie: cookieHeader(userCookies) },
+    });
+    const bidAmount = minBidFromDetailHtml(auctionDetail.text);
+    let bid = await req(`/api/m/auction/${auctionId}/bid`, {
       method: "POST",
       headers: { Cookie: cookieHeader(userCookies) },
-      body: JSON.stringify({ amount: 8200 }),
+      body: JSON.stringify({ amount: bidAmount }),
     });
+    if (bid.status !== 200 && bid.json?.error) {
+      const m = String(bid.json.error).match(/不低于\s*([\d.]+)/);
+      if (m) {
+        bid = await req(`/api/m/auction/${auctionId}/bid`, {
+          method: "POST",
+          headers: { Cookie: cookieHeader(userCookies) },
+          body: JSON.stringify({ amount: parseFloat(m[1]) }),
+        });
+      }
+    }
     assert("POST bid", bid.status === 200 && bid.json?.ok, `status=${bid.status} ${bid.json?.error || ""}`);
 
     const bidLow = await req(`/api/m/auction/${auctionId}/bid`, {
@@ -129,19 +187,7 @@ async function main() {
   assert("extract listing ID", !!listingId, listingId || "not found");
 
   if (listingId) {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayAfter = new Date();
-    dayAfter.setDate(dayAfter.getDate() + 2);
-    const reserve = await req("/api/m/drying/reserve", {
-      method: "POST",
-      headers: { Cookie: cookieHeader(userCookies) },
-      body: JSON.stringify({
-        listingId,
-        startDate: tomorrow.toISOString().slice(0, 10),
-        endDate: dayAfter.toISOString().slice(0, 10),
-      }),
-    });
+    const { res: reserve, startDate, endDate } = await reserveWithFreshDates(listingId, userCookies);
     assert("POST reserve", reserve.status === 200 && reserve.json?.ok, `status=${reserve.status} ${reserve.json?.error || ""}`);
 
     const dup = await req("/api/m/drying/reserve", {
@@ -149,8 +195,8 @@ async function main() {
       headers: { Cookie: cookieHeader(userCookies) },
       body: JSON.stringify({
         listingId,
-        startDate: tomorrow.toISOString().slice(0, 10),
-        endDate: dayAfter.toISOString().slice(0, 10),
+        startDate,
+        endDate,
       }),
     });
     assert("POST reserve duplicate", dup.status === 409, `expected 409 got ${dup.status}`);
