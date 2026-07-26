@@ -32,6 +32,7 @@ async function refreshDemoAuction() {
       },
     });
   } else {
+    await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
     project = await prisma.auctionProject.update({
       where: { id: project.id },
       data: { status: "LIVE", startsAt: starts, endsAt: ends },
