@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { placeBid, resolveAuctionProjectId } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 const skipDb = process.env.VITEST_SKIP_DB_TESTS === "1";
@@ -10,6 +10,7 @@ describe.skipIf(skipDb)("placeBid", () => {
   let orgId: string;
   let assetId: string;
   let projectId: string;
+  let projectCode: string;
   let userId: string;
 
   beforeAll(async () => {
@@ -48,6 +49,7 @@ describe.skipIf(skipDb)("placeBid", () => {
       },
     });
     projectId = project.id;
+    projectCode = project.code;
     await prisma.auctionRegistration.create({
       data: {
         projectId,
@@ -81,5 +83,10 @@ describe.skipIf(skipDb)("placeBid", () => {
     await expect(
       placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
     ).rejects.toThrow();
+  });
+
+  it("resolves project id from code", async () => {
+    const id = await resolveAuctionProjectId(projectCode);
+    expect(id).toBe(projectId);
   });
 });
