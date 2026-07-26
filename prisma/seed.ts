@@ -24,7 +24,7 @@ async function refreshDemoAuction() {
   await prisma.auctionResult.deleteMany({ where: { projectId: project.id } });
   await prisma.auctionProject.update({
     where: { id: project.id },
-    data: { startsAt: starts, endsAt: ends, status: "LIVE", currentPrice: project.startPrice },
+    data: { startsAt: starts, endsAt: ends, status: "LIVE" },
   });
   await prisma.auctionRegistration.upsert({
     where: { projectId_endUserId: { projectId: project.id, endUserId: demoUser.id } },
