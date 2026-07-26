@@ -30,6 +30,30 @@ export async function getCapacityForDay(listingId: string, day: Date) {
   return { max, booked, available: Math.max(0, max - booked) };
 }
 
+const INACTIVE_RESERVATION_STATUSES = ["REJECTED", "CANCELLED", "COMPLETED"] as const;
+
+export async function findUserOverlappingReservation(
+  endUserId: string,
+  start: Date,
+  end: Date,
+  excludeReservationId?: string,
+) {
+  const reservations = await prisma.dryingReservation.findMany({
+    where: {
+      endUserId,
+      status: { notIn: [...INACTIVE_RESERVATION_STATUSES] },
+      ...(excludeReservationId ? { id: { not: excludeReservationId } } : {}),
+    },
+  });
+  const rangeStart = startOfDay(start);
+  const rangeEnd = startOfDay(end);
+  return reservations.find((r) => {
+    const otherStart = startOfDay(r.startDate);
+    const otherEnd = startOfDay(r.endDate);
+    return rangeStart <= otherEnd && otherStart <= rangeEnd;
+  });
+}
+
 export async function validateReservationRange(
   listingId: string,
   start: Date,
