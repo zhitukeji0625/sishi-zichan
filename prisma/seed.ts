@@ -3,9 +3,35 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** 演示用户最近报名项目保持 LIVE，便于重复跑 seed / E2E 测出价 */
+async function refreshDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id, status: "APPROVED", depositPaid: true },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!reg) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await prisma.$transaction([
+    prisma.auctionBid.deleteMany({ where: { projectId: reg.projectId } }),
+    prisma.auctionResult.deleteMany({ where: { projectId: reg.projectId } }),
+    prisma.auctionProject.update({
+      where: { id: reg.projectId },
+      data: { status: "LIVE", startsAt: starts, endsAt: ends },
+    }),
+  ]);
+  console.log("Demo auction refreshed:", reg.projectId);
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
