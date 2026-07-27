@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+import { parseRequestFields } from "@/lib/parse-request-fields";
 import { AssetType, AssetStatus } from "@prisma/client";
 
 const schema = z.object({
@@ -22,8 +23,8 @@ const schema = z.object({
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formData = await req.formData();
-  const raw = Object.fromEntries(formData.entries());
+  const raw = await parseRequestFields(req);
+  if (!raw) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
   const parsed = schema.safeParse({
     ...raw,
     refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
