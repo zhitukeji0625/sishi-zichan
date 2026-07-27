@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
-import { getHighestBid } from "@/lib/auction";
+import { getHighestBid, resolveAuctionProjectId } from "@/lib/auction";
 import { format } from "date-fns";
 import { ChevronLeft } from "lucide-react";
 import { registerAuctionAction } from "../actions";
@@ -22,22 +22,24 @@ function parseImageUrls(imagesJson: string | null): string[] {
 }
 
 export default async function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  const { id: routeId } = await params;
   const user = await getCurrentEndUser();
+  const projectId = await resolveAuctionProjectId(routeId);
+  if (!projectId) notFound();
   const project = await prisma.auctionProject.findUnique({
-    where: { id },
+    where: { id: projectId },
     include: { asset: true, result: true },
   });
   if (!project) notFound();
-  const projectId = project.id;
-  const top = await getHighestBid(projectId);
+  const auctionProjectId = project.id;
+  const top = await getHighestBid(auctionProjectId);
   const reg = user
     ? await prisma.auctionRegistration.findUnique({
-        where: { projectId_endUserId: { projectId, endUserId: user.id } },
+        where: { projectId_endUserId: { projectId: auctionProjectId, endUserId: user.id } },
       })
     : null;
   const bids = await prisma.auctionBid.findMany({
-    where: { projectId },
+    where: { projectId: auctionProjectId },
     orderBy: { createdAt: "desc" },
     take: 15,
     select: { amount: true, createdAt: true },
@@ -45,28 +47,28 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
   const isWinner = user && project.result?.winnerId === user.id && project.result?.status === "PUBLISHED";
   const existingContract = isWinner
     ? await prisma.contract.findFirst({
-        where: { auctionProjectId: projectId, endUserId: user.id },
+        where: { auctionProjectId: auctionProjectId, endUserId: user.id },
       })
     : null;
   const rentPaid = isWinner
     ? !!(await prisma.payment.findFirst({
-        where: { auctionProjectId: projectId, endUserId: user.id, purpose: "AUCTION_RENT", status: "SUCCESS" },
+        where: { auctionProjectId: auctionProjectId, endUserId: user.id, purpose: "AUCTION_RENT", status: "SUCCESS" },
       }))
     : false;
 
   async function register() {
     "use server";
-    await registerAuctionAction(projectId);
+    await registerAuctionAction(auctionProjectId);
   }
 
   async function payDeposit() {
     "use server";
-    await payAuctionDepositAction(projectId);
+    await payAuctionDepositAction(auctionProjectId);
   }
 
   async function goToContract() {
     "use server";
-    const r = await createAuctionContractAction(projectId);
+    const r = await createAuctionContractAction(auctionProjectId);
     if ("contractId" in r && r.contractId) {
       redirect(`/m/contract/${r.contractId}`);
     }
@@ -74,7 +76,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
 
   async function payRent() {
     "use server";
-    await payAuctionRentAction(projectId);
+    await payAuctionRentAction(auctionProjectId);
   }
 
   const statusInfo: Record<string, { label: string; cls: string }> = {
@@ -203,7 +205,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
             const minNext = top
               ? Number(top.toString()) + Number(project.bidStep.toString())
               : Number(project.startPrice.toString());
-            return <BidForm projectId={projectId} minBid={minNext} />;
+            return <BidForm projectId={auctionProjectId} minBid={minNext} />;
           })()}
           {isWinner && !existingContract && (
             <form action={goToContract}>

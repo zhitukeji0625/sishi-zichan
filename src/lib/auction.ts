@@ -1,5 +1,40 @@
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
+
+/** 路由参数可能是项目 id 或对外编号 code（如 AP…） */
+export async function resolveAuctionProject(
+  idOrCode: string,
+  include?: Prisma.AuctionProjectInclude,
+) {
+  if (include) {
+    const byId = await prisma.auctionProject.findUnique({
+      where: { id: idOrCode },
+      include,
+    });
+    if (byId) return byId;
+    return prisma.auctionProject.findUnique({
+      where: { code: idOrCode },
+      include,
+    });
+  }
+  const byId = await prisma.auctionProject.findUnique({ where: { id: idOrCode } });
+  if (byId) return byId;
+  return prisma.auctionProject.findUnique({ where: { code: idOrCode } });
+}
+
+export async function resolveAuctionProjectId(idOrCode: string): Promise<string | null> {
+  const byId = await prisma.auctionProject.findUnique({
+    where: { id: idOrCode },
+    select: { id: true },
+  });
+  if (byId) return byId.id;
+  const byCode = await prisma.auctionProject.findUnique({
+    where: { code: idOrCode },
+    select: { id: true },
+  });
+  return byCode?.id ?? null;
+}
 
 export async function getHighestBid(projectId: string) {
   const top = await prisma.auctionBid.findFirst({
@@ -14,7 +49,10 @@ export async function placeBid(params: {
   endUserId: string;
   amount: Decimal;
 }) {
-  const { projectId, endUserId, amount } = params;
+  const { endUserId, amount } = params;
+  const resolvedId = await resolveAuctionProjectId(params.projectId);
+  if (!resolvedId) throw new Error("项目不存在");
+  const projectId = resolvedId;
   return prisma.$transaction(async (tx) => {
     const project = await tx.auctionProject.findUnique({ where: { id: projectId } });
     if (!project || project.status !== "LIVE") {
