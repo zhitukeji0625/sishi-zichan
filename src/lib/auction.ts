@@ -1,6 +1,22 @@
 import { Decimal } from "@prisma/client/runtime/library";
 import { prisma } from "@/lib/prisma";
 
+/** 路由参数可能是 cuid 或业务编号 code（如 AP…） */
+export async function resolveAuctionProjectId(idOrCode: string): Promise<string | null> {
+  const trimmed = idOrCode.trim();
+  if (!trimmed) return null;
+  const byId = await prisma.auctionProject.findUnique({
+    where: { id: trimmed },
+    select: { id: true },
+  });
+  if (byId) return byId.id;
+  const byCode = await prisma.auctionProject.findUnique({
+    where: { code: trimmed },
+    select: { id: true },
+  });
+  return byCode?.id ?? null;
+}
+
 export async function getHighestBid(projectId: string) {
   const top = await prisma.auctionBid.findFirst({
     where: { projectId },
