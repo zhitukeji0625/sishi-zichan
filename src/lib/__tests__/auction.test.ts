@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { PrismaClient } from "@prisma/client";
 import { Decimal } from "@prisma/client/runtime/library";
-import { placeBid } from "@/lib/auction";
+import { placeBid, resolveAuctionProjectId } from "@/lib/auction";
 
 const prisma = new PrismaClient();
 const skipDb = process.env.VITEST_SKIP_DB_TESTS === "1";
@@ -81,5 +81,12 @@ describe.skipIf(skipDb)("placeBid", () => {
     await expect(
       placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
     ).rejects.toThrow();
+  });
+
+  it("resolveAuctionProjectId accepts id and code", async () => {
+    const project = await prisma.auctionProject.findUniqueOrThrow({ where: { id: projectId } });
+    await expect(resolveAuctionProjectId(projectId)).resolves.toBe(projectId);
+    await expect(resolveAuctionProjectId(project.code)).resolves.toBe(projectId);
+    await expect(resolveAuctionProjectId("missing")).resolves.toBeNull();
   });
 });

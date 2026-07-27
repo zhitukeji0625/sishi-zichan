@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
-import { getHighestBid } from "@/lib/auction";
+import { getHighestBid, resolveAuctionProjectId } from "@/lib/auction";
 import { format } from "date-fns";
 import { ChevronLeft } from "lucide-react";
 import { registerAuctionAction } from "../actions";
@@ -22,10 +22,12 @@ function parseImageUrls(imagesJson: string | null): string[] {
 }
 
 export default async function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+  const { id: idOrCode } = await params;
   const user = await getCurrentEndUser();
+  const resolvedId = await resolveAuctionProjectId(idOrCode);
+  if (!resolvedId) notFound();
   const project = await prisma.auctionProject.findUnique({
-    where: { id },
+    where: { id: resolvedId },
     include: { asset: true, result: true },
   });
   if (!project) notFound();
@@ -42,7 +44,11 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
     take: 15,
     select: { amount: true, createdAt: true },
   });
-  const isWinner = user && project.result?.winnerId === user.id && project.result?.status === "PUBLISHED";
+  const isWinner =
+    user &&
+    project.status === "ENDED" &&
+    project.result?.winnerId === user.id &&
+    project.result?.status === "PUBLISHED";
   const existingContract = isWinner
     ? await prisma.contract.findFirst({
         where: { auctionProjectId: projectId, endUserId: user.id },
@@ -143,7 +149,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
         </div>
 
         {/* Result banner */}
-        {project.result?.status === "PUBLISHED" && (
+        {project.result?.status === "PUBLISHED" && project.status === "ENDED" && (
           <div className={`card-elevated overflow-hidden animate-scale-in ${isWinner ? "border-emerald-200 bg-emerald-50" : "border-slate-200"}`}>
             <div className="p-4">
               <div className="flex items-center gap-3">
