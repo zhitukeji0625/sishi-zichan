@@ -5,11 +5,25 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 
 const UPLOAD_DIR = join(process.cwd(), "data", "uploads");
 
+function isMultipartRequest(req: Request) {
+  const ct = req.headers.get("content-type") ?? "";
+  return ct.includes("multipart/form-data");
+}
+
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  
-  const formData = await req.formData();
+
+  if (!isMultipartRequest(req)) {
+    return NextResponse.json({ error: "请使用 multipart/form-data 上传文件" }, { status: 400 });
+  }
+
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return NextResponse.json({ error: "无法解析上传内容" }, { status: 400 });
+  }
   const file = formData.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "缺少文件" }, { status: 400 });
   
