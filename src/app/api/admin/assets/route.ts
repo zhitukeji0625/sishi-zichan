@@ -31,6 +31,11 @@ export async function POST(req: Request) {
   });
   if (!parsed.success) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
   const d = parsed.data;
+  const org = await prisma.organization.findUnique({
+    where: { id: d.orgId },
+    select: { id: true },
+  });
+  if (!org) return NextResponse.json({ error: "组织不存在" }, { status: 400 });
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);
   if (!ok) return NextResponse.json({ error: "无权在该组织录入资产" }, { status: 403 });
   await prisma.asset.create({
