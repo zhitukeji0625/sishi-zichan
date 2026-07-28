@@ -33,6 +33,8 @@ export async function createAssetAction(formData: FormData) {
   const d = parsed.data;
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);
   if (!ok) return { error: "无权在该组织录入资产" };
+  const org = await prisma.organization.findUnique({ where: { id: d.orgId } });
+  if (!org) return { error: "组织不存在" };
   await prisma.asset.create({
     data: {
       orgId: d.orgId,
