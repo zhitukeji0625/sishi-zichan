@@ -3,10 +3,62 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_ASSET_NAME = "团部东侧闲置地块";
+
+/** Keep demo auction window valid when seed is re-run against an existing database. */
+async function refreshDemoAuctionWindow() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  let project = await prisma.auctionProject.findFirst({
+    where: { asset: { name: DEMO_ASSET_NAME } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!project) {
+    const asset = await prisma.asset.findFirst({ where: { name: DEMO_ASSET_NAME } });
+    if (!asset) return;
+    project = await prisma.auctionProject.create({
+      data: {
+        code: `AP${Date.now()}`,
+        assetId: asset.id,
+        startPrice: 8000,
+        bidStep: 200,
+        startsAt: starts,
+        endsAt: ends,
+        depositAmount: 500,
+        status: "LIVE",
+      },
+    });
+  } else {
+    project = await prisma.auctionProject.update({
+      where: { id: project.id },
+      data: { status: "LIVE", startsAt: starts, endsAt: ends },
+    });
+  }
+
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    await refreshDemoAuctionWindow();
+    console.log("Seed skipped: data already present (demo auction window refreshed).");
     return;
   }
 
@@ -106,7 +158,7 @@ async function main() {
     data: {
       orgId: reg.id,
       type: AssetType.LAND,
-      name: "团部东侧闲置地块",
+      name: DEMO_ASSET_NAME,
       locationText: "六十一团团部东侧",
       specs: "面积约 5 亩",
       description: "<p>适合种植及临时堆放，权属清晰。</p>",
