@@ -8,14 +8,31 @@ export default async function globalSetup() {
   const requireDb = process.env.VITEST_REQUIRE_DB === "1";
   const prisma = new PrismaClient();
   const timeoutMs = Number(process.env.VITEST_DB_CONNECT_TIMEOUT_MS ?? "4000");
+  const maxAttempts = Number(process.env.VITEST_DB_CONNECT_ATTEMPTS ?? "5");
+
+  let connected = false;
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await Promise.race([
+        prisma.$connect(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("connect timeout")), timeoutMs),
+        ),
+      ]);
+      connected = true;
+      break;
+    } catch (e) {
+      lastError = e;
+      await prisma.$disconnect().catch(() => {});
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 800 * attempt));
+      }
+    }
+  }
 
   try {
-    await Promise.race([
-      prisma.$connect(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("connect timeout")), timeoutMs),
-      ),
-    ]);
+    if (!connected) throw lastError;
     process.env.VITEST_DB_AVAILABLE = "1";
   } catch {
     if (requireDb) {
