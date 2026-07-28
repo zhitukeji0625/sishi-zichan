@@ -1,12 +1,14 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { ensureDemoLiveAuction } from "../src/lib/demo-auction";
 
 const prisma = new PrismaClient();
 
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    await ensureDemoLiveAuction();
+    console.log("Seed skipped: data already present (demo LIVE auction refreshed).");
     return;
   }
 
@@ -163,21 +165,7 @@ async function main() {
     },
   });
 
-  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
-  if (demoUser) {
-    await prisma.auctionRegistration.upsert({
-      where: {
-        projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
-      },
-      update: { status: "APPROVED", depositPaid: true },
-      create: {
-        projectId: project.id,
-        endUserId: demoUser.id,
-        status: "APPROVED",
-        depositPaid: true,
-      },
-    });
-  }
+  await ensureDemoLiveAuction();
 
   await prisma.announcement.create({
     data: {
