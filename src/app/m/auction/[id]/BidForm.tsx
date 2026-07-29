@@ -14,10 +14,16 @@ export function BidForm({ projectId, minBid }: { projectId: string; minBid: numb
     e.preventDefault();
     setLoading(true);
     setMsg(null);
+    const parsed = amount.trim() === "" ? minBid : parseFloat(amount);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setLoading(false);
+      setMsg({ text: "请输入有效出价金额", ok: false });
+      return;
+    }
     const res = await fetch(`/api/m/auction/${projectId}/bid`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: parseFloat(amount) }),
+      body: JSON.stringify({ amount: parsed }),
     });
     setLoading(false);
     const j = await res.json().catch(() => ({}));
