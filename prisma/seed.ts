@@ -7,6 +7,8 @@ async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
+    const { refreshDemoAuctionWindow } = await import("./refresh-demo-auction");
+    await refreshDemoAuctionWindow();
     return;
   }
 
