@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+import { organizationExists } from "@/lib/organization";
 import { AssetType, AssetStatus } from "@prisma/client";
 
 const schema = z.object({
@@ -31,6 +32,9 @@ export async function POST(req: Request) {
   });
   if (!parsed.success) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
   const d = parsed.data;
+  if (!(await organizationExists(d.orgId))) {
+    return NextResponse.json({ error: "组织不存在" }, { status: 400 });
+  }
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);
   if (!ok) return NextResponse.json({ error: "无权在该组织录入资产" }, { status: 403 });
   await prisma.asset.create({
