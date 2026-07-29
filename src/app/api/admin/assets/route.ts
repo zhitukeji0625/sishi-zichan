@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+import { parseFormBody } from "@/lib/parse-body";
 import { AssetType, AssetStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 const schema = z.object({
   orgId: z.string(),
@@ -22,8 +24,11 @@ const schema = z.object({
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formData = await req.formData();
-  const raw = Object.fromEntries(formData.entries());
+  const parsedBody = await parseFormBody(req);
+  if (!parsedBody.ok) {
+    return NextResponse.json({ error: parsedBody.error }, { status: parsedBody.status });
+  }
+  const raw = parsedBody.data;
   const parsed = schema.safeParse({
     ...raw,
     refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
@@ -31,8 +36,11 @@ export async function POST(req: Request) {
   });
   if (!parsed.success) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
   const d = parsed.data;
+  const org = await prisma.organization.findUnique({ where: { id: d.orgId }, select: { id: true } });
+  if (!org) return NextResponse.json({ error: "组织不存在" }, { status: 400 });
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);
   if (!ok) return NextResponse.json({ error: "无权在该组织录入资产" }, { status: 403 });
+  try {
   await prisma.asset.create({
     data: {
       orgId: d.orgId,
@@ -47,6 +55,12 @@ export async function POST(req: Request) {
       imagesJson: d.imagesJson || null,
     },
   });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2003") {
+      return NextResponse.json({ error: "组织不存在" }, { status: 400 });
+    }
+    throw e;
+  }
   await writeAudit(admin.id, "ASSET_CREATE", JSON.stringify({ name: d.name, type: d.type }));
   return NextResponse.json({ ok: true });
 }
