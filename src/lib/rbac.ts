@@ -50,6 +50,14 @@ export async function adminCanAccessOrg(
   return scope.includes(targetOrgId);
 }
 
+export async function organizationExists(orgId: string): Promise<boolean> {
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { id: true },
+  });
+  return org !== null;
+}
+
 export function isRegimentOrAbove(role: AdminRole) {
   return role === "DIVISION_ADMIN" || role === "REGIMENT_ADMIN";
 }
