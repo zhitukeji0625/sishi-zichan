@@ -12,12 +12,18 @@ export function BidForm({ projectId, minBid }: { projectId: string; minBid: numb
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setMsg(null);
+    const parsed = parseFloat(amount);
+    const bidAmount = Number.isFinite(parsed) && parsed > 0 ? parsed : minBid;
+    if (bidAmount < minBid) {
+      setMsg({ text: `出价需不低于 ¥${minBid.toFixed(2)}`, ok: false });
+      return;
+    }
+    setLoading(true);
     const res = await fetch(`/api/m/auction/${projectId}/bid`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: parseFloat(amount) }),
+      body: JSON.stringify({ amount: bidAmount }),
     });
     setLoading(false);
     const j = await res.json().catch(() => ({}));
