@@ -31,6 +31,8 @@ export async function createAssetAction(formData: FormData) {
   });
   if (!parsed.success) return { error: "表单数据无效" };
   const d = parsed.data;
+  const org = await prisma.organization.findUnique({ where: { id: d.orgId }, select: { id: true } });
+  if (!org) return { error: "组织不存在" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);
   if (!ok) return { error: "无权在该组织录入资产" };
   await prisma.asset.create({
