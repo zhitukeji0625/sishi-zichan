@@ -86,10 +86,16 @@ export async function getCurrentEndUser() {
   });
 }
 
+const DEV_THIRD_PARTY_JWT_SECRET =
+  "dev-only-third-party-jwt-secret-do-not-use-in-production";
+
 function thirdPartySecret() {
   const s = process.env.THIRD_PARTY_JWT_SECRET;
-  if (!s || s.length < 16) throw new Error("THIRD_PARTY_JWT_SECRET must be set (min 16 chars)");
-  return new TextEncoder().encode(s);
+  if (s && s.length >= 16) return new TextEncoder().encode(s);
+  if (process.env.NODE_ENV !== "production") {
+    return new TextEncoder().encode(DEV_THIRD_PARTY_JWT_SECRET);
+  }
+  throw new Error("THIRD_PARTY_JWT_SECRET must be set (min 16 chars)");
 }
 
 /** Third-party handoff: short-lived JWT with external user id */
