@@ -78,14 +78,21 @@ if (tp.token) {
 // Bid
 const projectId = dbQuery("SELECT id FROM AuctionProject WHERE status='LIVE' LIMIT 1");
 if (projectId) {
+  const topBid = dbQuery(`SELECT COALESCE(MAX(amount), 0) FROM AuctionBid WHERE projectId='${projectId}'`);
+  const startPrice = dbQuery(`SELECT startPrice FROM AuctionProject WHERE id='${projectId}'`);
+  const bidStep = dbQuery(`SELECT bidStep FROM AuctionProject WHERE id='${projectId}'`);
+  const top = parseFloat(topBid) || 0;
+  const start = parseFloat(startPrice) || 8000;
+  const step = parseFloat(bidStep) || 200;
+  const minBid = top > 0 ? top + step : start;
   const bid = JSON.parse(
     await curl(
-      `-b ${cookieUser} -X POST "${BASE}/api/m/auction/${projectId}/bid" -H "Content-Type: application/json" -d '{"amount":8200}'`,
+      `-b ${cookieUser} -X POST "${BASE}/api/m/auction/${projectId}/bid" -H "Content-Type: application/json" -d '{"amount":${minBid}}'`,
     ),
   );
   check("Bid placement", "true", bid.ok === true ? "true" : "false");
   check("Low bid rejected 400", "400", await curlCode(
-    `-b ${cookieUser} -X POST "${BASE}/api/m/auction/${projectId}/bid" -H "Content-Type: application/json" -d '{"amount":8250}'`,
+    `-b ${cookieUser} -X POST "${BASE}/api/m/auction/${projectId}/bid" -H "Content-Type: application/json" -d '{"amount":${minBid + step / 2}}'`,
   ));
 } else {
   check("LIVE auction exists", "true", "false");
@@ -94,8 +101,9 @@ if (projectId) {
 // Drying
 const listingId = dbQuery("SELECT id FROM DryingFieldListing WHERE status='OPERATING' LIMIT 1");
 if (listingId) {
-  const start = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
-  const end = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+  const dayOffset = 20 + Math.floor(Date.now() / 86400000) % 30;
+  const start = new Date(Date.now() + dayOffset * 86400000).toISOString().slice(0, 10);
+  const end = new Date(Date.now() + (dayOffset + 1) * 86400000).toISOString().slice(0, 10);
   const res = JSON.parse(
     await curl(
       `-b ${cookieUser} -X POST "${BASE}/api/m/drying/reserve" -H "Content-Type: application/json" -d '{"listingId":"${listingId}","startDate":"${start}","endDate":"${end}"}'`,
