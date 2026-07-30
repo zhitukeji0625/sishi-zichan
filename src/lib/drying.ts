@@ -44,3 +44,22 @@ export async function validateReservationRange(
   }
   return { ok: true };
 }
+
+export async function hasOverlappingUserReservation(
+  listingId: string,
+  endUserId: string,
+  start: Date,
+  end: Date,
+): Promise<boolean> {
+  const overlap = await prisma.dryingReservation.findFirst({
+    where: {
+      listingId,
+      endUserId,
+      status: { notIn: ["REJECTED", "CANCELLED"] },
+      startDate: { lte: end },
+      endDate: { gte: start },
+    },
+    select: { id: true },
+  });
+  return !!overlap;
+}
