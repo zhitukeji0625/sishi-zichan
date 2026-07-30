@@ -19,11 +19,27 @@ const schema = z.object({
   imagesJson: z.string().optional(),
 });
 
+async function readAssetFormData(req: Request) {
+  const contentType = req.headers.get("content-type") ?? "";
+  if (
+    !contentType.includes("multipart/form-data") &&
+    !contentType.includes("application/x-www-form-urlencoded")
+  ) {
+    return { error: NextResponse.json({ error: "请使用表单提交（multipart/form-data）" }, { status: 400 }) };
+  }
+  try {
+    return { formData: await req.formData() };
+  } catch {
+    return { error: NextResponse.json({ error: "表单数据无效" }, { status: 400 }) };
+  }
+}
+
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formData = await req.formData();
-  const raw = Object.fromEntries(formData.entries());
+  const parsedForm = await readAssetFormData(req);
+  if ("error" in parsedForm) return parsedForm.error;
+  const raw = Object.fromEntries(parsedForm.formData.entries());
   const parsed = schema.safeParse({
     ...raw,
     refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
