@@ -170,6 +170,11 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
               <button type="submit" className="btn-primary w-full !py-3.5 text-[15px]">报名参与竞拍</button>
             </form>
           )}
+          {user && reg?.status === "REJECTED" && project.status !== "ENDED" && (
+            <form action={register}>
+              <button type="submit" className="btn-primary w-full !py-3.5 text-[15px]">重新报名</button>
+            </form>
+          )}
           {user && reg?.status === "PENDING" && (
             <div className="card-elevated flex items-center gap-3 p-4">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100">
