@@ -1,11 +1,14 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { refreshDemoAuctionIfExpired } from "../src/lib/demo";
 
 const prisma = new PrismaClient();
 
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    const refreshed = await refreshDemoAuctionIfExpired(prisma);
+    if (refreshed) console.log("Demo auction refreshed to LIVE.");
     console.log("Seed skipped: data already present.");
     return;
   }
