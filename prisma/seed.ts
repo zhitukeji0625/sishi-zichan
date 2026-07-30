@@ -3,9 +3,39 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** Keep demo auction LIVE so cron/CI smoke tests can bid. */
+async function refreshDemoAuctionIfExpired() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const liveCount = await prisma.auctionProject.count({ where: { status: "LIVE" } });
+  if (liveCount > 0) return;
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!reg) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionBid.deleteMany({ where: { projectId: reg.projectId } });
+  await prisma.auctionResult.deleteMany({ where: { projectId: reg.projectId } });
+  await prisma.auctionProject.update({
+    where: { id: reg.projectId },
+    data: { status: "LIVE", startsAt: starts, endsAt: ends },
+  });
+  await prisma.auctionRegistration.update({
+    where: { id: reg.id },
+    data: { status: "APPROVED", depositPaid: true },
+  });
+  console.log("Refreshed expired demo auction.");
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuctionIfExpired();
     console.log("Seed skipped: data already present.");
     return;
   }
