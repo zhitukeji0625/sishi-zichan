@@ -15,7 +15,7 @@ export default async function DryingDetailPage({ params }: { params: Promise<{ i
   });
   if (!listing) notFound();
   const rule = listing.bookingRules[0];
-  const maxAdvance = rule?.maxAdvanceDays ?? 7;
+  const maxAdvance = Math.max(0, rule?.maxAdvanceDays ?? 7);
   const today = startOfDay(new Date());
   const horizon = addDays(today, maxAdvance);
   const days = eachDayOfInterval({ start: today, end: horizon }).slice(0, 8);
