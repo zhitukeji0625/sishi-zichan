@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { verifyThirdPartyToken } from "@/lib/auth/session";
 import { upsertEndUserFromExternal } from "@/lib/external-user";
-import { createDbSession, setSessionCookie } from "@/lib/auth/session";
+import { createDbSession, isThirdPartyConfigured, setSessionCookie } from "@/lib/auth/session";
 
 export async function POST(req: Request) {
+  if (!isThirdPartyConfigured()) {
+    return NextResponse.json({ error: "第三方登录未配置" }, { status: 503 });
+  }
   const body = await req.json().catch(() => null);
   const token = typeof body?.token === "string" ? body.token : "";
   if (!token) {

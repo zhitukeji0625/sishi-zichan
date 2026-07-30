@@ -36,6 +36,9 @@ export async function validateReservationRange(
   end: Date,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const days = eachDayOfInterval({ start: startOfDay(start), end: startOfDay(end) });
+  if (days.length > 90) {
+    return { ok: false, message: "预约区间不能超过90天" };
+  }
   for (const day of days) {
     const { available } = await getCapacityForDay(listingId, day);
     if (available <= 0) {
