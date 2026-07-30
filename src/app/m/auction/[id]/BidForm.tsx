@@ -12,6 +12,11 @@ export function BidForm({ projectId, minBid }: { projectId: string; minBid: numb
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const parsed = parseFloat(amount);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setMsg({ text: "请输入有效出价金额", ok: false });
+      return;
+    }
     setLoading(true);
     setMsg(null);
     const res = await fetch(`/api/m/auction/${projectId}/bid`, {

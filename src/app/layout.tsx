@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { refreshAuctionProjectStatuses } from "@/lib/cron";
+import { ensureDemoLiveAuction, refreshAuctionProjectStatuses } from "@/lib/cron";
 
 /** 构建镜像时无数据库；强制动态渲染避免 next build 阶段执行 Prisma */
 export const dynamic = "force-dynamic";
@@ -13,6 +13,9 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   try {
     await refreshAuctionProjectStatuses();
+    if (process.env.NODE_ENV !== "production") {
+      await ensureDemoLiveAuction();
+    }
   } catch {
     /* 构建或未就绪时忽略 */
   }
