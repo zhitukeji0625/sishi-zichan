@@ -1,12 +1,20 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { ensureDemoLiveAuction } from "../src/lib/demo-auction";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    const live = await ensureDemoLiveAuction();
+    await seedDict(prisma);
+    console.log(
+      live
+        ? `Seed refresh OK. Demo auction renewed: ${live.code}`
+        : "Seed refresh OK (existing data).",
+    );
     return;
   }
 
@@ -209,6 +217,7 @@ async function main() {
   });
 
   console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
+  await seedDict(prisma);
 }
 
 main()
