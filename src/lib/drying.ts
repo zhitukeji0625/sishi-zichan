@@ -34,7 +34,22 @@ export async function validateReservationRange(
   listingId: string,
   start: Date,
   end: Date,
+  endUserId?: string,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (endUserId) {
+    const existing = await prisma.dryingReservation.findFirst({
+      where: {
+        listingId,
+        endUserId,
+        status: { notIn: ["REJECTED", "CANCELLED"] },
+        startDate: { lte: end },
+        endDate: { gte: start },
+      },
+    });
+    if (existing) {
+      return { ok: false, message: "所选时段与已有预约重叠" };
+    }
+  }
   const days = eachDayOfInterval({ start: startOfDay(start), end: startOfDay(end) });
   for (const day of days) {
     const { available } = await getCapacityForDay(listingId, day);
