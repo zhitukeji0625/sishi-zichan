@@ -1,14 +1,12 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
 import { getHighestBid } from "@/lib/auction";
 import { format } from "date-fns";
 import { ChevronLeft } from "lucide-react";
-import { registerAuctionAction } from "../actions";
-import { payAuctionDepositAction } from "../pay-actions";
-import { createAuctionContractAction, payAuctionRentAction } from "../../contract/sign-actions";
 import { BidForm } from "./BidForm";
+import { AuctionActionButtons } from "./AuctionActionButtons";
 
 function parseImageUrls(imagesJson: string | null): string[] {
   if (!imagesJson) return [];
@@ -53,29 +51,6 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
         where: { auctionProjectId: projectId, endUserId: user.id, purpose: "AUCTION_RENT", status: "SUCCESS" },
       }))
     : false;
-
-  async function register() {
-    "use server";
-    await registerAuctionAction(projectId);
-  }
-
-  async function payDeposit() {
-    "use server";
-    await payAuctionDepositAction(projectId);
-  }
-
-  async function goToContract() {
-    "use server";
-    const r = await createAuctionContractAction(projectId);
-    if ("contractId" in r && r.contractId) {
-      redirect(`/m/contract/${r.contractId}`);
-    }
-  }
-
-  async function payRent() {
-    "use server";
-    await payAuctionRentAction(projectId);
-  }
 
   const statusInfo: Record<string, { label: string; cls: string }> = {
     LIVE: { label: "竞拍中", cls: "status-live" },
@@ -164,71 +139,22 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
         )}
 
         {/* Action buttons */}
-        <div className="space-y-3 animate-slide-up stagger-2">
-          {user && !reg && project.status !== "ENDED" && (
-            <form action={register}>
-              <button type="submit" className="btn-primary w-full !py-3.5 text-[15px]">报名参与竞拍</button>
-            </form>
-          )}
-          {user && reg?.status === "PENDING" && (
-            <div className="card-elevated flex items-center gap-3 p-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100">
-                <span className="text-sm">⏳</span>
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-amber-800">报名审核中</div>
-                <div className="text-xs text-amber-600">请等待连队管理员审核</div>
-              </div>
-            </div>
-          )}
-          {user && reg?.status === "REJECTED" && (
-            <div className="card-elevated flex items-center gap-3 border-red-200 bg-red-50 p-4">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100">
-                <span className="text-sm">✗</span>
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-red-800">报名未通过</div>
-                <div className="text-xs text-red-600">{reg.rejectReason}</div>
-              </div>
-            </div>
-          )}
-          {user && reg?.status === "APPROVED" && !reg.depositPaid && (
-            <form action={payDeposit}>
-              <button type="submit" className="w-full rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 py-3.5 text-[15px] font-bold text-white shadow-md shadow-amber-500/20">
-                缴纳保证金 ¥{project.depositAmount.toString()}
-              </button>
-            </form>
-          )}
-          {user && reg?.status === "APPROVED" && reg.depositPaid && project.status === "LIVE" && (() => {
-            const minNext = top
-              ? Number(top.toString()) + Number(project.bidStep.toString())
-              : Number(project.startPrice.toString());
-            return <BidForm projectId={projectId} minBid={minNext} />;
-          })()}
-          {isWinner && !existingContract && (
-            <form action={goToContract}>
-              <button type="submit" className="btn-primary w-full !py-3.5 text-[15px]">签署合同</button>
-            </form>
-          )}
-          {isWinner && existingContract && existingContract.status === "DRAFT" && (
-            <Link href={`/m/contract/${existingContract.id}`} className="btn-primary block w-full text-center !py-3.5 text-[15px]">
-              继续签署合同
-            </Link>
-          )}
-          {isWinner && existingContract?.status === "SIGNED" && !rentPaid && (
-            <form action={payRent}>
-              <button type="submit" className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-3.5 text-[15px] font-bold text-white shadow-md shadow-emerald-500/20">
-                支付租金
-              </button>
-            </form>
-          )}
-          {isWinner && rentPaid && (
-            <div className="card-elevated flex items-center gap-3 border-emerald-200 bg-emerald-50 p-4">
-              <span className="text-lg">✅</span>
-              <div className="text-sm font-semibold text-emerald-700">租金已支付，全部流程已完成</div>
-            </div>
-          )}
-        </div>
+        <AuctionActionButtons
+          projectId={projectId}
+          depositAmount={project.depositAmount.toString()}
+          user={user}
+          reg={reg}
+          projectStatus={project.status}
+          isWinner={!!isWinner}
+          existingContract={existingContract}
+          rentPaid={rentPaid}
+        />
+        {user && reg?.status === "APPROVED" && reg.depositPaid && project.status === "LIVE" && (() => {
+          const minNext = top
+            ? Number(top.toString()) + Number(project.bidStep.toString())
+            : Number(project.startPrice.toString());
+          return <BidForm projectId={projectId} minBid={minNext} />;
+        })()}
 
         {/* Bid history */}
         <div className="card-elevated p-5 animate-slide-up stagger-3">
