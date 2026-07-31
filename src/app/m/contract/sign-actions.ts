@@ -36,7 +36,7 @@ export async function signContractAction(contractId: string) {
     }
   });
   await notifyUser(user.id, "合同已签署", "您的合同已签署成功。", "CONTRACT_SIGNED");
-  revalidatePath("/m/contract");
+  revalidatePath(`/m/contract/${contractId}`);
   revalidatePath("/m/orders");
   return { ok: true as const };
 }
@@ -117,6 +117,10 @@ export async function payAuctionRentAction(projectId: string) {
   if (!result || result.winnerId !== user.id || result.status !== "PUBLISHED") {
     return { error: "无权操作" };
   }
+  const contract = await prisma.contract.findFirst({
+    where: { auctionProjectId: projectId, endUserId: user.id, status: "SIGNED" },
+  });
+  if (!contract) return { error: "请先签署合同" };
   const topBid = await prisma.auctionBid.findFirst({
     where: { projectId, endUserId: user.id },
     orderBy: { amount: "desc" },
