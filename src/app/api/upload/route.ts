@@ -9,9 +9,15 @@ export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
   
+  const contentType = req.headers.get("content-type") ?? "";
+  if (!contentType.includes("multipart/form-data")) {
+    return NextResponse.json({ error: "请使用 multipart/form-data 上传" }, { status: 400 });
+  }
   const formData = await req.formData();
-  const file = formData.get("file") as File | null;
-  if (!file) return NextResponse.json({ error: "缺少文件" }, { status: 400 });
+  const file = formData.get("file");
+  if (!file || typeof file === "string") {
+    return NextResponse.json({ error: "缺少文件" }, { status: 400 });
+  }
   
   const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
   if (!allowedTypes.includes(file.type)) {

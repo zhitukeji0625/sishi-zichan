@@ -31,6 +31,19 @@ export async function POST(req: Request) {
   if (!listing || listing.status !== "OPERATING") {
     return NextResponse.json({ error: "晒场不存在或未运营" }, { status: 404 });
   }
+  const overlapping = await prisma.dryingReservation.findFirst({
+    where: {
+      listingId: parsed.data.listingId,
+      endUserId: user.id,
+      status: { notIn: ["REJECTED", "CANCELLED"] },
+      startDate: { lte: end },
+      endDate: { gte: start },
+    },
+  });
+  if (overlapping) {
+    return NextResponse.json({ error: "您在该时段已有预约" }, { status: 409 });
+  }
+
   const check = await validateReservationRange(parsed.data.listingId, start, end);
   if (!check.ok) {
     return NextResponse.json({ error: check.message }, { status: 400 });
