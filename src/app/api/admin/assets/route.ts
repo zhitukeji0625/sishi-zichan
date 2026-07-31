@@ -33,6 +33,8 @@ export async function POST(req: Request) {
   const d = parsed.data;
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);
   if (!ok) return NextResponse.json({ error: "无权在该组织录入资产" }, { status: 403 });
+  const org = await prisma.organization.findUnique({ where: { id: d.orgId } });
+  if (!org) return NextResponse.json({ error: "组织不存在" }, { status: 400 });
   await prisma.asset.create({
     data: {
       orgId: d.orgId,
