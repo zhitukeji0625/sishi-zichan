@@ -1,7 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
 
-const categories = [
+export const dictCategories = [
   {
     code: "asset_type",
     name: "资产类型",
@@ -161,27 +160,54 @@ const categories = [
   },
 ];
 
-async function main() {
-  for (const cat of categories) {
-    const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
+export async function seedDict(client: PrismaClient) {
+  for (const cat of dictCategories) {
+    const existing = await client.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
       console.log(`  Skip: ${cat.code} (already exists)`);
       continue;
     }
-    await prisma.dictCategory.create({
-      data: {
-        code: cat.code,
-        name: cat.name,
-        description: cat.description ?? null,
-        builtIn: cat.builtIn,
-        items: { create: cat.items },
-      },
-    });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+    try {
+      await client.dictCategory.create({
+        data: {
+          code: cat.code,
+          name: cat.name,
+          description: cat.description ?? null,
+          builtIn: cat.builtIn,
+          items: { create: cat.items },
+        },
+      });
+      console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+    } catch (e) {
+      const isDuplicate =
+        e &&
+        typeof e === "object" &&
+        "code" in e &&
+        (e as { code: string }).code === "P2002";
+      if (isDuplicate) {
+        console.log(`  Skip: ${cat.code} (already exists)`);
+        continue;
+      }
+      throw e;
+    }
   }
-  console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+const prisma = new PrismaClient();
+
+const isDirectRun =
+  typeof process.argv[1] === "string" &&
+  process.argv[1].replace(/\\/g, "/").endsWith("prisma/seed-dict.ts");
+
+if (isDirectRun) {
+  seedDict(prisma)
+    .then(() => {
+      console.log("Dict seed done.");
+      return prisma.$disconnect();
+    })
+    .catch((e) => {
+      console.error(e);
+      prisma.$disconnect();
+      process.exit(1);
+    });
+}
