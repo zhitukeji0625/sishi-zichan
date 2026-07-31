@@ -12,15 +12,20 @@ export async function POST(
   const { projectId } = await params;
   const body = await req.json().catch(() => null);
   const raw = body?.amount;
-  const amount = typeof raw === "number" ? raw : typeof raw === "string" ? parseFloat(raw) : NaN;
-  if (!Number.isFinite(amount) || amount <= 0) {
+  const amountStr =
+    typeof raw === "number"
+      ? raw.toFixed(2)
+      : typeof raw === "string"
+        ? raw.trim()
+        : "";
+  if (!/^\d+(\.\d{1,2})?$/.test(amountStr) || Number(amountStr) <= 0) {
     return NextResponse.json({ error: "出价金额无效" }, { status: 400 });
   }
   try {
     const bid = await placeBid({
       projectId,
       endUserId: user.id,
-      amount: new Decimal(amount),
+      amount: new Decimal(amountStr),
     });
     return NextResponse.json({ ok: true, bidId: bid.id });
   } catch (e) {
