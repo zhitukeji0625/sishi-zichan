@@ -1,11 +1,58 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+/** 已有数据时，若演示竞拍非 LIVE 或已过期则刷新为进行中 */
+async function refreshDemoAuction() {
+  const now = Date.now();
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  let project = await prisma.auctionProject.findFirst({
+    where: { registrations: { some: { endUserId: demoUser.id } } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!project) {
+    project = await prisma.auctionProject.findFirst({ orderBy: { createdAt: "desc" } });
+  }
+  if (!project) return;
+
+  const needsRefresh = project.status !== "LIVE" || project.endsAt.getTime() <= now;
+  if (!needsRefresh) return;
+
+  await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+  await prisma.auctionResult.deleteMany({ where: { projectId: project.id } });
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: {
+      status: "LIVE",
+      startsAt: new Date(now - 60_000),
+      endsAt: new Date(now + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true, rejectReason: null },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log(`Demo auction refreshed: ${project.code} -> LIVE`);
+}
+
 async function main() {
+  await seedDict();
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
