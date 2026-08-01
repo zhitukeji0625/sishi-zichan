@@ -6,7 +6,22 @@ const prisma = new PrismaClient();
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+    if (demoUser) {
+      const regs = await prisma.auctionRegistration.findMany({
+        where: { endUserId: demoUser.id, depositPaid: true },
+        select: { projectId: true },
+      });
+      if (regs.length > 0) {
+        const starts = new Date(Date.now() - 60 * 1000);
+        const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        await prisma.auctionProject.updateMany({
+          where: { id: { in: regs.map((r) => r.projectId) } },
+          data: { startsAt: starts, endsAt: ends, status: "LIVE" },
+        });
+      }
+    }
+    console.log("Seed skipped: data already present. Demo auction windows refreshed.");
     return;
   }
 
