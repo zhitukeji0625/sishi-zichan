@@ -134,8 +134,9 @@ async function main() {
       jar: userJar,
     });
 
-    const start = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
-    const end = new Date(Date.now() + 4 * 86400000).toISOString().slice(0, 10);
+    const dayOffset = 20 + Math.floor(Date.now() / 86400000) % 30;
+    const start = new Date(Date.now() + dayOffset * 86400000).toISOString().slice(0, 10);
+    const end = new Date(Date.now() + (dayOffset + 1) * 86400000).toISOString().slice(0, 10);
     await check("drying reserve", 200, `${BASE}/api/m/drying/reserve`, {
       method: "POST",
       body: { listingId: listing.id, startDate: start, endDate: end },
