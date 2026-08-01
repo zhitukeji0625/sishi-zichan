@@ -50,6 +50,19 @@ export async function adminCanAccessOrg(
   return scope.includes(targetOrgId);
 }
 
+/** Verify target org exists and admin may manage it. */
+export async function validateAdminOrgAccess(
+  role: AdminRole,
+  adminOrgId: string,
+  targetOrgId: string,
+): Promise<{ ok: true } | { ok: false; error: string; status: 400 | 403 }> {
+  const org = await prisma.organization.findUnique({ where: { id: targetOrgId } });
+  if (!org) return { ok: false, error: "组织不存在", status: 400 };
+  const canAccess = await adminCanAccessOrg(role, adminOrgId, targetOrgId);
+  if (!canAccess) return { ok: false, error: "无权在该组织录入资产", status: 403 };
+  return { ok: true };
+}
+
 export function isRegimentOrAbove(role: AdminRole) {
   return role === "DIVISION_ADMIN" || role === "REGIMENT_ADMIN";
 }

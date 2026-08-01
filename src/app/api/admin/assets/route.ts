@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
-import { adminCanAccessOrg } from "@/lib/rbac";
+import { validateAdminOrgAccess } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 import { AssetType, AssetStatus } from "@prisma/client";
 
@@ -22,7 +22,12 @@ const schema = z.object({
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formData = await req.formData();
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
+  }
   const raw = Object.fromEntries(formData.entries());
   const parsed = schema.safeParse({
     ...raw,
@@ -31,8 +36,8 @@ export async function POST(req: Request) {
   });
   if (!parsed.success) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
   const d = parsed.data;
-  const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);
-  if (!ok) return NextResponse.json({ error: "无权在该组织录入资产" }, { status: 403 });
+  const access = await validateAdminOrgAccess(admin.role, admin.orgId, d.orgId);
+  if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
   await prisma.asset.create({
     data: {
       orgId: d.orgId,

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
-import { adminCanAccessOrg } from "@/lib/rbac";
+import { validateAdminOrgAccess } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 import { AssetType, AssetStatus } from "@prisma/client";
 
@@ -31,8 +31,8 @@ export async function createAssetAction(formData: FormData) {
   });
   if (!parsed.success) return { error: "表单数据无效" };
   const d = parsed.data;
-  const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);
-  if (!ok) return { error: "无权在该组织录入资产" };
+  const access = await validateAdminOrgAccess(admin.role, admin.orgId, d.orgId);
+  if (!access.ok) return { error: access.error };
   await prisma.asset.create({
     data: {
       orgId: d.orgId,
