@@ -1,12 +1,46 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+/** Refresh demo auction dates and ensure demo user can bid. */
+async function refreshDemoAuction() {
+  const co = await prisma.organization.findUnique({ where: { code: "CO101" } });
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  const asset = await prisma.asset.findFirst({ where: { name: "团部东侧闲置地块" } });
+  if (asset && co && asset.orgId !== co.id) {
+    await prisma.asset.update({ where: { id: asset.id }, data: { orgId: co.id } });
+  }
+  const project = await prisma.auctionProject.findFirst({ orderBy: { createdAt: "asc" } });
+  if (!project) return;
+  const starts = new Date(Date.now() - 60_000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: { startsAt: starts, endsAt: ends, status: "LIVE" },
+  });
+  if (demoUser) {
+    await prisma.auctionRegistration.upsert({
+      where: { projectId_endUserId: { projectId: project.id, endUserId: demoUser.id } },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId: project.id,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+  }
+}
+
 async function main() {
+  await seedDict(prisma);
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    await refreshDemoAuction();
+    console.log("Seed skipped: data already present. Demo auction refreshed.");
     return;
   }
 
@@ -104,7 +138,7 @@ async function main() {
 
   const asset1 = await prisma.asset.create({
     data: {
-      orgId: reg.id,
+      orgId: co.id,
       type: AssetType.LAND,
       name: "团部东侧闲置地块",
       locationText: "六十一团团部东侧",
