@@ -33,16 +33,18 @@ export default async function AdminAppLayout({ children }: { children: React.Rea
           </div>
         </div>
         <nav className="space-y-0.5 p-2">
-          {nav.map((item) => (
+          {nav.map((item) => {
+            const Icon = item.icon;
+            return (
             <Link
               key={item.href}
               href={item.href}
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
             >
-              <item.icon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
+              <Icon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden />
               {item.label}
             </Link>
-          ))}
+          );})}
         </nav>
         <form action={adminLogoutAction} className="absolute bottom-4 left-2 right-2">
           <button
@@ -59,16 +61,18 @@ export default async function AdminAppLayout({ children }: { children: React.Rea
           <div className="text-sm font-medium text-slate-900">管理后台</div>
         </div>
         <nav className="flex gap-2 overflow-x-auto border-b border-slate-100 bg-white px-4 py-2 md:hidden">
-          {nav.map((item) => (
+          {nav.map((item) => {
+            const Icon = item.icon;
+            return (
             <Link
               key={item.href}
               href={item.href}
               className="flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100"
             >
-              <item.icon className="h-3.5 w-3.5" aria-hidden />
+              <Icon className="h-3.5 w-3.5" aria-hidden />
               {item.label}
             </Link>
-          ))}
+          );})}
         </nav>
         <div className="p-4 md:p-8">{children}</div>
       </main>

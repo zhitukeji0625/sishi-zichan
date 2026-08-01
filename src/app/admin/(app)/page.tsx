@@ -32,18 +32,20 @@ export default async function AdminDashboard() {
       <h1 className="text-xl font-semibold text-slate-900">工作台</h1>
       <p className="mt-1 text-sm text-slate-500">数据范围已按您的组织权限过滤。</p>
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
-        {cards.map((c) => (
+        {cards.map((c) => {
+          const Icon = c.icon;
+          return (
           <div
             key={c.label}
             className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
           >
-            <c.icon className="h-8 w-8 text-blue-700" aria-hidden />
+            <Icon className="h-8 w-8 text-blue-700" aria-hidden />
             <div>
               <div className="text-2xl font-semibold text-slate-900">{c.value}</div>
               <div className="text-sm text-slate-500">{c.label}</div>
             </div>
           </div>
-        ))}
+        );})}
       </div>
     </div>
   );
