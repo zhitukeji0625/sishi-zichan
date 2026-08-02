@@ -105,7 +105,18 @@ const p=new PrismaClient();
 " 2>/dev/null)
 if [ -n "$PROJECT_ID" ]; then
   check_json "Bid without amount" POST "$BASE/api/m/auction/$PROJECT_ID/bid" '{}' "$COOKIE_JAR" 400 "" ""
-  check_json "Bid valid amount" POST "$BASE/api/m/auction/$PROJECT_ID/bid" '{"amount":8200}' "$COOKIE_JAR" 200 "ok" "true"
+  BID_AMOUNT=$(node -e "
+const {PrismaClient,Decimal}=require('@prisma/client');
+const p=new PrismaClient();
+(async()=>{
+  const proj=await p.auctionProject.findUnique({where:{id:'$PROJECT_ID'}});
+  const top=await p.auctionBid.findFirst({where:{projectId:'$PROJECT_ID'},orderBy:{amount:'desc'}});
+  const min=top?Number(top.amount)+Number(proj.bidStep):Number(proj.startPrice);
+  console.log(min);
+  await p.\$disconnect();
+})();
+" 2>/dev/null)
+  check_json "Bid valid amount" POST "$BASE/api/m/auction/$PROJECT_ID/bid" "{\"amount\":$BID_AMOUNT}" "$COOKIE_JAR" 200 "ok" "true"
 else
   fail "Could not find/create LIVE auction project"
 fi
