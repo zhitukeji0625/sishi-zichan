@@ -9,6 +9,13 @@ function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function fillTemplate(template: string, vars: Record<string, string>): string {
+  return Object.entries(vars).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+}
+
 export async function signContractAction(contractId: string) {
   const user = await getCurrentEndUser();
   if (!user) return { error: "请先登录" };
@@ -59,11 +66,12 @@ export async function createAuctionContractAction(projectId: string) {
     where: { type: "AUCTION_LEASE", active: true },
   });
   const htmlBody = template
-    ? template.bodyHtml
-        .replace("{{orgName}}", escapeHtml(result.project.asset.org?.name ?? "甲方"))
-        .replace("{{userName}}", escapeHtml(user.name ?? user.phone))
-        .replace("{{assetName}}", escapeHtml(result.project.asset.name))
-        .replace("{{leaseTerm}}", escapeHtml(result.project.leaseTermDesc ?? "以合同约定为准"))
+    ? fillTemplate(template.bodyHtml, {
+        orgName: escapeHtml(result.project.asset.org?.name ?? "甲方"),
+        userName: escapeHtml(user.name ?? user.phone),
+        assetName: escapeHtml(result.project.asset.name),
+        leaseTerm: escapeHtml(result.project.leaseTermDesc ?? "以合同约定为准"),
+      })
     : `<p>竞拍合同：${escapeHtml(result.project.asset.name)}</p>`;
   const contract = await prisma.contract.create({
     data: {
@@ -122,8 +130,12 @@ export async function payAuctionRentAction(projectId: string) {
     orderBy: { amount: "desc" },
   });
   if (!topBid) return { error: "未找到出价记录" };
+  const signedContract = await prisma.contract.findFirst({
+    where: { auctionProjectId: projectId, endUserId: user.id, status: "SIGNED" },
+  });
+  if (!signedContract) return { error: "请先签署合同" };
   const existingPayment = await prisma.payment.findFirst({
-    where: { auctionProjectId: projectId, endUserId: user.id, purpose: "AUCTION_RENT" },
+    where: { auctionProjectId: projectId, endUserId: user.id, purpose: "AUCTION_RENT", status: "SUCCESS" },
   });
   if (existingPayment) return { ok: true as const };
   const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;
