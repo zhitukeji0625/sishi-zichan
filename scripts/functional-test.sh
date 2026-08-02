@@ -80,9 +80,13 @@ echo "=== Auction bid flow ==="
 PROJECT_ID=$(cd /workspace && node -e "
 const {PrismaClient}=require('@prisma/client');
 const p=new PrismaClient();
-p.auctionProject.findFirst({where:{status:'LIVE'},select:{id:true,startPrice:true,bidStep:true}}).then(r=>{
-  if(r) console.log(r.id+'|'+r.startPrice+'|'+r.bidStep);
-  else console.log('NONE');
+p.auctionProject.findFirst({where:{status:'LIVE'},select:{id:true,startPrice:true,bidStep:true}}).then(async r=>{
+  if(!r){console.log('NONE');return p.\$disconnect();}
+  const top=await p.auctionBid.findFirst({where:{projectId:r.id},orderBy:{amount:'desc'},select:{amount:true}});
+  const start=Number(r.startPrice);
+  const step=Number(r.bidStep);
+  const minNext=top?Number(top.amount)+step:start;
+  console.log(r.id+'|'+minNext);
   p.\$disconnect();
 });
 " 2>/dev/null)
@@ -100,17 +104,20 @@ p.auctionProject.findFirst().then(async r=>{
   PROJECT_ID=$(cd /workspace && node -e "
 const {PrismaClient}=require('@prisma/client');
 const p=new PrismaClient();
-p.auctionProject.findFirst({where:{status:'LIVE'},select:{id:true,startPrice:true,bidStep:true}}).then(r=>{
-  if(r) console.log(r.id+'|'+r.startPrice+'|'+r.bidStep);
+p.auctionProject.findFirst({where:{status:'LIVE'},select:{id:true,startPrice:true,bidStep:true}}).then(async r=>{
+  if(!r){console.log('NONE');return p.\$disconnect();}
+  const top=await p.auctionBid.findFirst({where:{projectId:r.id},orderBy:{amount:'desc'},select:{amount:true}});
+  const start=Number(r.startPrice);
+  const step=Number(r.bidStep);
+  const minNext=top?Number(top.amount)+step:start;
+  console.log(r.id+'|'+minNext);
   p.\$disconnect();
 });
 " 2>/dev/null)
 fi
 
 PID=$(echo "$PROJECT_ID" | cut -d'|' -f1)
-START=$(echo "$PROJECT_ID" | cut -d'|' -f2)
-STEP=$(echo "$PROJECT_ID" | cut -d'|' -f3)
-BID_AMOUNT=$((START + STEP))
+BID_AMOUNT=$(echo "$PROJECT_ID" | cut -d'|' -f2)
 
 # Re-login user (admin login may have replaced session)
 curl -s -o /dev/null -c "$COOKIE_JAR" -X POST "$BASE/api/auth/login" \
