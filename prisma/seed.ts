@@ -66,7 +66,7 @@ async function refreshDemoAuction() {
 }
 
 async function main() {
-  await seedDict();
+  await seedDict(prisma);
 
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
