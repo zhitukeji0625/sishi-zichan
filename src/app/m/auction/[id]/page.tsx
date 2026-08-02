@@ -21,8 +21,15 @@ function parseImageUrls(imagesJson: string | null): string[] {
   }
 }
 
-export default async function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AuctionDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ contractError?: string }>;
+}) {
   const { id } = await params;
+  const { contractError } = await searchParams;
   const user = await getCurrentEndUser();
   const project = await prisma.auctionProject.findUnique({
     where: { id },
@@ -69,6 +76,9 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
     const r = await createAuctionContractAction(projectId);
     if ("contractId" in r && r.contractId) {
       redirect(`/m/contract/${r.contractId}`);
+    }
+    if ("error" in r) {
+      redirect(`/m/auction/${projectId}?contractError=${encodeURIComponent(r.error ?? "操作失败")}`);
     }
   }
 
@@ -165,6 +175,12 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
 
         {/* Action buttons */}
         <div className="space-y-3 animate-slide-up stagger-2">
+          {contractError && (
+            <div className="card-elevated flex items-center gap-3 border-red-200 bg-red-50 p-4">
+              <span className="text-sm">⚠️</span>
+              <div className="text-sm font-semibold text-red-800">{contractError}</div>
+            </div>
+          )}
           {user && !reg && project.status !== "ENDED" && (
             <form action={register}>
               <button type="submit" className="btn-primary w-full !py-3.5 text-[15px]">报名参与竞拍</button>
