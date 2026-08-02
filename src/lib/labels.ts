@@ -96,3 +96,21 @@ export const endUserTypeLabels: Record<EndUserType, string> = {
   PERSON: "个人",
   COMPANY: "企业",
 };
+
+/** Built-in dict fallbacks when DB seed has not run yet. */
+export const builtinDictFallbacks: Record<string, Record<string, string>> = {
+  asset_type: assetTypeLabels,
+  asset_status: assetStatusLabels,
+  admin_role: adminRoleLabels,
+  org_level: orgLevelLabels,
+  auction_status: auctionStatusLabels,
+  registration_status: registrationStatusLabels,
+  announcement_status: announcementStatusLabels,
+  drying_listing_status: dryingListingStatusLabels,
+  reservation_status: reservationStatusLabels,
+  contract_type: contractTypeLabels,
+  contract_status: contractStatusLabels,
+  payment_purpose: paymentPurposeLabels,
+  payment_status: paymentStatusLabels,
+  user_type: endUserTypeLabels,
+};
