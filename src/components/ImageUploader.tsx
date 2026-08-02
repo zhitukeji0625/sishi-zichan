@@ -24,6 +24,7 @@ export function ImageUploader({ images, onChange, max = 6 }: Props) {
       fd.append("file", file);
       try {
         const res = await fetch("/api/upload", { method: "POST", body: fd });
+        if (!res.ok) continue;
         const j = await res.json();
         if (j.url) newImages.push(j.url);
       } catch { /* ignore */ }

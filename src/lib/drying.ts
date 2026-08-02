@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { startOfDay, eachDayOfInterval, format } from "date-fns";
+import { startOfDay, eachDayOfInterval, format, addDays } from "date-fns";
+
+/** Parse yyyy-MM-dd as local midnight (avoids UTC offset issues). */
+export function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
 
 export async function getCapacityForDay(listingId: string, day: Date) {
   const d = startOfDay(day);
@@ -19,10 +25,10 @@ export async function getCapacityForDay(listingId: string, day: Date) {
   });
   let booked = 0;
   for (const r of reservations) {
-    const days = eachDayOfInterval({
-      start: startOfDay(r.startDate),
-      end: startOfDay(r.endDate),
-    });
+    const rStart = startOfDay(r.startDate);
+    const rEnd = startOfDay(r.endDate);
+    if (rStart > rEnd) continue;
+    const days = eachDayOfInterval({ start: rStart, end: rEnd });
     if (days.some((x) => format(x, "yyyy-MM-dd") === format(d, "yyyy-MM-dd"))) {
       booked += 1;
     }
@@ -34,7 +40,15 @@ export async function validateReservationRange(
   listingId: string,
   start: Date,
   end: Date,
+  maxAdvanceDays?: number,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  if (maxAdvanceDays != null) {
+    const today = startOfDay(new Date());
+    const latest = addDays(today, maxAdvanceDays);
+    if (startOfDay(start) > latest || startOfDay(end) > latest) {
+      return { ok: false, message: `仅可预约未来 ${maxAdvanceDays} 天内` };
+    }
+  }
   const days = eachDayOfInterval({ start: startOfDay(start), end: startOfDay(end) });
   for (const day of days) {
     const { available } = await getCapacityForDay(listingId, day);
