@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { isDivision, isRegimentOrAbove, adminCanAccessOrg } from "@/lib/rbac";
@@ -41,14 +42,14 @@ export async function reviewAuctionResultAction(formData: FormData) {
   const resultId = String(formData.get("id") ?? "");
   const approve = formData.get("approve") === "true";
   const admin = await getCurrentAdmin();
-  if (!admin || !isDivision(admin.role)) return;
+  if (!admin || !isDivision(admin.role)) redirect("/admin/auctions?error=无权操作");
   const result = await prisma.auctionResult.findUnique({
     where: { id: resultId },
     include: { project: { include: { asset: true } } },
   });
-  if (!result || result.status !== "PENDING_REVIEW") return;
+  if (!result || result.status !== "PENDING_REVIEW") redirect("/admin/auctions?error=记录不存在或已审核");
   const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, result.project.asset.orgId);
-  if (!canAccess) return;
+  if (!canAccess) redirect("/admin/auctions?error=无权操作该项目");
   if (approve) {
     await prisma.auctionResult.update({
       where: { id: resultId },
