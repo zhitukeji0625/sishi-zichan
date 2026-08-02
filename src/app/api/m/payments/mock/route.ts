@@ -45,6 +45,10 @@ export async function POST(req: Request) {
       orderBy: { amount: "desc" },
     });
     if (!topBid) return NextResponse.json({ error: "未找到出价记录" }, { status: 404 });
+    const signedContract = await prisma.contract.findFirst({
+      where: { auctionProjectId, endUserId: user.id, status: "SIGNED" },
+    });
+    if (!signedContract) return NextResponse.json({ error: "请先签署合同" }, { status: 400 });
     amount = topBid.amount;
   } else if (purpose === "DRYING_DEPOSIT") {
     if (!reservationId) return NextResponse.json({ error: "缺少预约ID" }, { status: 400 });

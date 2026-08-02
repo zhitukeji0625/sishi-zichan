@@ -33,6 +33,18 @@ export async function createAuctionProjectAction(formData: FormData) {
   if (!asset) return { error: "资产不存在" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return { error: "无权使用该资产发拍" };
+  const startsAt = new Date(d.startsAt);
+  const endsAt = new Date(d.endsAt);
+  if (isNaN(startsAt.getTime()) || isNaN(endsAt.getTime())) {
+    return { error: "竞拍时间格式无效" };
+  }
+  if (endsAt <= startsAt) {
+    return { error: "结束时间必须晚于开始时间" };
+  }
+  const activeAuction = await prisma.auctionProject.findFirst({
+    where: { assetId: d.assetId, status: { in: ["SCHEDULED", "LIVE"] } },
+  });
+  if (activeAuction) return { error: "该资产已有进行中的竞拍项目" };
   const code = `AP${Date.now()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
   await prisma.auctionProject.create({
     data: {
@@ -41,8 +53,8 @@ export async function createAuctionProjectAction(formData: FormData) {
       startPrice: new Decimal(d.startPrice),
       bidStep: new Decimal(d.bidStep),
       depositAmount: new Decimal(d.depositAmount),
-      startsAt: new Date(d.startsAt),
-      endsAt: new Date(d.endsAt),
+      startsAt,
+      endsAt,
       paymentDays: d.paymentDays ?? 7,
       leaseTermDesc: d.leaseTermDesc || null,
       status: "SCHEDULED",
