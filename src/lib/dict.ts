@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/prisma";
+import { builtinDictFallbacks } from "@/lib/labels";
 
 export type DictOption = { value: string; label: string };
+
+function fallbackItems(categoryCode: string): DictOption[] {
+  const map = builtinDictFallbacks[categoryCode];
+  if (!map) return [];
+  return Object.entries(map).map(([value, label]) => ({ value, label }));
+}
 
 export async function getDictItems(categoryCode: string): Promise<DictOption[]> {
   const cat = await prisma.dictCategory.findUnique({
@@ -12,8 +19,10 @@ export async function getDictItems(categoryCode: string): Promise<DictOption[]> 
       },
     },
   });
-  if (!cat) return [];
-  return cat.items.map((i) => ({ value: i.value, label: i.label }));
+  if (cat && cat.items.length > 0) {
+    return cat.items.map((i) => ({ value: i.value, label: i.label }));
+  }
+  return fallbackItems(categoryCode);
 }
 
 export async function getDictLabel(
