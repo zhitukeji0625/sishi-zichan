@@ -113,11 +113,11 @@ else
   fail "no drying listing in DB"
 fi
 
-# --- Register (unique phone per run) ---
-RAND_PHONE="13$(printf '%08d' $((RANDOM * RANDOM % 100000000)))"
+# --- Register (unique 11-digit phone per run) ---
+RAND_PHONE="1$(printf '%010d' $((RANDOM * 100000 + RANDOM % 100000)))"
 REG=$(curl -s -X POST "$BASE/api/auth/register" \
   -H "Content-Type: application/json" \
-  -d "{\"phone\":\"$RAND_PHONE\",\"password\":\"test123456\",\"name\":\"功能测试\",\"idCard\":\"650101199001011234\"}")
+  -d "{\"phone\":\"$RAND_PHONE\",\"password\":\"test123456\",\"name\":\"功能测试\"}")
 if echo "$REG" | grep -q '"ok":true'; then pass "user register"; else fail "user register: $REG"; fi
 
 # --- API error handling: non-multipart should be 400 not 500 ---
