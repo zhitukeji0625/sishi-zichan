@@ -4,9 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
-import { AssetStatus } from "@prisma/client";
+import { AssetStatus, AssetType } from "@prisma/client";
 
 const updateSchema = z.object({
+  type: z.nativeEnum(AssetType),
   name: z.string().min(1),
   locationText: z.string().min(1),
   specs: z.string().optional(),
@@ -28,6 +29,10 @@ export async function POST(
   if (!asset) return NextResponse.json({ error: "资产不存在" }, { status: 404 });
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return NextResponse.json({ error: "无权操作" }, { status: 403 });
+  const contentType = req.headers.get("content-type") ?? "";
+  if (!contentType.includes("multipart/form-data")) {
+    return NextResponse.json({ error: "请使用 multipart/form-data 提交" }, { status: 400 });
+  }
   const formData = await req.formData();
   const raw = Object.fromEntries(formData.entries());
   const parsed = updateSchema.safeParse({
@@ -40,6 +45,7 @@ export async function POST(
   await prisma.asset.update({
     where: { id },
     data: {
+      type: d.type,
       name: d.name,
       locationText: d.locationText,
       specs: d.specs || null,
