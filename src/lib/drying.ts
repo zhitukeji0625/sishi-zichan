@@ -30,11 +30,31 @@ export async function getCapacityForDay(listingId: string, day: Date) {
   return { max, booked, available: Math.max(0, max - booked) };
 }
 
+function rangesOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
+  return startOfDay(aStart) <= startOfDay(bEnd) && startOfDay(bStart) <= startOfDay(aEnd);
+}
+
 export async function validateReservationRange(
   listingId: string,
   start: Date,
   end: Date,
-): Promise<{ ok: true } | { ok: false; message: string }> {
+  endUserId?: string,
+): Promise<{ ok: true } | { ok: false; message: string; conflict?: boolean }> {
+  if (endUserId) {
+    const existing = await prisma.dryingReservation.findMany({
+      where: {
+        listingId,
+        endUserId,
+        status: { notIn: ["REJECTED", "CANCELLED"] },
+      },
+    });
+    for (const r of existing) {
+      if (rangesOverlap(start, end, r.startDate, r.endDate)) {
+        return { ok: false, message: "您在该时段已有预约", conflict: true };
+      }
+    }
+  }
+
   const days = eachDayOfInterval({ start: startOfDay(start), end: startOfDay(end) });
   for (const day of days) {
     const { available } = await getCapacityForDay(listingId, day);
