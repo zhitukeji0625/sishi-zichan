@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
-import { validateReservationRange } from "@/lib/drying";
+import { parseLocalDate, validateAdvanceBooking, validateReservationRange } from "@/lib/drying";
 import { notifyUser } from "@/lib/messages";
 
 const schema = z.object({
@@ -19,8 +19,8 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "参数无效" }, { status: 400 });
   }
-  const start = new Date(parsed.data.startDate);
-  const end = new Date(parsed.data.endDate);
+  const start = parseLocalDate(parsed.data.startDate);
+  const end = parseLocalDate(parsed.data.endDate);
   if (end < start) {
     return NextResponse.json({ error: "结束日期不能早于开始日期" }, { status: 400 });
   }
@@ -30,6 +30,10 @@ export async function POST(req: Request) {
   const listing = await prisma.dryingFieldListing.findUnique({ where: { id: parsed.data.listingId } });
   if (!listing || listing.status !== "OPERATING") {
     return NextResponse.json({ error: "晒场不存在或未运营" }, { status: 404 });
+  }
+  const advanceCheck = await validateAdvanceBooking(parsed.data.listingId, start, end);
+  if (!advanceCheck.ok) {
+    return NextResponse.json({ error: advanceCheck.message }, { status: 400 });
   }
   const check = await validateReservationRange(parsed.data.listingId, start, end);
   if (!check.ok) {
