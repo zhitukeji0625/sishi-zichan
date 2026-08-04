@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { startOfDay, eachDayOfInterval, format } from "date-fns";
+import { startOfDay, eachDayOfInterval, format, addDays } from "date-fns";
 
 export async function getCapacityForDay(listingId: string, day: Date) {
   const d = startOfDay(day);
@@ -41,6 +41,24 @@ export async function validateReservationRange(
     if (available <= 0) {
       return { ok: false, message: `${format(day, "yyyy-MM-dd")} 已满` };
     }
+  }
+  return { ok: true };
+}
+
+export async function validateAdvanceBooking(
+  listingId: string,
+  start: Date,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const rule = await prisma.dryingBookingRule.findFirst({ where: { listingId } });
+  const maxAdvance = rule?.maxAdvanceDays ?? 7;
+  const today = startOfDay(new Date());
+  const horizon = addDays(today, maxAdvance);
+  const startDay = startOfDay(start);
+  if (startDay < today) {
+    return { ok: false, message: "不能预约过去的日期" };
+  }
+  if (startDay > horizon) {
+    return { ok: false, message: `只能预约 ${maxAdvance} 天内的日期` };
   }
   return { ok: true };
 }
