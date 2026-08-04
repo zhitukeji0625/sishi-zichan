@@ -22,7 +22,12 @@ const schema = z.object({
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formData = await req.formData();
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    return NextResponse.json({ error: "请使用 multipart/form-data 提交" }, { status: 400 });
+  }
   const raw = Object.fromEntries(formData.entries());
   const parsed = schema.safeParse({
     ...raw,
@@ -33,20 +38,28 @@ export async function POST(req: Request) {
   const d = parsed.data;
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);
   if (!ok) return NextResponse.json({ error: "无权在该组织录入资产" }, { status: 403 });
-  await prisma.asset.create({
-    data: {
-      orgId: d.orgId,
-      type: d.type,
-      name: d.name,
-      locationText: d.locationText,
-      specs: d.specs || null,
-      description: d.description || null,
-      refPriceMin: d.refPriceMin ?? null,
-      refPriceMax: d.refPriceMax ?? null,
-      status: d.status ?? AssetStatus.IDLE,
-      imagesJson: d.imagesJson || null,
-    },
-  });
+  try {
+    await prisma.asset.create({
+      data: {
+        orgId: d.orgId,
+        type: d.type,
+        name: d.name,
+        locationText: d.locationText,
+        specs: d.specs || null,
+        description: d.description || null,
+        refPriceMin: d.refPriceMin ?? null,
+        refPriceMax: d.refPriceMax ?? null,
+        status: d.status ?? AssetStatus.IDLE,
+        imagesJson: d.imagesJson || null,
+      },
+    });
+  } catch (e) {
+    const code = e && typeof e === "object" && "code" in e ? (e as { code: string }).code : "";
+    if (code === "P2003") {
+      return NextResponse.json({ error: "组织不存在" }, { status: 400 });
+    }
+    throw e;
+  }
   await writeAudit(admin.id, "ASSET_CREATE", JSON.stringify({ name: d.name, type: d.type }));
   return NextResponse.json({ ok: true });
 }
