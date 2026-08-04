@@ -37,7 +37,7 @@ export async function generateAuctionResultAction(projectId: string) {
   return { ok: true as const };
 }
 
-export async function reviewAuctionResultAction(formData: FormData) {
+export async function reviewAuctionResultAction(formData: FormData): Promise<void> {
   const resultId = String(formData.get("id") ?? "");
   const approve = formData.get("approve") === "true";
   const admin = await getCurrentAdmin();

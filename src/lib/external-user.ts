@@ -72,7 +72,11 @@ export async function upsertEndUserFromExternal(
       }
     }
   }
-  if (!phone) phone = `190${randomBytes(4).toString("hex")}`.slice(0, 11);
+  if (!phone) {
+    phone = `190${randomBytes(4).toString("hex")}`.slice(0, 11);
+    const taken = await prisma.endUser.findUnique({ where: { phone } });
+    if (taken) return null;
+  }
   const endUser = await prisma.endUser.create({
     data: {
       phone,
