@@ -13,8 +13,8 @@ const createSchema = z.object({
   startPrice: z.coerce.number().positive(),
   bidStep: z.coerce.number().positive(),
   depositAmount: z.coerce.number().positive(),
-  startsAt: z.string(),
-  endsAt: z.string(),
+  startsAt: z.coerce.date(),
+  endsAt: z.coerce.date(),
   paymentDays: z.coerce.number().int().min(1).optional(),
   leaseTermDesc: z.string().optional(),
 });
@@ -29,6 +29,7 @@ export async function createAuctionProjectAction(formData: FormData) {
   const parsed = createSchema.safeParse(raw);
   if (!parsed.success) return { error: "表单无效" };
   const d = parsed.data;
+  if (d.endsAt <= d.startsAt) return { error: "结束时间须晚于开始时间" };
   const asset = await prisma.asset.findUnique({ where: { id: d.assetId } });
   if (!asset) return { error: "资产不存在" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
@@ -41,8 +42,8 @@ export async function createAuctionProjectAction(formData: FormData) {
       startPrice: new Decimal(d.startPrice),
       bidStep: new Decimal(d.bidStep),
       depositAmount: new Decimal(d.depositAmount),
-      startsAt: new Date(d.startsAt),
-      endsAt: new Date(d.endsAt),
+      startsAt: d.startsAt,
+      endsAt: d.endsAt,
       paymentDays: d.paymentDays ?? 7,
       leaseTermDesc: d.leaseTermDesc || null,
       status: "SCHEDULED",
