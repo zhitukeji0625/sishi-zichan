@@ -77,14 +77,25 @@ code=$(echo "$resp" | tail -1)
 check "POST mock payment no auth" "401" "$code" "$(echo "$resp" | head -1)"
 
 # Bid on live auction (if seed data present)
-AUCTION_ID=$(cd "$(dirname "$0")/.." && npx tsx -e "
+read -r AUCTION_ID BID_AMOUNT < <(cd "$(dirname "$0")/.." && npx tsx -e "
+import { Decimal } from '@prisma/client/runtime/library';
 import { prisma } from './src/lib/prisma';
-prisma.auctionProject.findFirst({ where: { status: 'LIVE' }, select: { id: true } })
-  .then(r => { console.log(r?.id ?? ''); })
-  .finally(() => prisma.\$disconnect());
+async function main() {
+  const p = await prisma.auctionProject.findFirst({
+    where: { status: 'LIVE' },
+    include: { bids: { orderBy: { amount: 'desc' }, take: 1 } },
+  });
+  if (!p) return;
+  const top = p.bids[0]?.amount;
+  const minNext = top
+    ? new Decimal(top.toString()).plus(p.bidStep.toString())
+    : new Decimal(p.startPrice.toString());
+  console.log(p.id, Number(minNext.toString()));
+}
+main().finally(() => prisma.\$disconnect());
 " 2>/dev/null)
-if [ -n "$AUCTION_ID" ]; then
-  resp=$(curl -s -w "\n%{http_code}" -b "$USER_JAR" -X POST "$BASE/api/m/auction/$AUCTION_ID/bid" -H "Content-Type: application/json" -d '{"amount":8200}')
+if [ -n "$AUCTION_ID" ] && [ -n "$BID_AMOUNT" ]; then
+  resp=$(curl -s -w "\n%{http_code}" -b "$USER_JAR" -X POST "$BASE/api/m/auction/$AUCTION_ID/bid" -H "Content-Type: application/json" -d "{\"amount\":$BID_AMOUNT}")
   code=$(echo "$resp" | tail -1)
   check "POST bid on live auction" "200" "$code" "$(echo "$resp" | head -1)"
 else
