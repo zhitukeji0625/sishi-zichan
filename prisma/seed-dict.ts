@@ -165,27 +165,43 @@ export async function seedDict(prisma: PrismaClient) {
   for (const cat of categories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) continue;
-    await prisma.dictCategory.create({
-      data: {
-        code: cat.code,
-        name: cat.name,
-        description: cat.description ?? null,
-        builtIn: cat.builtIn,
-        items: { create: cat.items },
-      },
-    });
-    console.log(`  Dict: created ${cat.code} (${cat.items.length} items)`);
+    try {
+      await prisma.dictCategory.create({
+        data: {
+          code: cat.code,
+          name: cat.name,
+          description: cat.description ?? null,
+          builtIn: cat.builtIn,
+          items: { create: cat.items },
+        },
+      });
+      console.log(`  Dict: created ${cat.code} (${cat.items.length} items)`);
+    } catch (e: unknown) {
+      const code = (e as { code?: string })?.code;
+      if (code === "P2002") continue;
+      throw e;
+    }
   }
 }
 
 async function main() {
   const { PrismaClient } = await import("@prisma/client");
   const prisma = new PrismaClient();
-  await seedDict(prisma);
-  console.log("Dict seed done.");
-  await prisma.$disconnect();
+  try {
+    await seedDict(prisma);
+    console.log("Dict seed done.");
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+const isDirectRun =
+  typeof process.argv[1] === "string" &&
+  (process.argv[1].endsWith("seed-dict.ts") || process.argv[1].endsWith("seed-dict"));
+
+if (isDirectRun) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
