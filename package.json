@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "smoke": "bash scripts/smoke.sh"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
