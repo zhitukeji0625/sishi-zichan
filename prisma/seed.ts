@@ -3,9 +3,54 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** 数据已存在时仍保证有一条可出价的 LIVE 演示竞拍（供 cron 完整性测试与演示） */
+async function ensureDemoLiveAuction() {
+  const live = await prisma.auctionProject.findFirst({ where: { status: "LIVE" } });
+  if (live) return;
+
+  const asset = await prisma.asset.findFirst({
+    where: { type: AssetType.LAND, status: AssetStatus.IDLE },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!asset) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `AP${Date.now()}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (demoUser) {
+    await prisma.auctionRegistration.upsert({
+      where: {
+        projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+      },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId: project.id,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+  }
+  console.log("ensureDemoLiveAuction: created LIVE project", project.code);
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await ensureDemoLiveAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
