@@ -33,6 +33,9 @@ export async function createAuctionProjectAction(formData: FormData) {
   if (!asset) return { error: "资产不存在" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return { error: "无权使用该资产发拍" };
+  const startsAt = new Date(d.startsAt);
+  const endsAt = new Date(d.endsAt);
+  if (endsAt <= startsAt) return { error: "结束时间必须晚于开始时间" };
   const code = `AP${Date.now()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
   await prisma.auctionProject.create({
     data: {
@@ -41,8 +44,8 @@ export async function createAuctionProjectAction(formData: FormData) {
       startPrice: new Decimal(d.startPrice),
       bidStep: new Decimal(d.bidStep),
       depositAmount: new Decimal(d.depositAmount),
-      startsAt: new Date(d.startsAt),
-      endsAt: new Date(d.endsAt),
+      startsAt,
+      endsAt,
       paymentDays: d.paymentDays ?? 7,
       leaseTermDesc: d.leaseTermDesc || null,
       status: "SCHEDULED",
@@ -63,7 +66,7 @@ export async function cancelAuctionAction(projectId: string) {
   if (!ok) return { error: "无权操作" };
   if (project.status === "ENDED") return { error: "已结束的项目不可取消" };
   await prisma.auctionProject.update({ where: { id: projectId }, data: { status: "CANCELLED" } });
-  await writeAudit(admin.id, "AUCTION_CREATE", JSON.stringify({ projectId, action: "cancel" }));
+  await writeAudit(admin.id, "AUCTION_CANCEL", JSON.stringify({ projectId }));
   revalidatePath("/admin/auctions");
   return { ok: true as const };
 }

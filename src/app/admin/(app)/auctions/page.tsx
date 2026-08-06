@@ -9,9 +9,14 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { refreshAuctionProjectStatuses } from "@/lib/cron";
 
-export default async function AdminAuctionsPage() {
+export default async function AdminAuctionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
+  const { error } = await searchParams;
   await refreshAuctionProjectStatuses();
   const orgWhere = await orgFilterForAdmin(admin.role, admin.orgId);
   const projects = await prisma.auctionProject.findMany({
@@ -36,9 +41,30 @@ export default async function AdminAuctionsPage() {
     redirect("/admin/auctions");
   }
 
+  async function generateResultAction(projectId: string) {
+    "use server";
+    const r = await generateAuctionResultAction(projectId);
+    if (r.error) {
+      redirect(`/admin/auctions?error=${encodeURIComponent(r.error)}`);
+    }
+    redirect("/admin/auctions");
+  }
+
+  async function reviewResultAction(formData: FormData) {
+    "use server";
+    const r = await reviewAuctionResultAction(formData);
+    if (r?.error) {
+      redirect(`/admin/auctions?error=${encodeURIComponent(r.error)}`);
+    }
+    redirect("/admin/auctions");
+  }
+
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">竞拍项目</h1>
+      {error && (
+        <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      )}
       {isRegimentOrAbove(admin.role) && (
         <form
           action={createAction}
@@ -119,12 +145,7 @@ export default async function AdminAuctionsPage() {
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
                       {p.status === "ENDED" && !p.result && isRegimentOrAbove(admin.role) && (
-                        <form
-                          action={async () => {
-                            "use server";
-                            await generateAuctionResultAction(projectId);
-                          }}
-                        >
+                        <form action={generateResultAction.bind(null, projectId)}>
                           <button type="submit" className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs text-white">
                             生成结果
                           </button>
@@ -132,14 +153,14 @@ export default async function AdminAuctionsPage() {
                       )}
                       {p.result && p.result.status === "PENDING_REVIEW" && isDivision(admin.role) && (
                         <>
-                          <form action={reviewAuctionResultAction}>
+                          <form action={reviewResultAction}>
                             <input type="hidden" name="id" value={p.result.id} />
                             <input type="hidden" name="approve" value="true" />
                             <button type="submit" className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs text-white">
                               审核通过
                             </button>
                           </form>
-                          <form action={reviewAuctionResultAction}>
+                          <form action={reviewResultAction}>
                             <input type="hidden" name="id" value={p.result.id} />
                             <input type="hidden" name="approve" value="false" />
                             <button type="submit" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700">
