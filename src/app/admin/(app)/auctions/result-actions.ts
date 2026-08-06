@@ -23,15 +23,21 @@ export async function generateAuctionResultAction(projectId: string) {
   if (!ok) return { error: "无权操作该项目" };
   const topBid = await prisma.auctionBid.findFirst({
     where: { projectId },
-    orderBy: { amount: "desc" },
+    orderBy: [{ amount: "desc" }, { createdAt: "asc" }],
   });
-  await prisma.auctionResult.create({
-    data: {
-      projectId,
-      winnerId: topBid?.endUserId ?? null,
-      status: "PENDING_REVIEW",
-    },
-  });
+  try {
+    await prisma.auctionResult.create({
+      data: {
+        projectId,
+        winnerId: topBid?.endUserId ?? null,
+        status: "PENDING_REVIEW",
+      },
+    });
+  } catch (e) {
+    const code = (e as { code?: string })?.code;
+    if (code === "P2002") return { error: "已生成结果" };
+    throw e;
+  }
   await writeAudit(admin.id, "AUCTION_RESULT_GENERATE", JSON.stringify({ projectId }));
   revalidatePath("/admin/auctions");
   return { ok: true as const };
@@ -41,14 +47,14 @@ export async function reviewAuctionResultAction(formData: FormData) {
   const resultId = String(formData.get("id") ?? "");
   const approve = formData.get("approve") === "true";
   const admin = await getCurrentAdmin();
-  if (!admin || !isDivision(admin.role)) return;
+  if (!admin || !isDivision(admin.role)) return { error: "无权操作" };
   const result = await prisma.auctionResult.findUnique({
     where: { id: resultId },
     include: { project: { include: { asset: true } } },
   });
-  if (!result || result.status !== "PENDING_REVIEW") return;
+  if (!result || result.status !== "PENDING_REVIEW") return { error: "记录不存在或状态不正确" };
   const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, result.project.asset.orgId);
-  if (!canAccess) return;
+  if (!canAccess) return { error: "无权操作该项目" };
   if (approve) {
     await prisma.auctionResult.update({
       where: { id: resultId },
@@ -86,4 +92,5 @@ export async function reviewAuctionResultAction(formData: FormData) {
   }
   await writeAudit(admin.id, "AUCTION_RESULT_REVIEW", JSON.stringify({ resultId, approve }));
   revalidatePath("/admin/auctions");
+  return { ok: true as const };
 }

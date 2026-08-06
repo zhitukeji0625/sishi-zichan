@@ -6,6 +6,7 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { notifyUser } from "@/lib/messages";
 import { writeAudit } from "@/lib/audit";
+import { validateReservationRange } from "@/lib/drying";
 
 export async function reviewReservationFormAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
@@ -20,6 +21,10 @@ export async function reviewReservationFormAction(formData: FormData) {
   if (!res || res.status !== "PENDING_REVIEW") return { error: "记录不存在或状态不正确" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, res.listing.asset.orgId);
   if (!ok) return { error: "无权操作该组织" };
+  if (approve) {
+    const check = await validateReservationRange(res.listingId, res.startDate, res.endDate);
+    if (!check.ok) return { error: check.message };
+  }
   await prisma.dryingReservation.update({
     where: { id },
     data: {
