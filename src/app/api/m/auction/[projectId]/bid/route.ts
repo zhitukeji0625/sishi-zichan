@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Decimal } from "@prisma/client/runtime/library";
 import { getCurrentEndUser } from "@/lib/auth/session";
 import { placeBid } from "@/lib/auction";
+import { refreshAuctionProjectStatuses } from "@/lib/cron";
 
 export async function POST(
   req: Request,
@@ -10,17 +11,23 @@ export async function POST(
   const user = await getCurrentEndUser();
   if (!user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
   const { projectId } = await params;
+  await refreshAuctionProjectStatuses();
   const body = await req.json().catch(() => null);
   const raw = body?.amount;
-  const amount = typeof raw === "number" ? raw : typeof raw === "string" ? parseFloat(raw) : NaN;
-  if (!Number.isFinite(amount) || amount <= 0) {
+  const amountStr =
+    typeof raw === "number"
+      ? raw.toFixed(2)
+      : typeof raw === "string"
+        ? raw.trim()
+        : "";
+  if (!/^\d+(\.\d{1,2})?$/.test(amountStr) || Number(amountStr) <= 0) {
     return NextResponse.json({ error: "出价金额无效" }, { status: 400 });
   }
   try {
     const bid = await placeBid({
       projectId,
       endUserId: user.id,
-      amount: new Decimal(amount),
+      amount: new Decimal(amountStr),
     });
     return NextResponse.json({ ok: true, bidId: bid.id });
   } catch (e) {
