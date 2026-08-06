@@ -40,11 +40,11 @@ export async function reviewAnnouncementFormAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const approve = formData.get("approve") === "true";
   const admin = await getCurrentAdmin();
-  if (!admin || !isDivision(admin.role)) return;
+  if (!admin || !isDivision(admin.role)) return { error: "无权操作" };
   const ann = await prisma.announcement.findUnique({ where: { id } });
-  if (!ann || ann.status !== "PENDING_REVIEW") return;
+  if (!ann || ann.status !== "PENDING_REVIEW") return { error: "记录不存在或状态不正确" };
   const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, ann.orgId);
-  if (!canAccess) return;
+  if (!canAccess) return { error: "无权操作该组织" };
   await prisma.announcement.update({
     where: { id },
     data: {
@@ -55,6 +55,7 @@ export async function reviewAnnouncementFormAction(formData: FormData) {
   });
   await writeAudit(admin.id, "ANNOUNCEMENT_REVIEW", JSON.stringify({ id, approve }));
   revalidatePath("/admin/announcements");
+  return { ok: true as const };
 }
 
 export async function deleteAnnouncementAction(id: string) {
