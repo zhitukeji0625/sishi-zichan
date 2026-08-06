@@ -36,4 +36,5 @@ export async function reviewRegistrationFormAction(formData: FormData) {
     "REG_RESULT",
   );
   revalidatePath("/admin/registrations");
+  return { ok: true as const };
 }

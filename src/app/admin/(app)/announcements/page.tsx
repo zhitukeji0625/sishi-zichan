@@ -6,6 +6,11 @@ import { adminScopedOrgIds, isDivision, isRegimentOrAbove } from "@/lib/rbac";
 import { createAnnouncementAction, reviewAnnouncementFormAction, deleteAnnouncementAction } from "./actions";
 import { getDictMap } from "@/lib/dict";
 
+async function handleReviewAnnouncement(formData: FormData) {
+  "use server";
+  await reviewAnnouncementFormAction(formData);
+}
+
 export default async function AdminAnnouncementsPage() {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
@@ -77,14 +82,14 @@ export default async function AdminAnnouncementsPage() {
               </div>
               {isDivision(admin.role) && a.status === "PENDING_REVIEW" && (
                 <div className="flex gap-2">
-                  <form action={reviewAnnouncementFormAction}>
+                  <form action={handleReviewAnnouncement}>
                     <input type="hidden" name="id" value={a.id} />
                     <input type="hidden" name="approve" value="true" />
                     <button type="submit" className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs text-white">
                       审核通过
                     </button>
                   </form>
-                  <form action={reviewAnnouncementFormAction}>
+                  <form action={handleReviewAnnouncement}>
                     <input type="hidden" name="id" value={a.id} />
                     <input type="hidden" name="approve" value="false" />
                     <button type="submit" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700">

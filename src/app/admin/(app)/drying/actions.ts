@@ -37,4 +37,5 @@ export async function reviewReservationFormAction(formData: FormData) {
     );
   }
   revalidatePath("/admin/drying");
+  return { ok: true as const };
 }

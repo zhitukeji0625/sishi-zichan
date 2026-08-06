@@ -17,11 +17,43 @@ const updateSchema = z.object({
   imagesJson: z.string().optional(),
 });
 
-export async function POST(
-  req: Request,
+function serializeAsset(asset: {
+  id: string;
+  orgId: string;
+  type: string;
+  name: string;
+  locationText: string;
+  specs: string | null;
+  description: string | null;
+  refPriceMin: { toString(): string } | null;
+  refPriceMax: { toString(): string } | null;
+  status: string;
+  imagesJson: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return {
+    ...asset,
+    refPriceMin: asset.refPriceMin?.toString() ?? null,
+    refPriceMax: asset.refPriceMax?.toString() ?? null,
+  };
+}
+
+export async function GET(
+  _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const admin = await getCurrentAdmin();
+  if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
+  const asset = await prisma.asset.findUnique({ where: { id } });
+  if (!asset) return NextResponse.json({ error: "资产不存在" }, { status: 404 });
+  const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
+  if (!ok) return NextResponse.json({ error: "无权操作" }, { status: 403 });
+  return NextResponse.json(serializeAsset(asset));
+}
+
+async function updateAsset(req: Request, id: string) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
   const asset = await prisma.asset.findUnique({ where: { id } });
@@ -52,4 +84,20 @@ export async function POST(
   });
   await writeAudit(admin.id, "ASSET_UPDATE", JSON.stringify({ assetId: id, name: d.name }));
   return NextResponse.json({ ok: true });
+}
+
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  return updateAsset(req, id);
+}
+
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  return updateAsset(req, id);
 }

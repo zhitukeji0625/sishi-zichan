@@ -9,6 +9,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { refreshAuctionProjectStatuses } from "@/lib/cron";
 
+async function handleReviewResult(formData: FormData) {
+  "use server";
+  await reviewAuctionResultAction(formData);
+}
+
 export default async function AdminAuctionsPage() {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
@@ -132,14 +137,14 @@ export default async function AdminAuctionsPage() {
                       )}
                       {p.result && p.result.status === "PENDING_REVIEW" && isDivision(admin.role) && (
                         <>
-                          <form action={reviewAuctionResultAction}>
+                          <form action={handleReviewResult}>
                             <input type="hidden" name="id" value={p.result.id} />
                             <input type="hidden" name="approve" value="true" />
                             <button type="submit" className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs text-white">
                               审核通过
                             </button>
                           </form>
-                          <form action={reviewAuctionResultAction}>
+                          <form action={handleReviewResult}>
                             <input type="hidden" name="id" value={p.result.id} />
                             <input type="hidden" name="approve" value="false" />
                             <button type="submit" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700">

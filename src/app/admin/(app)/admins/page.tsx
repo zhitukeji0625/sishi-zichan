@@ -5,6 +5,11 @@ import { isDivision, roleLabel } from "@/lib/rbac";
 import { getDictItems } from "@/lib/dict";
 import { createAdminAction, toggleAdminDisableAction } from "./actions";
 
+async function handleToggleDisable(formData: FormData) {
+  "use server";
+  await toggleAdminDisableAction(formData);
+}
+
 export default async function AdminUsersPage() {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
@@ -94,7 +99,7 @@ export default async function AdminUsersPage() {
                 {isDivision(admin.role) && (
                   <td className="px-4 py-3">
                     {a.id !== admin.id && (
-                      <form action={toggleAdminDisableAction} className="inline">
+                      <form action={handleToggleDisable} className="inline">
                         <input type="hidden" name="id" value={a.id} />
                         <input type="hidden" name="disable" value={a.disabled ? "false" : "true"} />
                         <button type="submit" className="text-xs text-blue-700 hover:underline">
