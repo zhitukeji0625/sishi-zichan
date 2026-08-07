@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Decimal } from "@prisma/client/runtime/library";
 import { getCurrentEndUser } from "@/lib/auth/session";
 import { placeBid } from "@/lib/auction";
+import { refreshAuctionProjectStatuses } from "@/lib/cron";
 
 export async function POST(
   req: Request,
@@ -17,6 +18,7 @@ export async function POST(
     return NextResponse.json({ error: "出价金额无效" }, { status: 400 });
   }
   try {
+    await refreshAuctionProjectStatuses();
     const bid = await placeBid({
       projectId,
       endUserId: user.id,
