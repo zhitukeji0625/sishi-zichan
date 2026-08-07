@@ -13,7 +13,6 @@ export async function reviewRegistrationFormAction(formData: FormData) {
   const rejectReason = String(formData.get("rejectReason") ?? "未通过");
   const admin = await getCurrentAdmin();
   if (!admin) return { error: "未登录" };
-  if (admin.role !== "COMPANY_ADMIN") return { error: "无权限" };
   const reg = await prisma.auctionRegistration.findUnique({
     where: { id: registrationId },
     include: { project: { include: { asset: true } }, endUser: true },
