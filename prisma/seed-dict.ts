@@ -1,5 +1,4 @@
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
 
 const categories = [
   {
@@ -161,13 +160,10 @@ const categories = [
   },
 ];
 
-async function main() {
+export async function seedDict(prisma: PrismaClient) {
   for (const cat of categories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
-    if (existing) {
-      console.log(`  Skip: ${cat.code} (already exists)`);
-      continue;
-    }
+    if (existing) continue;
     await prisma.dictCategory.create({
       data: {
         code: cat.code,
@@ -177,11 +173,57 @@ async function main() {
         items: { create: cat.items },
       },
     });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+    console.log(`  Dict created: ${cat.code} (${cat.items.length} items)`);
   }
-  console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+/** 将演示竞拍刷新为 LIVE，避免种子数据过期后无法演示出价。 */
+export async function refreshDemoAuction(prisma: PrismaClient) {
+  const project = await prisma.auctionProject.findFirst({
+    orderBy: { createdAt: "asc" },
+    include: { asset: true },
+  });
+  if (!project) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+  await prisma.auctionResult.deleteMany({ where: { projectId: project.id } });
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: { startsAt: starts, endsAt: ends, status: "LIVE" },
+  });
+
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (demoUser) {
+    await prisma.auctionRegistration.upsert({
+      where: {
+        projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+      },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId: project.id,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+  }
+
+  console.log(`  Demo auction refreshed: ${project.code} → LIVE (ends ${ends.toISOString()})`);
+}
+
+if (process.argv[1]?.endsWith("seed-dict.ts")) {
+  const prisma = new PrismaClient();
+  seedDict(prisma)
+    .then(() => {
+      console.log("Dict seed done.");
+      return prisma.$disconnect();
+    })
+    .catch((e) => {
+      console.error(e);
+      prisma.$disconnect();
+      process.exit(1);
+    });
+}
