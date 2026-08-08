@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
+    "test:functional": "bash scripts/functional-test.sh",
     "test:watch": "vitest",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
