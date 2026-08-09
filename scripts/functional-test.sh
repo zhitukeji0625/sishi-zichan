@@ -90,17 +90,23 @@ PROJECT_ID=$(cd "$(dirname "$0")/.." && npx tsx -e "
 if [ -z "$PROJECT_ID" ]; then
   fail "No active demo auction project found (run npm run db:seed)"
 else
-  START_PRICE=$(cd "$(dirname "$0")/.." && npx tsx -e "
+  MIN_BID=$(cd "$(dirname "$0")/.." && npx tsx -e "
 (async()=>{
   const {PrismaClient}=await import('@prisma/client');
+  const {Decimal}=await import('@prisma/client/runtime/library');
   const p=new PrismaClient();
   const proj=await p.auctionProject.findUnique({where:{id:'$PROJECT_ID'}});
-  console.log(proj?.startPrice?.toString()||'');
+  const top=await p.auctionBid.findFirst({where:{projectId:'$PROJECT_ID'},orderBy:{amount:'desc'}});
+  if(!proj){console.log('');await p.\$disconnect();return;}
+  const min=top
+    ? new Decimal(top.amount.toString()).plus(proj.bidStep.toString())
+    : new Decimal(proj.startPrice.toString());
+  console.log(min.toString());
   await p.\$disconnect();
 })()
 " 2>/dev/null)
   RESP=$(curl -s -b "$USER_COOKIE" -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" \
-    -H "Content-Type: application/json" -d "{\"amount\":$START_PRICE}")
+    -H "Content-Type: application/json" -d "{\"amount\":$MIN_BID}")
   if echo "$RESP" | grep -q '"ok":true'; then ok "Auction bid"; else fail "Auction bid: $RESP"; fi
 fi
 
