@@ -23,6 +23,13 @@ export default async function AdminUsersPage() {
     redirect("/admin/admins");
   }
 
+  async function toggleDisable(fd: FormData) {
+    "use server";
+    const r = await toggleAdminDisableAction(fd);
+    if (r.error) redirect(`/admin/admins?error=${encodeURIComponent(r.error)}`);
+    redirect("/admin/admins");
+  }
+
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">管理员账号</h1>
@@ -94,7 +101,7 @@ export default async function AdminUsersPage() {
                 {isDivision(admin.role) && (
                   <td className="px-4 py-3">
                     {a.id !== admin.id && (
-                      <form action={toggleAdminDisableAction} className="inline">
+                      <form action={toggleDisable} className="inline">
                         <input type="hidden" name="id" value={a.id} />
                         <input type="hidden" name="disable" value={a.disabled ? "false" : "true"} />
                         <button type="submit" className="text-xs text-blue-700 hover:underline">

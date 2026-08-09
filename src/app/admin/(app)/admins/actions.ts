@@ -39,13 +39,15 @@ export async function toggleAdminDisableAction(formData: FormData) {
   const targetId = String(formData.get("id") ?? "");
   const disable = formData.get("disable") === "true";
   const admin = await getCurrentAdmin();
-  if (!admin || !isDivision(admin.role)) return;
+  if (!admin || !isDivision(admin.role)) return { error: "无权操作" };
   const target = await prisma.adminUser.findUnique({ where: { id: targetId } });
-  if (!target || target.id === admin.id) return;
+  if (!target) return { error: "用户不存在" };
+  if (target.id === admin.id) return { error: "不能禁用自己" };
   await prisma.adminUser.update({
     where: { id: targetId },
     data: { disabled: disable },
   });
   await writeAudit(admin.id, "ADMIN_DISABLE", JSON.stringify({ targetId, phone: target.phone, disabled: disable }));
   revalidatePath("/admin/admins");
+  return { ok: true as const };
 }

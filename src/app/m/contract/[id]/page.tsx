@@ -5,8 +5,15 @@ import { getCurrentEndUser } from "@/lib/auth/session";
 import { signContractAction } from "../sign-actions";
 import { FileText, CheckCircle, ChevronLeft } from "lucide-react";
 
-export default async function ContractDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ContractDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { id } = await params;
+  const { error: actionError } = await searchParams;
   const user = await getCurrentEndUser();
   if (!user) redirect("/m/login");
   const contract = await prisma.contract.findUnique({ where: { id } });
@@ -15,7 +22,11 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
 
   async function sign() {
     "use server";
-    await signContractAction(contractId);
+    const r = await signContractAction(contractId);
+    if (r.error) {
+      redirect(`/m/contract/${contractId}?error=${encodeURIComponent(r.error)}`);
+    }
+    redirect(`/m/contract/${contractId}`);
   }
 
   return (
@@ -38,6 +49,9 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
       </div>
 
       <div className="relative -mt-6 px-4 space-y-4">
+        {actionError && (
+          <div className="card-elevated border-red-200 bg-red-50 p-4 text-sm text-red-700 animate-slide-up">{actionError}</div>
+        )}
         <div className="card-elevated-lg overflow-hidden animate-slide-up">
           <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
             <span className="text-xs font-medium text-slate-500">合同正文</span>
