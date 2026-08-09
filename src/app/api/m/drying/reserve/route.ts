@@ -35,6 +35,18 @@ export async function POST(req: Request) {
   if (!check.ok) {
     return NextResponse.json({ error: check.message }, { status: 400 });
   }
+  const duplicate = await prisma.dryingReservation.findFirst({
+    where: {
+      listingId: parsed.data.listingId,
+      endUserId: user.id,
+      status: { notIn: ["REJECTED", "CANCELLED"] },
+      startDate: { lte: end },
+      endDate: { gte: start },
+    },
+  });
+  if (duplicate) {
+    return NextResponse.json({ error: "您已有重叠时段的预约申请" }, { status: 409 });
+  }
   const res = await prisma.dryingReservation.create({
     data: {
       listingId: parsed.data.listingId,
