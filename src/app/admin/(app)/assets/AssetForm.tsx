@@ -34,7 +34,10 @@ export function AssetForm({ orgs, defaultOrgId, action, typeOptions, statusOptio
   const router = useRouter();
   const [images, setImages] = useState<string[]>(() => {
     if (asset?.imagesJson) {
-      try { return JSON.parse(asset.imagesJson); } catch { return []; }
+      try {
+        const v = JSON.parse(asset.imagesJson) as unknown;
+        return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+      } catch { return []; }
     }
     return [];
   });
