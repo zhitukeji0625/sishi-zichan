@@ -54,9 +54,23 @@ p.auctionProject.findFirst({ orderBy: { createdAt: 'asc' } })
 if [[ -z "$PROJECT_ID" ]]; then
   fail "no auction project in database"
 else
+  BID_AMOUNT=$(node -e "
+const { PrismaClient } = require('@prisma/client');
+const p = new PrismaClient();
+(async () => {
+  const project = await p.auctionProject.findFirst({ orderBy: { createdAt: 'asc' } });
+  if (!project) return;
+  const top = await p.auctionBid.findFirst({ where: { projectId: project.id }, orderBy: { amount: 'desc' } });
+  const start = Number(project.startPrice);
+  const step = Number(project.bidStep);
+  const min = top ? Number(top.amount) + step : start;
+  console.log(min);
+  await p.\$disconnect();
+})();
+")
   BID_BODY=$(curl -s -b "$COOKIE_DIR/user.txt" -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" \
     -H "Content-Type: application/json" \
-    -d '{"amount":8000}')
+    -d "{\"amount\":$BID_AMOUNT}")
   if echo "$BID_BODY" | grep -q '"ok":true'; then
     pass "auction bid"
   else
@@ -71,8 +85,33 @@ const p = new PrismaClient();
 p.dryingFieldListing.findFirst()
   .then((x) => { console.log(x?.id ?? ''); return p.\$disconnect(); });
 ")
-START=$(date -u -d "+10 days" +%Y-%m-%d)
-END=$(date -u -d "+11 days" +%Y-%m-%d)
+DATE_RANGE=$(node -e "
+const { PrismaClient } = require('@prisma/client');
+const p = new PrismaClient();
+const dayStr = (d) => d.toISOString().slice(0, 10);
+(async () => {
+  const listing = await p.dryingFieldListing.findFirst();
+  const user = await p.endUser.findUnique({ where: { phone: '13800138000' } });
+  if (!listing || !user) return;
+  const existing = await p.dryingReservation.findMany({
+    where: { listingId: listing.id, endUserId: user.id, status: { notIn: ['REJECTED', 'CANCELLED'] } },
+    select: { startDate: true, endDate: true },
+  });
+  const ranges = existing.map((r) => [dayStr(r.startDate), dayStr(r.endDate)]);
+  const overlaps = (s, e) => ranges.some(([rs, re]) => rs <= e && re >= s);
+  for (let i = 40; i < 200; i++) {
+    const start = dayStr(new Date(Date.now() + i * 86400000));
+    const end = dayStr(new Date(Date.now() + (i + 1) * 86400000));
+    if (!overlaps(start, end)) {
+      console.log(start + ',' + end);
+      break;
+    }
+  }
+  await p.\$disconnect();
+})();
+")
+START=${DATE_RANGE%,*}
+END=${DATE_RANGE#*,}
 if [[ -z "$LISTING_ID" ]]; then
   fail "no drying listing in database"
 else
