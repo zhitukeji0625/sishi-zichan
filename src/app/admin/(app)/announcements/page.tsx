@@ -33,6 +33,15 @@ export default async function AdminAnnouncementsPage() {
     redirect("/admin/announcements");
   }
 
+  async function review(fd: FormData) {
+    "use server";
+    const r = await reviewAnnouncementFormAction(fd);
+    if (r.error) {
+      redirect(`/admin/announcements?error=${encodeURIComponent(r.error)}`);
+    }
+    redirect("/admin/announcements");
+  }
+
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">公告</h1>
@@ -77,14 +86,14 @@ export default async function AdminAnnouncementsPage() {
               </div>
               {isDivision(admin.role) && a.status === "PENDING_REVIEW" && (
                 <div className="flex gap-2">
-                  <form action={reviewAnnouncementFormAction}>
+                  <form action={review}>
                     <input type="hidden" name="id" value={a.id} />
                     <input type="hidden" name="approve" value="true" />
                     <button type="submit" className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs text-white">
                       审核通过
                     </button>
                   </form>
-                  <form action={reviewAnnouncementFormAction}>
+                  <form action={review}>
                     <input type="hidden" name="id" value={a.id} />
                     <input type="hidden" name="approve" value="false" />
                     <button type="submit" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700">

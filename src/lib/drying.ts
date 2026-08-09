@@ -19,10 +19,10 @@ export async function getCapacityForDay(listingId: string, day: Date) {
   });
   let booked = 0;
   for (const r of reservations) {
-    const days = eachDayOfInterval({
-      start: startOfDay(r.startDate),
-      end: startOfDay(r.endDate),
-    });
+    const rStart = startOfDay(r.startDate);
+    const rEnd = startOfDay(r.endDate);
+    if (rEnd < rStart) continue;
+    const days = eachDayOfInterval({ start: rStart, end: rEnd });
     if (days.some((x) => format(x, "yyyy-MM-dd") === format(d, "yyyy-MM-dd"))) {
       booked += 1;
     }
@@ -35,7 +35,10 @@ export async function validateReservationRange(
   start: Date,
   end: Date,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
-  const days = eachDayOfInterval({ start: startOfDay(start), end: startOfDay(end) });
+  const s = startOfDay(start);
+  const e = startOfDay(end);
+  if (e < s) return { ok: false, message: "结束日期不能早于开始日期" };
+  const days = eachDayOfInterval({ start: s, end: e });
   for (const day of days) {
     const { available } = await getCapacityForDay(listingId, day);
     if (available <= 0) {

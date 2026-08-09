@@ -3,10 +3,15 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
 import { reviewRegistrationFormAction } from "./actions";
 import { getDictMap } from "@/lib/dict";
+import { redirect } from "next/navigation";
 
 async function handleReview(formData: FormData) {
   "use server";
-  await reviewRegistrationFormAction(formData);
+  const r = await reviewRegistrationFormAction(formData);
+  if (r?.error) {
+    redirect(`/admin/registrations?error=${encodeURIComponent(r.error)}`);
+  }
+  redirect("/admin/registrations");
 }
 
 export default async function AdminRegistrationsPage() {

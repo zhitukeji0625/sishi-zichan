@@ -21,8 +21,9 @@ function parseImageUrls(imagesJson: string | null): string[] {
   }
 }
 
-export default async function AuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AuctionDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
   const { id } = await params;
+  const { error: actionError } = await searchParams;
   const user = await getCurrentEndUser();
   const project = await prisma.auctionProject.findUnique({
     where: { id },
@@ -67,6 +68,9 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
   async function goToContract() {
     "use server";
     const r = await createAuctionContractAction(projectId);
+    if (r.error) {
+      redirect(`/m/auction/${projectId}?error=${encodeURIComponent(r.error)}`);
+    }
     if ("contractId" in r && r.contractId) {
       redirect(`/m/contract/${r.contractId}`);
     }
@@ -81,6 +85,8 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
     LIVE: { label: "竞拍中", cls: "status-live" },
     SCHEDULED: { label: "即将开始", cls: "status-scheduled" },
     ENDED: { label: "已结束", cls: "status-ended" },
+    CANCELLED: { label: "已取消", cls: "status-ended" },
+    DRAFT: { label: "草稿", cls: "status-ended" },
   };
   const st = statusInfo[project.status] ?? { label: project.status, cls: "status-ended" };
   const imageUrls = parseImageUrls(project.asset.imagesJson);
@@ -165,7 +171,10 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
 
         {/* Action buttons */}
         <div className="space-y-3 animate-slide-up stagger-2">
-          {user && !reg && project.status !== "ENDED" && (
+          {actionError && (
+            <div className="card-elevated border-red-200 bg-red-50 p-4 text-sm text-red-700">{actionError}</div>
+          )}
+          {user && !reg && (project.status === "LIVE" || project.status === "SCHEDULED") && (
             <form action={register}>
               <button type="submit" className="btn-primary w-full !py-3.5 text-[15px]">报名参与竞拍</button>
             </form>

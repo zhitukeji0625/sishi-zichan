@@ -36,6 +36,24 @@ export default async function AdminAuctionsPage() {
     redirect("/admin/auctions");
   }
 
+  async function generateResult(projectId: string) {
+    "use server";
+    const r = await generateAuctionResultAction(projectId);
+    if (r.error) {
+      redirect(`/admin/auctions?error=${encodeURIComponent(r.error)}`);
+    }
+    redirect("/admin/auctions");
+  }
+
+  async function reviewResult(fd: FormData) {
+    "use server";
+    const r = await reviewAuctionResultAction(fd);
+    if (r.error) {
+      redirect(`/admin/auctions?error=${encodeURIComponent(r.error)}`);
+    }
+    redirect("/admin/auctions");
+  }
+
   return (
     <div>
       <h1 className="text-xl font-semibold text-slate-900">竞拍项目</h1>
@@ -122,7 +140,7 @@ export default async function AdminAuctionsPage() {
                         <form
                           action={async () => {
                             "use server";
-                            await generateAuctionResultAction(projectId);
+                            await generateResult(projectId);
                           }}
                         >
                           <button type="submit" className="rounded-lg bg-blue-700 px-3 py-1.5 text-xs text-white">
@@ -132,14 +150,14 @@ export default async function AdminAuctionsPage() {
                       )}
                       {p.result && p.result.status === "PENDING_REVIEW" && isDivision(admin.role) && (
                         <>
-                          <form action={reviewAuctionResultAction}>
+                          <form action={reviewResult}>
                             <input type="hidden" name="id" value={p.result.id} />
                             <input type="hidden" name="approve" value="true" />
                             <button type="submit" className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs text-white">
                               审核通过
                             </button>
                           </form>
-                          <form action={reviewAuctionResultAction}>
+                          <form action={reviewResult}>
                             <input type="hidden" name="id" value={p.result.id} />
                             <input type="hidden" name="approve" value="false" />
                             <button type="submit" className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs text-slate-700">
