@@ -13,11 +13,16 @@ export async function POST(req: Request) {
   if (!externalUserId) {
     return NextResponse.json({ error: "票据无效或已过期" }, { status: 401 });
   }
-  const user = await upsertEndUserFromExternal(externalUserId);
-  if (!user) {
-    return NextResponse.json({ error: "用户创建失败" }, { status: 500 });
+  try {
+    const user = await upsertEndUserFromExternal(externalUserId);
+    if (!user) {
+      return NextResponse.json({ error: "用户创建失败" }, { status: 500 });
+    }
+    const { token: sessionToken, expiresAt } = await createDbSession("end_user", user.id);
+    await setSessionCookie("end_user", sessionToken, expiresAt);
+    return NextResponse.json({ ok: true, userId: user.id, name: user.name });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "登录失败";
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
-  const { token: sessionToken, expiresAt } = await createDbSession("end_user", user.id);
-  await setSessionCookie("end_user", sessionToken, expiresAt);
-  return NextResponse.json({ ok: true, userId: user.id, name: user.name });
 }
