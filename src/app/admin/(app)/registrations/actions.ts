@@ -21,6 +21,7 @@ export async function reviewRegistrationFormAction(formData: FormData) {
   if (!reg) return { error: "记录不存在" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, reg.project.asset.orgId);
   if (!ok) return { error: "无权操作该组织" };
+  if (reg.status !== "PENDING") return { error: "该报名已审核" };
   await prisma.auctionRegistration.update({
     where: { id: registrationId },
     data: {

@@ -61,7 +61,7 @@ export async function deleteAssetAction(assetId: string) {
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return { error: "无权操作" };
   if (asset.auctionProjects.length > 0) return { error: "已关联竞拍项目，不可删除" };
-  if (asset.dryingListing && asset.dryingListing.reservations.length > 0) return { error: "已有预约记录，不可删除" };
+  if (asset.dryingListing) return { error: "已关联晒场，不可删除" };
   await prisma.asset.delete({ where: { id: assetId } });
   await writeAudit(admin.id, "ASSET_DELETE", JSON.stringify({ assetId, name: asset.name }));
   revalidatePath("/admin/assets");
