@@ -31,7 +31,7 @@ export async function signContractAction(contractId: string) {
     if (contract.reservationId) {
       await tx.dryingReservation.update({
         where: { id: contract.reservationId },
-        data: { status: "ACTIVE" },
+        data: { status: "PENDING_PAYMENT" },
       });
     }
   });
@@ -123,7 +123,7 @@ export async function payAuctionRentAction(projectId: string) {
   });
   if (!topBid) return { error: "未找到出价记录" };
   const existingPayment = await prisma.payment.findFirst({
-    where: { auctionProjectId: projectId, endUserId: user.id, purpose: "AUCTION_RENT" },
+    where: { auctionProjectId: projectId, endUserId: user.id, purpose: "AUCTION_RENT", status: "SUCCESS" },
   });
   if (existingPayment) return { ok: true as const };
   const orderNo = `MOCK${Date.now()}${Math.floor(Math.random() * 1000)}`;
