@@ -1,11 +1,50 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDictCategories } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+const DEMO_USER_PHONE = "13800138000";
+
+/** Keep demo auction usable when seed data already exists but the project has ended. */
+async function refreshDemoAuctionIfNeeded() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id, status: "APPROVED" },
+    include: { project: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const project = reg?.project;
+  if (!project) return;
+
+  const now = new Date();
+  const expired = project.status === "ENDED" || project.endsAt <= now;
+  if (!expired) return;
+
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: {
+      status: "LIVE",
+      startsAt: new Date(now.getTime() - 60_000),
+      endsAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
+  await prisma.auctionRegistration.update({
+    where: { id: reg.id },
+    data: { depositPaid: true, status: "APPROVED" },
+  });
+  console.log(`Demo auction refreshed: ${project.code}`);
+}
+
 async function main() {
+  console.log("Seeding dictionaries...");
+  await seedDictCategories(prisma);
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuctionIfNeeded();
     console.log("Seed skipped: data already present.");
     return;
   }
@@ -163,7 +202,7 @@ async function main() {
     },
   });
 
-  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
   if (demoUser) {
     await prisma.auctionRegistration.upsert({
       where: {
