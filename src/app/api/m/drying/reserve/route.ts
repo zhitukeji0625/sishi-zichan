@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { addDays, startOfDay } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
 import { validateReservationRange } from "@/lib/drying";
@@ -30,6 +31,12 @@ export async function POST(req: Request) {
   const listing = await prisma.dryingFieldListing.findUnique({ where: { id: parsed.data.listingId } });
   if (!listing || listing.status !== "OPERATING") {
     return NextResponse.json({ error: "晒场不存在或未运营" }, { status: 404 });
+  }
+  const bookingRule = await prisma.dryingBookingRule.findFirst({ where: { listingId: parsed.data.listingId } });
+  const maxAdvance = bookingRule?.maxAdvanceDays ?? 7;
+  const latestAllowed = addDays(startOfDay(new Date()), maxAdvance);
+  if (start > latestAllowed) {
+    return NextResponse.json({ error: `最多提前 ${maxAdvance} 天预约` }, { status: 400 });
   }
   const check = await validateReservationRange(parsed.data.listingId, start, end);
   if (!check.ok) {
