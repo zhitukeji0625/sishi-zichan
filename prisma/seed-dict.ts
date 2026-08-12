@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import type { PrismaClient } from "@prisma/client";
 
 const categories = [
   {
@@ -30,11 +29,10 @@ const categories = [
   {
     code: "auction_status",
     name: "竞拍状态",
-    description: "竞拍项目状态",
     builtIn: true,
     items: [
       { value: "DRAFT", label: "草稿", sortOrder: 1 },
-      { value: "SCHEDULED", label: "待开始", sortOrder: 2 },
+      { value: "PENDING", label: "待开始", sortOrder: 2 },
       { value: "LIVE", label: "进行中", sortOrder: 3 },
       { value: "ENDED", label: "已结束", sortOrder: 4 },
       { value: "CANCELLED", label: "已取消", sortOrder: 5 },
@@ -43,34 +41,20 @@ const categories = [
   {
     code: "registration_status",
     name: "报名状态",
-    description: "竞拍报名审核状态",
     builtIn: true,
     items: [
       { value: "PENDING", label: "待审核", sortOrder: 1 },
       { value: "APPROVED", label: "已通过", sortOrder: 2 },
-      { value: "REJECTED", label: "已驳回", sortOrder: 3 },
-    ],
-  },
-  {
-    code: "announcement_status",
-    name: "公告状态",
-    builtIn: true,
-    items: [
-      { value: "DRAFT", label: "草稿", sortOrder: 1 },
-      { value: "PENDING_REVIEW", label: "待审核", sortOrder: 2 },
-      { value: "PUBLISHED", label: "已发布", sortOrder: 3 },
-      { value: "WITHDRAWN", label: "已撤回", sortOrder: 4 },
+      { value: "REJECTED", label: "已拒绝", sortOrder: 3 },
     ],
   },
   {
     code: "drying_listing_status",
-    name: "晒场上架状态",
+    name: "晒场状态",
     builtIn: true,
     items: [
       { value: "OPERATING", label: "运营中", sortOrder: 1 },
-      { value: "MAINTENANCE", label: "维护中", sortOrder: 2 },
-      { value: "PAUSED", label: "已暂停", sortOrder: 3 },
-      { value: "OFFLINE", label: "已下线", sortOrder: 4 },
+      { value: "CLOSED", label: "已关闭", sortOrder: 2 },
     ],
   },
   {
@@ -78,34 +62,10 @@ const categories = [
     name: "预约状态",
     builtIn: true,
     items: [
-      { value: "PENDING_REVIEW", label: "待审核", sortOrder: 1 },
+      { value: "PENDING", label: "待审核", sortOrder: 1 },
       { value: "APPROVED", label: "已通过", sortOrder: 2 },
-      { value: "REJECTED", label: "已驳回", sortOrder: 3 },
-      { value: "PENDING_PAYMENT", label: "待支付", sortOrder: 4 },
-      { value: "PAID", label: "已支付", sortOrder: 5 },
-      { value: "CONTRACT_PENDING", label: "待签合同", sortOrder: 6 },
-      { value: "ACTIVE", label: "使用中", sortOrder: 7 },
-      { value: "CANCELLED", label: "已取消", sortOrder: 8 },
-      { value: "COMPLETED", label: "已完成", sortOrder: 9 },
-    ],
-  },
-  {
-    code: "contract_type",
-    name: "合同类型",
-    builtIn: true,
-    items: [
-      { value: "AUCTION_LEASE", label: "竞拍租赁", sortOrder: 1 },
-      { value: "DRYING_LEASE", label: "晒场租赁", sortOrder: 2 },
-    ],
-  },
-  {
-    code: "contract_status",
-    name: "合同状态",
-    builtIn: true,
-    items: [
-      { value: "DRAFT", label: "待签署", sortOrder: 1 },
-      { value: "SIGNED", label: "已签署", sortOrder: 2 },
-      { value: "EXPIRED", label: "已过期", sortOrder: 3 },
+      { value: "REJECTED", label: "已拒绝", sortOrder: 3 },
+      { value: "CANCELLED", label: "已取消", sortOrder: 4 },
     ],
   },
   {
@@ -125,14 +85,24 @@ const categories = [
     builtIn: true,
     items: [
       { value: "PENDING", label: "待支付", sortOrder: 1 },
-      { value: "SUCCESS", label: "成功", sortOrder: 2 },
-      { value: "FAILED", label: "失败", sortOrder: 3 },
-      { value: "REFUNDED", label: "已退款", sortOrder: 4 },
+      { value: "PAID", label: "已支付", sortOrder: 2 },
+      { value: "REFUNDED", label: "已退款", sortOrder: 3 },
+      { value: "FAILED", label: "失败", sortOrder: 4 },
+    ],
+  },
+  {
+    code: "announcement_status",
+    name: "公告状态",
+    builtIn: true,
+    items: [
+      { value: "DRAFT", label: "草稿", sortOrder: 1 },
+      { value: "PUBLISHED", label: "已发布", sortOrder: 2 },
+      { value: "ARCHIVED", label: "已归档", sortOrder: 3 },
     ],
   },
   {
     code: "org_level",
-    name: "组织级别",
+    name: "组织层级",
     builtIn: true,
     items: [
       { value: "DIVISION", label: "师", sortOrder: 1 },
@@ -161,7 +131,7 @@ const categories = [
   },
 ];
 
-async function main() {
+export async function seedDict(prisma: PrismaClient) {
   for (const cat of categories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
@@ -182,6 +152,16 @@ async function main() {
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+async function main() {
+  const { PrismaClient } = await import("@prisma/client");
+  const prisma = new PrismaClient();
+  await seedDict(prisma);
+  await prisma.$disconnect();
+}
+
+if (process.argv[1]?.endsWith("seed-dict.ts")) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
