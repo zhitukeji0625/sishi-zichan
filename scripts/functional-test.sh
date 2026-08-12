@@ -360,7 +360,7 @@ else
 fi
 log ""
 
-log "--- Test 14b: Rent payment on LIVE auction (expect 403) ---"
+log "--- Test 14b: Rent payment on LIVE auction (expect 400) ---"
 if [[ -z "$LIVE_PROJECT_ID" ]]; then
   log "SKIP: No LIVE auction for rent payment edge case"
   ((SKIP_COUNT++)) || true
@@ -370,7 +370,7 @@ else
     "$USER_COOKIE")
   code=$(echo "$resp" | head -1)
   body=$(echo "$resp" | tail -n +2)
-  assert_status "Rent payment on LIVE auction rejected" "403" "$code" "$body"
+  assert_status "Rent payment on LIVE auction rejected" "400" "$code" "$body"
 fi
 log ""
 
