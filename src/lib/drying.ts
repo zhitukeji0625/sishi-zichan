@@ -35,6 +35,14 @@ export async function validateReservationRange(
   start: Date,
   end: Date,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  const bookingRule = await prisma.dryingBookingRule.findFirst({ where: { listingId } });
+  const maxAdvanceDays = bookingRule?.maxAdvanceDays ?? 7;
+  const today = startOfDay(new Date());
+  const latestStart = new Date(today);
+  latestStart.setDate(latestStart.getDate() + maxAdvanceDays);
+  if (startOfDay(start) > latestStart) {
+    return { ok: false, message: `开始日期不能超过今天起 ${maxAdvanceDays} 天` };
+  }
   const days = eachDayOfInterval({ start: startOfDay(start), end: startOfDay(end) });
   for (const day of days) {
     const { available } = await getCapacityForDay(listingId, day);

@@ -117,6 +117,9 @@ export async function payAuctionRentAction(projectId: string) {
   if (!result || result.winnerId !== user.id || result.status !== "PUBLISHED") {
     return { error: "无权操作" };
   }
+  if (result.project.status === "LIVE" || result.project.status === "SCHEDULED") {
+    return { error: "竞拍未结束，暂不可支付租金" };
+  }
   const topBid = await prisma.auctionBid.findFirst({
     where: { projectId, endUserId: user.id },
     orderBy: { amount: "desc" },
