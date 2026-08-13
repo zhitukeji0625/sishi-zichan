@@ -2,14 +2,17 @@ import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { getCurrentAdmin } from "@/lib/auth/session";
+import { parseFormData } from "@/lib/http/form";
 
 const UPLOAD_DIR = join(process.cwd(), "data", "uploads");
 
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  
-  const formData = await req.formData();
+
+  const formDataOrRes = await parseFormData(req);
+  if (formDataOrRes instanceof NextResponse) return formDataOrRes;
+  const formData = formDataOrRes;
   const file = formData.get("file") as File | null;
   if (!file) return NextResponse.json({ error: "缺少文件" }, { status: 400 });
   
