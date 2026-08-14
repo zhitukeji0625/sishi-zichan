@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { orgFilterForAdmin } from "@/lib/admin-scope";
+import { refreshAuctionProjectStatuses } from "@/lib/cron";
 import { Package, Gavel, Sun } from "lucide-react";
 
 export default async function AdminDashboard() {
   const admin = await getCurrentAdmin();
   if (!admin) return null;
+  await refreshAuctionProjectStatuses();
   const orgWhere = await orgFilterForAdmin(admin.role, admin.orgId);
 
   const [assetCount, auctionLive, dryingPending] = await Promise.all([

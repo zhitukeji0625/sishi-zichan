@@ -1,5 +1,30 @@
 import { prisma } from "@/lib/prisma";
-import { startOfDay, eachDayOfInterval, format } from "date-fns";
+import { startOfDay, eachDayOfInterval, format, addDays } from "date-fns";
+
+/** Parse yyyy-MM-dd as local calendar date (avoids UTC midnight skew). */
+export function parseLocalDate(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  if (!y || !m || !d) return new Date(NaN);
+  return new Date(y, m - 1, d);
+}
+
+export async function validateBookingAdvance(
+  listingId: string,
+  start: Date,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const rule = await prisma.dryingBookingRule.findFirst({ where: { listingId } });
+  const maxAdvance = rule?.maxAdvanceDays ?? 7;
+  const today = startOfDay(new Date());
+  const horizon = addDays(today, maxAdvance);
+  const startDay = startOfDay(start);
+  if (startDay < today) {
+    return { ok: false, message: "开始日期不能早于今天" };
+  }
+  if (startDay > horizon) {
+    return { ok: false, message: `最多可提前 ${maxAdvance} 天预约` };
+  }
+  return { ok: true };
+}
 
 export async function getCapacityForDay(listingId: string, day: Date) {
   const d = startOfDay(day);
