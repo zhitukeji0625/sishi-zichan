@@ -31,6 +31,9 @@ export async function POST(req: Request) {
     if (reg.depositPaid) return NextResponse.json({ error: "保证金已缴纳" }, { status: 409 });
     const project = await prisma.auctionProject.findUnique({ where: { id: auctionProjectId } });
     if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+    if (project.status !== "SCHEDULED" && project.status !== "LIVE") {
+      return NextResponse.json({ error: "项目状态不允许缴纳保证金" }, { status: 400 });
+    }
     amount = project.depositAmount;
   } else if (purpose === "AUCTION_RENT") {
     if (!auctionProjectId) return NextResponse.json({ error: "缺少项目ID" }, { status: 400 });
@@ -38,6 +41,11 @@ export async function POST(req: Request) {
       where: { auctionProjectId, endUserId: user.id, purpose: "AUCTION_RENT", status: "SUCCESS" },
     });
     if (existingRent) return NextResponse.json({ error: "租金已支付" }, { status: 409 });
+    const project = await prisma.auctionProject.findUnique({ where: { id: auctionProjectId } });
+    if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+    if (project.status === "LIVE" || project.status === "SCHEDULED") {
+      return NextResponse.json({ error: "竞拍尚未结束，暂不可支付租金" }, { status: 400 });
+    }
     const result = await prisma.auctionResult.findUnique({ where: { projectId: auctionProjectId } });
     if (!result || result.winnerId !== user.id) return NextResponse.json({ error: "无权操作" }, { status: 403 });
     const topBid = await prisma.auctionBid.findFirst({
