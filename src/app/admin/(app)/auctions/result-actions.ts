@@ -71,11 +71,13 @@ export async function reviewAuctionResultAction(formData: FormData) {
         where: { auctionProjectId: result.projectId, endUserId: reg.endUserId, purpose: "AUCTION_DEPOSIT", status: "REFUNDED" },
       });
       if (!existingRefund) {
-        await prisma.payment.updateMany({
+        const refunded = await prisma.payment.updateMany({
           where: { auctionProjectId: result.projectId, endUserId: reg.endUserId, purpose: "AUCTION_DEPOSIT", status: "SUCCESS" },
           data: { status: "REFUNDED" },
         });
-        await notifyUser(reg.endUserId, "保证金退还通知", `项目 ${result.project.code} 的竞拍保证金已原路退回。`, "DEPOSIT_REFUND");
+        if (refunded.count > 0) {
+          await notifyUser(reg.endUserId, "保证金退还通知", `项目 ${result.project.code} 的竞拍保证金已原路退回。`, "DEPOSIT_REFUND");
+        }
       }
     }
   } else {
