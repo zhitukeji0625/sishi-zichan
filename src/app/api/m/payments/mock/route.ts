@@ -38,8 +38,14 @@ export async function POST(req: Request) {
       where: { auctionProjectId, endUserId: user.id, purpose: "AUCTION_RENT", status: "SUCCESS" },
     });
     if (existingRent) return NextResponse.json({ error: "租金已支付" }, { status: 409 });
+    const project = await prisma.auctionProject.findUnique({ where: { id: auctionProjectId } });
+    if (!project || project.status !== "ENDED") {
+      return NextResponse.json({ error: "竞拍尚未结束，暂不可支付租金" }, { status: 400 });
+    }
     const result = await prisma.auctionResult.findUnique({ where: { projectId: auctionProjectId } });
-    if (!result || result.winnerId !== user.id) return NextResponse.json({ error: "无权操作" }, { status: 403 });
+    if (!result || result.status !== "PUBLISHED" || result.winnerId !== user.id) {
+      return NextResponse.json({ error: "无权操作" }, { status: 403 });
+    }
     const topBid = await prisma.auctionBid.findFirst({
       where: { projectId: auctionProjectId, endUserId: user.id },
       orderBy: { amount: "desc" },
