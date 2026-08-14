@@ -2,9 +2,11 @@ import Link from "next/link";
 import { ChevronRight, Gavel, Sun, FileText, User, LogIn, UserPlus, Megaphone, Sparkles } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentEndUser } from "@/lib/auth/session";
+import { refreshAuctionProjectStatuses } from "@/lib/cron";
 
 export default async function MHomePage() {
   const user = await getCurrentEndUser();
+  await refreshAuctionProjectStatuses();
   const announcements = await prisma.announcement.findMany({
     where: { status: "PUBLISHED" },
     orderBy: { publishedAt: "desc" },
