@@ -64,7 +64,8 @@ if [ -z "$PROJECT_ID" ]; then
   echo "✗ no LIVE auction"
   FAIL=$((FAIL + 1))
 else
-  BODY=$(curl -s -b "$COOKIE_JAR" -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" -H 'Content-Type: application/json' -d '{"amount":8400}')
+  TOP_BID=$(query_db "const proj=await p.auctionProject.findFirst({where:{code:'DEMO_LIVE_AUCTION',status:'LIVE'}});const top=await p.auctionBid.findFirst({where:{projectId:proj?.id},orderBy:{amount:'desc'}});const min=top?Number(top.amount)+Number(proj?.bidStep??200):Number(proj?.startPrice??8000);console.log(min);")
+  BODY=$(curl -s -b "$COOKIE_JAR" -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" -H 'Content-Type: application/json' -d "{\"amount\":$TOP_BID}")
   check_json "auction bid" '"ok":true' "$BODY"
   check "auction rent on LIVE" "400" "$(curl -s -o /dev/null -w '%{http_code}' -b "$COOKIE_JAR" -X POST "$BASE/api/m/payments/mock" -H 'Content-Type: application/json' -d "{\"purpose\":\"AUCTION_RENT\",\"auctionProjectId\":\"$PROJECT_ID\"}")"
 fi
