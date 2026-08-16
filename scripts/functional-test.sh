@@ -8,6 +8,9 @@ COOKIE_JAR="/tmp/func-test-user.txt"
 ADMIN_JAR="/tmp/func-test-admin.txt"
 rm -f "$COOKIE_JAR" "$ADMIN_JAR"
 
+# 刷新演示竞拍状态，避免历史出价导致测试失败
+(cd /workspace && npm run db:seed --silent) || true
+
 check() {
   local name="$1" expected="$2" actual="$3"
   if [ "$actual" = "$expected" ]; then
@@ -64,7 +67,8 @@ if [ -z "$PROJECT_ID" ]; then
   echo "✗ no LIVE auction"
   FAIL=$((FAIL + 1))
 else
-  BODY=$(curl -s -b "$COOKIE_JAR" -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" -H 'Content-Type: application/json' -d '{"amount":8400}')
+  BID_AMOUNT=$(query_db "const proj=await p.auctionProject.findUnique({where:{id:'$PROJECT_ID'}});const top=await p.auctionBid.findFirst({where:{projectId:'$PROJECT_ID'},orderBy:{amount:'desc'}});const min=top?Number(top.amount)+Number(proj.bidStep):Number(proj.startPrice);console.log(min);")
+  BODY=$(curl -s -b "$COOKIE_JAR" -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" -H 'Content-Type: application/json' -d "{\"amount\":$BID_AMOUNT}")
   check_json "auction bid" '"ok":true' "$BODY"
   check "auction rent on LIVE" "400" "$(curl -s -o /dev/null -w '%{http_code}' -b "$COOKIE_JAR" -X POST "$BASE/api/m/payments/mock" -H 'Content-Type: application/json' -d "{\"purpose\":\"AUCTION_RENT\",\"auctionProjectId\":\"$PROJECT_ID\"}")"
 fi
