@@ -34,6 +34,9 @@ query_db() {
   cd /workspace && npx tsx -e "(async()=>{const{PrismaClient}=await import('@prisma/client');const p=new PrismaClient();$1;await p.\$disconnect();})()"
 }
 
+echo "=== Seed demo data ==="
+(cd /workspace && npm run db:seed >/dev/null)
+
 echo "=== Public pages ==="
 check "GET /" "200" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/")"
 check "GET /m" "200" "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/m")"
@@ -64,7 +67,8 @@ if [ -z "$PROJECT_ID" ]; then
   echo "✗ no LIVE auction"
   FAIL=$((FAIL + 1))
 else
-  BODY=$(curl -s -b "$COOKIE_JAR" -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" -H 'Content-Type: application/json' -d '{"amount":8400}')
+  BID_AMOUNT=$(query_db "const{Decimal}=await import('@prisma/client/runtime/library');const proj=await p.auctionProject.findUnique({where:{id:'$PROJECT_ID'}});if(!proj){console.log('');return;}const top=await p.auctionBid.findFirst({where:{projectId:'$PROJECT_ID'},orderBy:{amount:'desc'}});const min=top?new Decimal(top.amount.toString()).plus(proj.bidStep.toString()):new Decimal(proj.startPrice.toString());console.log(min.toFixed(0));")
+  BODY=$(curl -s -b "$COOKIE_JAR" -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" -H 'Content-Type: application/json' -d "{\"amount\":$BID_AMOUNT}")
   check_json "auction bid" '"ok":true' "$BODY"
   check "auction rent on LIVE" "400" "$(curl -s -o /dev/null -w '%{http_code}' -b "$COOKIE_JAR" -X POST "$BASE/api/m/payments/mock" -H 'Content-Type: application/json' -d "{\"purpose\":\"AUCTION_RENT\",\"auctionProjectId\":\"$PROJECT_ID\"}")"
 fi
