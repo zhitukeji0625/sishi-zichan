@@ -182,12 +182,19 @@ export async function seedDict(prisma: PrismaClient) {
 
 async function main() {
   const prisma = new PrismaClient();
-  await seedDict(prisma);
-  console.log("Dict seed done.");
-  await prisma.$disconnect();
+  try {
+    await seedDict(prisma);
+    console.log("Dict seed done.");
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+// 仅在被直接执行时运行，避免 seed.ts import 时重复写入
+const isDirectRun = process.argv[1]?.replace(/\\/g, "/").endsWith("prisma/seed-dict.ts");
+if (isDirectRun) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
