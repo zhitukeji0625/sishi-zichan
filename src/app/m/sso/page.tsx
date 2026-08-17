@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 function SsoInner() {
-  const router = useRouter();
   const search = useSearchParams();
   const token = search.get("token");
   const [msg, setMsg] = useState("正在验证第三方票据…");
@@ -24,13 +23,12 @@ function SsoInner() {
         setMsg(j.error ?? "登录失败");
         return;
       }
-      router.replace("/m");
-      router.refresh();
+      window.location.assign("/m");
     })();
     return () => {
       cancelled = true;
     };
-  }, [token, router]);
+  }, [token]);
 
   return (
     <div className="px-4 pt-16 text-center text-sm text-slate-600">
