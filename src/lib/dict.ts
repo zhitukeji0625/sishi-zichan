@@ -1,6 +1,45 @@
 import { prisma } from "@/lib/prisma";
+import {
+  adminRoleLabels,
+  announcementStatusLabels,
+  assetStatusLabels,
+  assetTypeLabels,
+  auctionStatusLabels,
+  contractStatusLabels,
+  contractTypeLabels,
+  dryingListingStatusLabels,
+  endUserTypeLabels,
+  orgLevelLabels,
+  paymentPurposeLabels,
+  paymentStatusLabels,
+  registrationStatusLabels,
+  reservationStatusLabels,
+} from "@/lib/labels";
 
 export type DictOption = { value: string; label: string };
+
+const builtInFallbacks: Record<string, Record<string, string>> = {
+  asset_type: assetTypeLabels,
+  asset_status: assetStatusLabels,
+  admin_role: adminRoleLabels,
+  org_level: orgLevelLabels,
+  auction_status: auctionStatusLabels,
+  registration_status: registrationStatusLabels,
+  announcement_status: announcementStatusLabels,
+  drying_listing_status: dryingListingStatusLabels,
+  reservation_status: reservationStatusLabels,
+  contract_type: contractTypeLabels,
+  contract_status: contractStatusLabels,
+  payment_purpose: paymentPurposeLabels,
+  payment_status: paymentStatusLabels,
+  user_type: endUserTypeLabels,
+};
+
+function fallbackDictItems(categoryCode: string): DictOption[] {
+  const labels = builtInFallbacks[categoryCode];
+  if (!labels) return [];
+  return Object.entries(labels).map(([value, label]) => ({ value, label }));
+}
 
 export async function getDictItems(categoryCode: string): Promise<DictOption[]> {
   const cat = await prisma.dictCategory.findUnique({
@@ -12,7 +51,7 @@ export async function getDictItems(categoryCode: string): Promise<DictOption[]> 
       },
     },
   });
-  if (!cat) return [];
+  if (!cat || cat.items.length === 0) return fallbackDictItems(categoryCode);
   return cat.items.map((i) => ({ value: i.value, label: i.label }));
 }
 
