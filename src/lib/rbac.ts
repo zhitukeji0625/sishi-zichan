@@ -45,6 +45,11 @@ export async function adminCanAccessOrg(
   adminOrgId: string,
   targetOrgId: string,
 ): Promise<boolean> {
+  const org = await prisma.organization.findUnique({
+    where: { id: targetOrgId },
+    select: { id: true },
+  });
+  if (!org) return false;
   const scope = await adminScopedOrgIds(role, adminOrgId);
   if (scope === "ALL") return true;
   return scope.includes(targetOrgId);
