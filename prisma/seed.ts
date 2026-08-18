@@ -3,10 +3,66 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** Keep demo user able to bid when seed is re-run against an existing database. */
+async function ensureDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const active = await prisma.auctionProject.findFirst({
+    where: {
+      status: "LIVE",
+      endsAt: { gt: new Date() },
+      OR: [{ result: null }, { result: { status: { not: "PUBLISHED" } } }],
+      registrations: {
+        some: { endUserId: demoUser.id, status: "APPROVED", depositPaid: true },
+      },
+    },
+  });
+  if (active) {
+    const oneDay = 24 * 60 * 60 * 1000;
+    if (active.endsAt.getTime() - Date.now() < oneDay) {
+      await prisma.auctionProject.update({
+        where: { id: active.id },
+        data: { endsAt: new Date(Date.now() + 7 * oneDay) },
+      });
+      console.log("Extended demo auction end time.");
+    }
+    return;
+  }
+
+  const asset = await prisma.asset.findFirst({ where: { status: AssetStatus.IDLE } });
+  if (!asset) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const project = await prisma.auctionProject.create({
+    data: {
+      code: `AP${Date.now()}`,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+  await prisma.auctionRegistration.create({
+    data: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log("Created new demo auction project for testing.");
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
+    await ensureDemoAuction();
     return;
   }
 
