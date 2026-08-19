@@ -1,9 +1,45 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+const DEMO_USER_PHONE = "13800138000";
+
+/** 演示竞拍过期或即将结束时，延长结束时间并恢复 LIVE，便于持续演示出价。 */
+async function refreshDemoAuctionIfNeeded() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id, status: "APPROVED", depositPaid: true },
+    include: { project: true },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!reg) return;
+
+  const project = reg.project;
+  const now = Date.now();
+  const endsAt = project.endsAt.getTime();
+  const oneHour = 60 * 60 * 1000;
+  const needsRefresh =
+    project.status === "ENDED" || endsAt <= now + oneHour;
+
+  if (!needsRefresh) return;
+
+  const startsAt = new Date(now - 60 * 1000);
+  const newEndsAt = new Date(now + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: { status: "LIVE", startsAt, endsAt: newEndsAt },
+  });
+  console.log(`Demo auction ${project.code} refreshed to LIVE until ${newEndsAt.toISOString()}`);
+}
+
 async function main() {
+  await seedDict();
+  await refreshDemoAuctionIfNeeded();
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
@@ -163,7 +199,7 @@ async function main() {
     },
   });
 
-  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
   if (demoUser) {
     await prisma.auctionRegistration.upsert({
       where: {
