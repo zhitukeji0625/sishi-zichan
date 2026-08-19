@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { signThirdPartyToken } from "@/lib/auth/session";
+import { signThirdPartyToken } from "@/lib/auth/third-party-jwt";
 
 export async function GET(req: Request) {
   if (process.env.NODE_ENV === "production") {
