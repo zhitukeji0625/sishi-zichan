@@ -3,10 +3,41 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_USER_PHONE = "13800138000";
+/** 演示竞拍保持 LIVE 的时长（避免仅 7 天后过期导致无法出价） */
+const DEMO_AUCTION_LIVE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** 已有种子数据时仍刷新演示竞拍时间窗，保证 README 中「进行中的竞拍」可用 */
+async function ensureDemoAuctionLive() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + DEMO_AUCTION_LIVE_MS);
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id },
+    orderBy: { createdAt: "desc" },
+    include: { project: true },
+  });
+
+  if (!reg?.project) return;
+
+  await prisma.auctionProject.update({
+    where: { id: reg.project.id },
+    data: { status: "LIVE", startsAt: starts, endsAt: ends },
+  });
+  await prisma.auctionRegistration.update({
+    where: { id: reg.id },
+    data: { status: "APPROVED", depositPaid: true },
+  });
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    await ensureDemoAuctionLive();
+    console.log("Seed skipped: data already present. Demo auction refreshed to LIVE.");
     return;
   }
 
@@ -149,7 +180,7 @@ async function main() {
   });
 
   const starts = new Date(Date.now() - 60 * 1000);
-  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const ends = new Date(Date.now() + DEMO_AUCTION_LIVE_MS);
   const project = await prisma.auctionProject.create({
     data: {
       code: `AP${Date.now()}`,
