@@ -1,11 +1,47 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+async function refreshDemoAuctions() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const oneHourFromNow = new Date(Date.now() + 60 * 60 * 1000);
+  const registrations = await prisma.auctionRegistration.findMany({
+    where: { endUserId: demoUser.id },
+    include: { project: true },
+  });
+
+  let refreshed = 0;
+  for (const reg of registrations) {
+    const project = reg.project;
+    const needsRefresh =
+      project.status === "ENDED" || project.endsAt.getTime() < oneHourFromNow.getTime();
+    if (!needsRefresh) continue;
+
+    await prisma.auctionProject.update({
+      where: { id: project.id },
+      data: {
+        status: "LIVE",
+        startsAt: new Date(Date.now() - 60 * 1000),
+        endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+    refreshed++;
+  }
+  if (refreshed > 0) {
+    console.log(`Refreshed ${refreshed} demo auction(s) to LIVE.`);
+  }
+}
+
 async function main() {
+  await seedDict();
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuctions();
     console.log("Seed skipped: data already present.");
     return;
   }
