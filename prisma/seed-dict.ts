@@ -161,7 +161,7 @@ const categories = [
   },
 ];
 
-async function main() {
+async function seedDict() {
   for (const cat of categories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
@@ -182,6 +182,14 @@ async function main() {
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+export { seedDict };
+
+const isDirectRun =
+  typeof require !== "undefined" &&
+  require.main === module;
+
+if (isDirectRun) {
+  seedDict()
+    .then(() => prisma.$disconnect())
+    .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+}
