@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUp } from "lucide-react";
 
 export function BidForm({ projectId, minBid }: { projectId: string; minBid: number }) {
   const router = useRouter();
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(() => minBid.toFixed(2));
+
+  useEffect(() => {
+    setAmount(minBid.toFixed(2));
+  }, [minBid]);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
 
