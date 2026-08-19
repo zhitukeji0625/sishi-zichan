@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyThirdPartyToken } from "@/lib/auth/session";
+import { verifyThirdPartyToken } from "@/lib/auth/third-party-jwt";
 import { upsertEndUserFromExternal } from "@/lib/external-user";
 import { createDbSession, setSessionCookie } from "@/lib/auth/session";
 
