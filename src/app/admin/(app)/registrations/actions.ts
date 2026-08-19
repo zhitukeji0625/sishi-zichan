@@ -19,6 +19,7 @@ export async function reviewRegistrationFormAction(formData: FormData) {
     include: { project: { include: { asset: true } }, endUser: true },
   });
   if (!reg) return { error: "记录不存在" };
+  if (reg.status !== "PENDING") return { error: "该报名已审核" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, reg.project.asset.orgId);
   if (!ok) return { error: "无权操作该组织" };
   await prisma.auctionRegistration.update({
@@ -36,4 +37,5 @@ export async function reviewRegistrationFormAction(formData: FormData) {
     "REG_RESULT",
   );
   revalidatePath("/admin/registrations");
+  return { ok: true as const };
 }
