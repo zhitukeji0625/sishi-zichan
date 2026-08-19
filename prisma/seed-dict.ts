@@ -161,24 +161,36 @@ const categories = [
   },
 ];
 
-async function main() {
+export async function seedDict(client: PrismaClient) {
   for (const cat of categories) {
-    const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
+    const existing = await client.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
       console.log(`  Skip: ${cat.code} (already exists)`);
       continue;
     }
-    await prisma.dictCategory.create({
-      data: {
-        code: cat.code,
-        name: cat.name,
-        description: cat.description ?? null,
-        builtIn: cat.builtIn,
-        items: { create: cat.items },
-      },
-    });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+    try {
+      await client.dictCategory.create({
+        data: {
+          code: cat.code,
+          name: cat.name,
+          description: cat.description ?? null,
+          builtIn: cat.builtIn,
+          items: { create: cat.items },
+        },
+      });
+      console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+    } catch (e: unknown) {
+      if (e && typeof e === "object" && "code" in e && e.code === "P2002") {
+        console.log(`  Skip: ${cat.code} (already exists)`);
+        continue;
+      }
+      throw e;
+    }
   }
+}
+
+async function main() {
+  await seedDict(prisma);
   console.log("Dict seed done.");
 }
 
