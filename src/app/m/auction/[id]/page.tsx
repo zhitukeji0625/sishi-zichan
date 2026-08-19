@@ -199,7 +199,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
               </button>
             </form>
           )}
-          {user && reg?.status === "APPROVED" && reg.depositPaid && project.status === "LIVE" && (() => {
+          {user && reg?.status === "APPROVED" && reg.depositPaid && project.status === "LIVE" && (!project.result || project.result.status === "REJECTED") && (() => {
             const minNext = top
               ? Number(top.toString()) + Number(project.bidStep.toString())
               : Number(project.startPrice.toString());
