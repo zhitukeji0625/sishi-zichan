@@ -3,10 +3,60 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_AUCTION_CODE = "DEMO_LIVE_AUCTION";
+
+/** 演示竞拍：每次 seed 都刷新为 LIVE，便于 cron/自动化测试 */
+async function ensureDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  const asset = await prisma.asset.findFirst({
+    where: { name: "团部东侧闲置地块" },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!asset) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const project = await prisma.auctionProject.upsert({
+    where: { code: DEMO_AUCTION_CODE },
+    update: {
+      startsAt: starts,
+      endsAt: ends,
+      status: "LIVE",
+    },
+    create: {
+      code: DEMO_AUCTION_CODE,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+
+  if (demoUser) {
+    await prisma.auctionRegistration.upsert({
+      where: {
+        projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+      },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId: project.id,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+  }
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
+    await ensureDemoAuction();
+    console.log("Demo auction refreshed (DEMO_LIVE_AUCTION → LIVE).");
     return;
   }
 
@@ -152,7 +202,7 @@ async function main() {
   const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const project = await prisma.auctionProject.create({
     data: {
-      code: `AP${Date.now()}`,
+      code: DEMO_AUCTION_CODE,
       assetId: asset1.id,
       startPrice: 8000,
       bidStep: 200,
@@ -209,6 +259,7 @@ async function main() {
   });
 
   console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
+  await ensureDemoAuction();
 }
 
 main()
