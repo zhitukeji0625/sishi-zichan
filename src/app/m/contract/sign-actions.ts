@@ -110,6 +110,11 @@ export async function createDryingContractAction(reservationId: string) {
 export async function payAuctionRentAction(projectId: string) {
   const user = await getCurrentEndUser();
   if (!user) return { error: "请先登录" };
+  const project = await prisma.auctionProject.findUnique({ where: { id: projectId } });
+  if (!project) return { error: "项目不存在" };
+  if (project.status !== "ENDED") {
+    return { error: "竞拍尚未结束" };
+  }
   const result = await prisma.auctionResult.findUnique({
     where: { projectId },
     include: { project: true },
