@@ -2,11 +2,58 @@ import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@pris
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
+const DEMO_AUCTION_CODE = "DEMO_LIVE_AUCTION";
+
+/** 确保演示竞拍始终处于 LIVE，便于功能测试与演示。 */
+export async function ensureDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  const asset = await prisma.asset.findFirst({
+    where: { type: AssetType.LAND, status: AssetStatus.IDLE },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!demoUser || !asset) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  const project = await prisma.auctionProject.upsert({
+    where: { code: DEMO_AUCTION_CODE },
+    update: {
+      startsAt: starts,
+      endsAt: ends,
+      status: "LIVE",
+    },
+    create: {
+      code: DEMO_AUCTION_CODE,
+      assetId: asset.id,
+      startPrice: 8000,
+      bidStep: 200,
+      startsAt: starts,
+      endsAt: ends,
+      depositAmount: 500,
+      status: "LIVE",
+    },
+  });
+
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+}
 
 async function main() {
-  const existing = await prisma.auctionProject.count();
+  const existing = await prisma.auctionProject.count({ where: { code: { not: DEMO_AUCTION_CODE } } });
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    await ensureDemoAuction();
+    console.log("Seed skipped: data already present. Demo auction refreshed.");
     return;
   }
 
@@ -208,6 +255,7 @@ async function main() {
     },
   });
 
+  await ensureDemoAuction();
   console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
 }
 
