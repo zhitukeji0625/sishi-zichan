@@ -114,7 +114,12 @@ export async function payAuctionRentAction(projectId: string) {
     where: { projectId },
     include: { project: true },
   });
-  if (!result || result.winnerId !== user.id || result.status !== "PUBLISHED") {
+  if (
+    !result ||
+    result.winnerId !== user.id ||
+    result.status !== "PUBLISHED" ||
+    result.project.status !== "ENDED"
+  ) {
     return { error: "无权操作" };
   }
   const topBid = await prisma.auctionBid.findFirst({
