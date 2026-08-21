@@ -80,6 +80,13 @@ describe.skipIf(skipDb)("placeBid", () => {
   it("rejects bid below min increment", async () => {
     await expect(
       placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/不低于/);
+  });
+
+  it("rejects bid not aligned to bid step", async () => {
+    await placeBid({ projectId, endUserId: userId, amount: new Decimal(110) });
+    await expect(
+      placeBid({ projectId, endUserId: userId, amount: new Decimal(125) }),
+    ).rejects.toThrow(/整数倍/);
   });
 });
