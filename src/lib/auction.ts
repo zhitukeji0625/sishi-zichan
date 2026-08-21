@@ -30,11 +30,17 @@ export async function placeBid(params: {
       where: { projectId },
       orderBy: { amount: "desc" },
     });
+    const start = new Decimal(project.startPrice.toString());
+    const step = new Decimal(project.bidStep.toString());
     const minNext = top
-      ? new Decimal(top.amount.toString()).plus(project.bidStep.toString())
-      : new Decimal(project.startPrice.toString());
+      ? new Decimal(top.amount.toString()).plus(step)
+      : start;
     if (amount.lessThan(minNext)) {
       throw new Error(`出价需不低于 ${minNext.toFixed(2)}`);
+    }
+    const diff = amount.minus(start);
+    if (!diff.mod(step).isZero()) {
+      throw new Error(`出价须为起拍价 ¥${start.toFixed(2)} 加 ¥${step.toFixed(2)} 的整数倍`);
     }
     const bid = await tx.auctionBid.create({
       data: { projectId, endUserId, amount },
