@@ -82,4 +82,10 @@ describe.skipIf(skipDb)("placeBid", () => {
       placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
     ).rejects.toThrow();
   });
+
+  it("rejects bid not aligned to bid step", async () => {
+    await expect(
+      placeBid({ projectId, endUserId: userId, amount: new Decimal(115) }),
+    ).rejects.toThrow(/整数倍/);
+  });
 });
