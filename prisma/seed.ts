@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 async function refreshDemoAuction() {
   const project = await prisma.auctionProject.findFirst({ orderBy: { createdAt: "asc" } });
   if (!project) return;
+  await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
   const starts = new Date(Date.now() - 60 * 1000);
   const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   await prisma.auctionProject.update({
