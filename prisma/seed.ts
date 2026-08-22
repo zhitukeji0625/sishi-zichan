@@ -1,12 +1,50 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
+
+const DEMO_LIVE_AUCTION_CODE = "DEMO_LIVE_AUCTION";
+
+/** Reset demo auction to LIVE for cron/demo testing when seed data already exists. */
+async function refreshDemoAuction() {
+  const project = await prisma.auctionProject.findFirst({ orderBy: { createdAt: "asc" } });
+  if (!project) return;
+
+  await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+  await prisma.auctionResult.deleteMany({ where: { projectId: project.id } });
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: { code: DEMO_LIVE_AUCTION_CODE, status: "LIVE", startsAt: starts, endsAt: ends },
+  });
+
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (demoUser) {
+    await prisma.auctionRegistration.upsert({
+      where: {
+        projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+      },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId: project.id,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+  }
+  console.log(`Demo auction refreshed: ${DEMO_LIVE_AUCTION_CODE} -> LIVE until ${ends.toISOString()}`);
+}
 
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
+    await refreshDemoAuction();
+    await seedDict();
     return;
   }
 
@@ -152,7 +190,7 @@ async function main() {
   const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const project = await prisma.auctionProject.create({
     data: {
-      code: `AP${Date.now()}`,
+      code: DEMO_LIVE_AUCTION_CODE,
       assetId: asset1.id,
       startPrice: 8000,
       bidStep: 200,
@@ -209,6 +247,7 @@ async function main() {
   });
 
   console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
+  await seedDict();
 }
 
 main()
