@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/auth/password";
-import { createDbSession, setSessionCookie } from "@/lib/auth/session";
+import { createDbSession, applySessionCookie } from "@/lib/auth/session";
 import { writeAudit } from "@/lib/audit";
 
 export async function POST(req: Request) {
@@ -20,8 +20,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "账号或密码错误" }, { status: 401 });
   }
   const { token, expiresAt } = await createDbSession("admin", admin.id);
-  await setSessionCookie("admin", token, expiresAt);
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
   await writeAudit(admin.id, "ADMIN_LOGIN", JSON.stringify({ phone }), ip ?? undefined);
-  return NextResponse.json({ ok: true, name: admin.name, role: admin.role });
+  const response = NextResponse.json({ ok: true, name: admin.name, role: admin.role });
+  return applySessionCookie(response, "admin", token, expiresAt);
 }
