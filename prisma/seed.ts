@@ -1,12 +1,68 @@
 import { PrismaClient, AdminRole, OrgLevel, AssetType, AssetStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDict } from "./seed-dict";
 
 const prisma = new PrismaClient();
 
+const DEMO_USER_PHONE = "13800138000";
+
+/** Reset stale demo auction so cron/GUI tests can bid again. */
+export async function refreshDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) {
+    console.log("refreshDemoAuction: demo user not found, skip.");
+    return;
+  }
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id },
+    include: { project: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const project = reg?.project ?? await prisma.auctionProject.findFirst({ orderBy: { createdAt: "desc" } });
+  if (!project) {
+    console.log("refreshDemoAuction: no auction project, skip.");
+    return;
+  }
+
+  const now = Date.now();
+  const needsRefresh = project.status === "ENDED" || project.endsAt.getTime() <= now;
+  if (!needsRefresh) {
+    console.log(`refreshDemoAuction: project ${project.code} is ${project.status}, no refresh needed.`);
+    return;
+  }
+
+  await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+  await prisma.auctionResult.deleteMany({ where: { projectId: project.id } });
+
+  const startsAt = new Date(now - 60 * 1000);
+  const endsAt = new Date(now + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: { status: "LIVE", startsAt, endsAt },
+  });
+
+  await prisma.auctionRegistration.upsert({
+    where: { projectId_endUserId: { projectId: project.id, endUserId: demoUser.id } },
+    update: { status: "APPROVED", depositPaid: true, rejectReason: null },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+
+  console.log(`refreshDemoAuction: reset ${project.code} to LIVE until ${endsAt.toISOString()}`);
+}
+
 async function main() {
+  await seedDict();
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
+    await refreshDemoAuction();
     return;
   }
 
