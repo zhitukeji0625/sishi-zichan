@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Building2 } from "lucide-react";
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +24,7 @@ export default function AdminLoginPage() {
       setError(j.error ?? "登录失败");
       return;
     }
-    router.replace("/admin");
-    router.refresh();
+    window.location.assign("/admin");
   }
 
   return (

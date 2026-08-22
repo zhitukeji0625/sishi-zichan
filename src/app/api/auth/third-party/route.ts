@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { verifyThirdPartyToken } from "@/lib/auth/session";
+import { verifyThirdPartyToken, createDbSession, applySessionCookie } from "@/lib/auth/session";
 import { upsertEndUserFromExternal } from "@/lib/external-user";
-import { createDbSession, setSessionCookie } from "@/lib/auth/session";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -18,6 +17,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "用户创建失败" }, { status: 500 });
   }
   const { token: sessionToken, expiresAt } = await createDbSession("end_user", user.id);
-  await setSessionCookie("end_user", sessionToken, expiresAt);
-  return NextResponse.json({ ok: true, userId: user.id, name: user.name });
+  const response = NextResponse.json({ ok: true, userId: user.id, name: user.name });
+  return applySessionCookie(response, "end_user", sessionToken, expiresAt);
 }

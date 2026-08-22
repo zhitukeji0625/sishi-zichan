@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "crypto";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import type { NextResponse as NextResponseType } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 const SESSION_COOKIE_ADMIN = "sishi_admin_session";
@@ -50,6 +51,24 @@ export async function setSessionCookie(kind: "admin" | "end_user", token: string
     path: "/",
     expires: expiresAt,
   });
+}
+
+/** Attach session cookie to a Route Handler response (preferred over cookies().set alone). */
+export function applySessionCookie(
+  response: NextResponseType,
+  kind: "admin" | "end_user",
+  token: string,
+  expiresAt: Date,
+) {
+  const name = kind === "admin" ? SESSION_COOKIE_ADMIN : SESSION_COOKIE_USER;
+  response.cookies.set(name, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: cookieSecure(),
+    path: "/",
+    expires: expiresAt,
+  });
+  return response;
 }
 
 export async function clearSessionCookie(kind: "admin" | "end_user") {

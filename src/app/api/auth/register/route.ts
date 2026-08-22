@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth/password";
-import { createDbSession, setSessionCookie } from "@/lib/auth/session";
+import { createDbSession, applySessionCookie } from "@/lib/auth/session";
 
 const schema = z.object({
   phone: z.string().min(11).max(15),
@@ -26,6 +26,6 @@ export async function POST(req: Request) {
     data: { phone, passwordHash, name: name ?? null },
   });
   const { token, expiresAt } = await createDbSession("end_user", user.id);
-  await setSessionCookie("end_user", token, expiresAt);
-  return NextResponse.json({ ok: true, userId: user.id });
+  const response = NextResponse.json({ ok: true, userId: user.id });
+  return applySessionCookie(response, "end_user", token, expiresAt);
 }
