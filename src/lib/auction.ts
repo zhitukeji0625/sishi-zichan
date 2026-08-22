@@ -16,6 +16,9 @@ export async function placeBid(params: {
 }) {
   const { projectId, endUserId, amount } = params;
   return prisma.$transaction(async (tx) => {
+    // Serialize concurrent bids on the same project.
+    await tx.$executeRaw`SELECT id FROM AuctionProject WHERE id = ${projectId} FOR UPDATE`;
+
     const project = await tx.auctionProject.findUnique({ where: { id: projectId } });
     if (!project || project.status !== "LIVE") {
       throw new Error("竞拍未在进行中");
