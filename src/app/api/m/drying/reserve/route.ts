@@ -21,9 +21,6 @@ export async function POST(req: Request) {
   }
   const start = new Date(parsed.data.startDate);
   const end = new Date(parsed.data.endDate);
-  if (end < start) {
-    return NextResponse.json({ error: "结束日期不能早于开始日期" }, { status: 400 });
-  }
   if (isNaN(start.getTime()) || isNaN(end.getTime())) {
     return NextResponse.json({ error: "日期格式无效" }, { status: 400 });
   }
