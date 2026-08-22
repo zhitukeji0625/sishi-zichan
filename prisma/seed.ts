@@ -21,6 +21,10 @@ async function refreshDemoAuction() {
     data: { status: "LIVE", startsAt, endsAt },
   });
 
+  // Clear stale bids/results so a refreshed LIVE demo does not show "恭喜中标"
+  await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+  await prisma.auctionResult.deleteMany({ where: { projectId: project.id } });
+
   const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
   if (demoUser) {
     await prisma.auctionRegistration.upsert({
