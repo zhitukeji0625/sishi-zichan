@@ -36,6 +36,12 @@ export async function placeBid(params: {
     if (amount.lessThan(minNext)) {
       throw new Error(`出价需不低于 ${minNext.toFixed(2)}`);
     }
+    const startPrice = new Decimal(project.startPrice.toString());
+    const bidStep = new Decimal(project.bidStep.toString());
+    const remainder = amount.minus(startPrice).mod(bidStep);
+    if (!remainder.isZero()) {
+      throw new Error(`出价需为起拍价加 ${bidStep.toFixed(2)} 的整数倍`);
+    }
     const bid = await tx.auctionBid.create({
       data: { projectId, endUserId, amount },
     });
