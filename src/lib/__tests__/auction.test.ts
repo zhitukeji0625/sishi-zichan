@@ -82,4 +82,33 @@ describe.skipIf(skipDb)("placeBid", () => {
       placeBid({ projectId, endUserId: userId, amount: new Decimal(105) }),
     ).rejects.toThrow();
   });
+
+  it("rejects concurrent invalid bids", async () => {
+    const user2 = await prisma.endUser.create({
+      data: {
+        phone: `198${Date.now().toString().slice(-8)}`,
+        passwordHash: "x",
+        name: "并发用户",
+      },
+    });
+    await prisma.auctionRegistration.create({
+      data: {
+        projectId,
+        endUserId: user2.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+    const results = await Promise.allSettled([
+      placeBid({ projectId, endUserId: userId, amount: new Decimal(120) }),
+      placeBid({ projectId, endUserId: user2.id, amount: new Decimal(115) }),
+    ]);
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
+    const rejected = results.filter((r) => r.status === "rejected");
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    await prisma.auctionBid.deleteMany({ where: { endUserId: user2.id } });
+    await prisma.auctionRegistration.deleteMany({ where: { endUserId: user2.id } });
+    await prisma.endUser.delete({ where: { id: user2.id } });
+  });
 });
