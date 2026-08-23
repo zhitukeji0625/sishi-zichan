@@ -6,7 +6,7 @@ import { ArrowUp } from "lucide-react";
 
 export function BidForm({ projectId, minBid }: { projectId: string; minBid: number }) {
   const router = useRouter();
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(minBid.toFixed(2));
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -26,7 +26,7 @@ export function BidForm({ projectId, minBid }: { projectId: string; minBid: numb
       return;
     }
     setMsg({ text: "出价成功！", ok: true });
-    setAmount("");
+    setAmount(minBid.toFixed(2));
     router.refresh();
   }
 
