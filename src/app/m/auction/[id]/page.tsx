@@ -142,8 +142,8 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
 
-        {/* Result banner */}
-        {project.result?.status === "PUBLISHED" && (
+        {/* Result banner — only after auction ended and result published */}
+        {project.status === "ENDED" && project.result?.status === "PUBLISHED" && (
           <div className={`card-elevated overflow-hidden animate-scale-in ${isWinner ? "border-emerald-200 bg-emerald-50" : "border-slate-200"}`}>
             <div className="p-4">
               <div className="flex items-center gap-3">
