@@ -30,6 +30,30 @@ export async function getCapacityForDay(listingId: string, day: Date) {
   return { max, booked, available: Math.max(0, max - booked) };
 }
 
+function rangesOverlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
+  const s1 = startOfDay(aStart).getTime();
+  const e1 = startOfDay(aEnd).getTime();
+  const s2 = startOfDay(bStart).getTime();
+  const e2 = startOfDay(bEnd).getTime();
+  return s1 <= e2 && s2 <= e1;
+}
+
+export async function findUserOverlappingReservation(
+  listingId: string,
+  endUserId: string,
+  start: Date,
+  end: Date,
+) {
+  const existing = await prisma.dryingReservation.findMany({
+    where: {
+      listingId,
+      endUserId,
+      status: { notIn: ["REJECTED", "CANCELLED"] },
+    },
+  });
+  return existing.find((r) => rangesOverlap(start, end, r.startDate, r.endDate)) ?? null;
+}
+
 export async function validateReservationRange(
   listingId: string,
   start: Date,
