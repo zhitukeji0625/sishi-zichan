@@ -6,7 +6,7 @@ import { ArrowUp } from "lucide-react";
 
 export function BidForm({ projectId, minBid }: { projectId: string; minBid: number }) {
   const router = useRouter();
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(String(minBid));
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -42,6 +42,7 @@ export function BidForm({ projectId, minBid }: { projectId: string; minBid: numb
         <div className="relative">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400">¥</span>
           <input
+            key={minBid}
             type="number"
             step="0.01"
             min={minBid}
