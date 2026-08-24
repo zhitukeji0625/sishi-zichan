@@ -142,8 +142,8 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
 
-        {/* Result banner */}
-        {project.result?.status === "PUBLISHED" && (
+        {/* Result banner — only when auction has ended */}
+        {project.status === "ENDED" && project.result?.status === "PUBLISHED" && (
           <div className={`card-elevated overflow-hidden animate-scale-in ${isWinner ? "border-emerald-200 bg-emerald-50" : "border-slate-200"}`}>
             <div className="p-4">
               <div className="flex items-center gap-3">
@@ -203,7 +203,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
             const minNext = top
               ? Number(top.toString()) + Number(project.bidStep.toString())
               : Number(project.startPrice.toString());
-            return <BidForm projectId={projectId} minBid={minNext} />;
+            return <BidForm key={minNext} projectId={projectId} minBid={minNext} />;
           })()}
           {isWinner && !existingContract && (
             <form action={goToContract}>
