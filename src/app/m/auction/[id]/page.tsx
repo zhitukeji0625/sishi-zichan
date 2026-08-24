@@ -203,7 +203,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
             const minNext = top
               ? Number(top.toString()) + Number(project.bidStep.toString())
               : Number(project.startPrice.toString());
-            return <BidForm projectId={projectId} minBid={minNext} />;
+            return <BidForm key={minNext} projectId={projectId} minBid={minNext} />;
           })()}
           {isWinner && !existingContract && (
             <form action={goToContract}>
