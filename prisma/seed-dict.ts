@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
-const categories = [
+export const dictCategories = [
   {
     code: "asset_type",
     name: "资产类型",
@@ -161,8 +161,24 @@ const categories = [
   },
 ];
 
+export async function seedDict(client: PrismaClient = prisma) {
+  for (const cat of dictCategories) {
+    const existing = await client.dictCategory.findUnique({ where: { code: cat.code } });
+    if (existing) continue;
+    await client.dictCategory.create({
+      data: {
+        code: cat.code,
+        name: cat.name,
+        description: cat.description ?? null,
+        builtIn: cat.builtIn,
+        items: { create: cat.items },
+      },
+    });
+  }
+}
+
 async function main() {
-  for (const cat of categories) {
+  for (const cat of dictCategories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
       console.log(`  Skip: ${cat.code} (already exists)`);
@@ -182,6 +198,13 @@ async function main() {
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+const isDirectRun = process.argv[1]?.endsWith("seed-dict.ts");
+if (isDirectRun) {
+  main()
+    .then(() => prisma.$disconnect())
+    .catch((e) => {
+      console.error(e);
+      prisma.$disconnect();
+      process.exit(1);
+    });
+}
