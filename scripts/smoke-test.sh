@@ -66,7 +66,7 @@ curl -s -o /dev/null "$BASE/"
 
 # 10. LIVE auction should exist
 AUCTION_HTML=$(curl -s "$BASE/m/auction")
-if echo "$AUCTION_HTML" | grep -q "status-live\|进行中\|LIVE"; then
+if [[ "$AUCTION_HTML" == *status-live* ]] || [[ "$AUCTION_HTML" == *进行中* ]] || [[ "$AUCTION_HTML" == *LIVE* ]]; then
   echo "  ✓ live auction listed"
   PASS=$((PASS + 1))
 else
@@ -75,11 +75,40 @@ else
 fi
 
 # 11. Dict categories in HTML (server-rendered)
-if curl -s -b /tmp/smoke_admin.txt "$BASE/admin/dict" | grep -qE 'asset_type|资产类型'; then
+DICT_HTML=$(curl -s -b /tmp/smoke_admin.txt "$BASE/admin/dict")
+if [[ "$DICT_HTML" == *asset_type* ]] || [[ "$DICT_HTML" == *资产类型* ]]; then
   echo "  ✓ dict categories rendered"
   PASS=$((PASS + 1))
 else
   echo "  ✗ dict categories missing in /admin/dict"
+  FAIL=$((FAIL + 1))
+fi
+
+# 12. Auction bid API (demo user, LIVE project)
+BID_INFO=$(cd "$(dirname "$0")/.." && npx tsx -e "
+(async () => {
+  const { PrismaClient } = await import('@prisma/client');
+  const p = new PrismaClient();
+  const project = await p.auctionProject.findFirst({ where: { status: 'LIVE' } });
+  if (!project) { console.log(''); await p.\$disconnect(); return; }
+  const top = await p.auctionBid.findFirst({ where: { projectId: project.id }, orderBy: { amount: 'desc' } });
+  const min = top
+    ? Number(top.amount) + Number(project.bidStep)
+    : Number(project.startPrice);
+  console.log(project.id + ' ' + min);
+  await p.\$disconnect();
+})();
+" 2>/dev/null)
+AUCTION_ID="${BID_INFO%% *}"
+MIN_BID="${BID_INFO##* }"
+if [[ -n "$AUCTION_ID" && -n "$MIN_BID" ]]; then
+  BID_RES=$(curl -s -b /tmp/smoke_user.txt -X POST "$BASE/api/m/auction/$AUCTION_ID/bid" \
+    -H 'Content-Type: application/json' \
+    -d "{\"amount\":$MIN_BID}" -w '%{http_code}')
+  BID_CODE="${BID_RES: -3}"
+  check "auction bid API" "200" "$BID_CODE"
+else
+  echo "  ✗ no LIVE auction id for bid test"
   FAIL=$((FAIL + 1))
 fi
 
