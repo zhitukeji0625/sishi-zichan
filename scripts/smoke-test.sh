@@ -89,9 +89,15 @@ rm -f "$DICT_TMP"
 # 12. Auction bid API (requires LIVE project)
 PROJECT_ID=$(echo "$AUCTION_HTML" | grep -oP 'href="/m/auction/[^"]+' | head -1 | sed 's|href="/m/auction/||' || true)
 if [ -n "${PROJECT_ID:-}" ]; then
+  DETAIL_HTML=$(curl -s -b /tmp/smoke_user.txt "$BASE/m/auction/$PROJECT_ID")
+  MIN_BID=$(echo "$DETAIL_HTML" | grep -oP 'minBid\\":\K[0-9.]+' | head -1 || true)
+  if [ -z "${MIN_BID:-}" ]; then
+    MIN_BID=$(echo "$DETAIL_HTML" | grep -oP '起拍价.*?children.:.\[.¥.,.\K[0-9]+' | head -1 || true)
+  fi
+  AMOUNT="${MIN_BID:-8000}"
   BID=$(curl -s -b /tmp/smoke_user.txt -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" \
     -H "Content-Type: application/json" \
-    -d '{"amount":8400}')
+    -d "{\"amount\":$AMOUNT}")
   if echo "$BID" | grep -q '"ok":true'; then
     echo "  ✓ auction bid API"
     PASS=$((PASS + 1))
