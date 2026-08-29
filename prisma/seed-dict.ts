@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+
+const defaultPrisma = new PrismaClient();
 
 const categories = [
   {
@@ -162,6 +163,10 @@ const categories = [
 ];
 
 async function main() {
+  await seedDict();
+}
+
+export async function seedDict(prisma: PrismaClient = defaultPrisma) {
   for (const cat of categories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
@@ -182,6 +187,8 @@ async function main() {
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+if (process.argv[1]?.includes("seed-dict")) {
+  main()
+    .then(() => defaultPrisma.$disconnect())
+    .catch((e) => { console.error(e); defaultPrisma.$disconnect(); process.exit(1); });
+}
