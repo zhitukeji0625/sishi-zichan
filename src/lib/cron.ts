@@ -12,3 +12,30 @@ export async function refreshAuctionProjectStatuses() {
     data: { status: "ENDED" },
   });
 }
+
+/** Reset expired demo auctions (no signed contract) so cron smoke tests can bid. */
+export async function refreshDemoAuctionIfExpired() {
+  const ended = await prisma.auctionProject.findMany({
+    where: { status: "ENDED" },
+    include: {
+      contracts: { where: { status: "SIGNED" }, take: 1 },
+      result: true,
+    },
+  });
+  const now = new Date();
+  for (const project of ended) {
+    if (project.contracts.length > 0) continue;
+    await prisma.auctionBid.deleteMany({ where: { projectId: project.id } });
+    if (project.result) {
+      await prisma.auctionResult.delete({ where: { projectId: project.id } });
+    }
+    await prisma.auctionProject.update({
+      where: { id: project.id },
+      data: {
+        status: "LIVE",
+        startsAt: new Date(now.getTime() - 60_000),
+        endsAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+}
