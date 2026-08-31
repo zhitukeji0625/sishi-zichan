@@ -12,3 +12,27 @@ export async function refreshAuctionProjectStatuses() {
     data: { status: "ENDED" },
   });
 }
+
+/** Reset expired demo auctions without signed contracts back to LIVE. */
+export async function refreshDemoAuctionIfExpired() {
+  const ended = await prisma.auctionProject.findMany({
+    where: { status: "ENDED" },
+    include: {
+      contracts: { where: { status: "SIGNED" }, take: 1 },
+    },
+  });
+  const now = Date.now();
+  for (const project of ended) {
+    if (project.contracts.length > 0) continue;
+    const startsAt = new Date(now - 60_000);
+    const endsAt = new Date(now + 7 * 24 * 60 * 60 * 1000);
+    await prisma.$transaction([
+      prisma.auctionBid.deleteMany({ where: { projectId: project.id } }),
+      prisma.auctionResult.deleteMany({ where: { projectId: project.id } }),
+      prisma.auctionProject.update({
+        where: { id: project.id },
+        data: { status: "LIVE", startsAt, endsAt },
+      }),
+    ]);
+  }
+}
