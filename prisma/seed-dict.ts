@@ -1,5 +1,5 @@
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { fileURLToPath } from "url";
 
 const categories = [
   {
@@ -161,7 +161,9 @@ const categories = [
   },
 ];
 
-async function main() {
+export async function seedDict(client?: PrismaClient) {
+  const prisma = client ?? new PrismaClient();
+  const ownClient = !client;
   for (const cat of categories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
     if (existing) {
@@ -180,8 +182,17 @@ async function main() {
     console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
   }
   console.log("Dict seed done.");
+  if (ownClient) await prisma.$disconnect();
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+async function main() {
+  await seedDict();
+}
+
+const isDirectRun = process.argv[1] === fileURLToPath(import.meta.url);
+if (isDirectRun) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
