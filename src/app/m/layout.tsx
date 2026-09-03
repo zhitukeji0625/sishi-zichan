@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Home, Gavel, Sun, User } from "lucide-react";
+import { refreshDemoAuctionIfExpired } from "@/lib/demo";
 
-export default function MLayout({ children }: { children: React.ReactNode }) {
+export default async function MLayout({ children }: { children: React.ReactNode }) {
+  await refreshDemoAuctionIfExpired();
   return (
     <div className="mx-auto min-h-screen max-w-lg bg-[var(--background)]">
       <div className="pb-24">{children}</div>
