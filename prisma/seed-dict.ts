@@ -161,14 +161,11 @@ const categories = [
   },
 ];
 
-async function main() {
+export async function seedDictCategories(client: PrismaClient = prisma) {
   for (const cat of categories) {
-    const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
-    if (existing) {
-      console.log(`  Skip: ${cat.code} (already exists)`);
-      continue;
-    }
-    await prisma.dictCategory.create({
+    const existing = await client.dictCategory.findUnique({ where: { code: cat.code } });
+    if (existing) continue;
+    await client.dictCategory.create({
       data: {
         code: cat.code,
         name: cat.name,
@@ -177,11 +174,18 @@ async function main() {
         items: { create: cat.items },
       },
     });
-    console.log(`  Created: ${cat.code} (${cat.items.length} items)`);
+    console.log(`  Created dict: ${cat.code} (${cat.items.length} items)`);
   }
+}
+
+async function runStandalone() {
+  await seedDictCategories();
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+const invokedDirectly = process.argv[1]?.replace(/\\/g, "/").endsWith("prisma/seed-dict.ts");
+if (invokedDirectly) {
+  runStandalone()
+    .then(() => prisma.$disconnect())
+    .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+}
