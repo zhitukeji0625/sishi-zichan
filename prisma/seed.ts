@@ -3,10 +3,63 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** Keep demo auction LIVE for cron / manual smoke tests when seed data already exists. */
+async function ensureLiveDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const now = Date.now();
+  const startsAt = new Date(now - 60_000);
+  const endsAt = new Date(now + 7 * 24 * 60 * 60 * 1000);
+
+  let project = await prisma.auctionProject.findFirst({
+    where: { asset: { name: "团部东侧闲置地块" } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!project) {
+    const asset = await prisma.asset.findFirst({ where: { name: "团部东侧闲置地块" } });
+    if (!asset) return;
+    project = await prisma.auctionProject.create({
+      data: {
+        code: `AP${Date.now()}`,
+        assetId: asset.id,
+        startPrice: 8000,
+        bidStep: 200,
+        startsAt,
+        endsAt,
+        depositAmount: 500,
+        status: "LIVE",
+      },
+    });
+    console.log("Created demo auction:", project.code);
+  } else if (project.status !== "LIVE" || project.endsAt <= new Date()) {
+    project = await prisma.auctionProject.update({
+      where: { id: project.id },
+      data: { status: "LIVE", startsAt, endsAt },
+    });
+    console.log("Refreshed demo auction to LIVE:", project.code);
+  }
+
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
+    await ensureLiveDemoAuction();
     return;
   }
 
@@ -208,6 +261,7 @@ async function main() {
     },
   });
 
+  await ensureLiveDemoAuction();
   console.log("Seed OK. Admin: 13900000001 / admin123. User: 13800138000 / user123");
 }
 
