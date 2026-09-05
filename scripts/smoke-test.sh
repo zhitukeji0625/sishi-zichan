@@ -2,6 +2,14 @@
 # Functional smoke test — run from repo root: npm run test:smoke
 set -u
 
+# Prisma 内联脚本需要 DATABASE_URL（与 .env 一致）
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env
+  set +a
+fi
+
 BASE="${BASE_URL:-http://localhost:3000}"
 PASS=0
 FAIL=0
