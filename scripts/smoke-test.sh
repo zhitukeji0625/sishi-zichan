@@ -2,6 +2,13 @@
 # Functional smoke test — run from repo root: npm run test:smoke
 set -u
 
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+fi
+
 BASE="${BASE_URL:-http://localhost:3000}"
 PASS=0
 FAIL=0
