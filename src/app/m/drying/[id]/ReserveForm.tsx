@@ -11,6 +11,8 @@ export function ReserveForm({ listingId, minDate, maxDate }: { listingId: string
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const endMin = startDate || minDate;
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -39,13 +41,14 @@ export function ReserveForm({ listingId, minDate, maxDate }: { listingId: string
         </div>
       </div>
       <div className="space-y-4 p-4">
+        <p className="text-xs text-slate-500">可预约日期：{minDate} 至 {maxDate}</p>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-600">开始日期</label>
-          <input type="date" required min={minDate} max={maxDate} className="input-field" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input type="date" required min={minDate} max={maxDate} className="input-field" value={startDate} onChange={(e) => { setStartDate(e.target.value); if (endDate && e.target.value > endDate) setEndDate(""); }} />
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-600">结束日期</label>
-          <input type="date" required min={minDate} max={maxDate} className="input-field" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <input type="date" required min={endMin} max={maxDate} className="input-field" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
         </div>
         {msg && (
           <div className={`animate-scale-in rounded-xl px-4 py-2.5 text-sm font-medium ${msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>
