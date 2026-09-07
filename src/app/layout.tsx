@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "四师资产租赁",
   description: "资产竞拍与晒场预约",
+  icons: { icon: "/favicon.svg" },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
