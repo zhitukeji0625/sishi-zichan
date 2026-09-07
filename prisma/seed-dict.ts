@@ -161,6 +161,28 @@ const categories = [
   },
 ];
 
+export async function seedDict(client?: PrismaClient) {
+  const db = client ?? new PrismaClient();
+  const ownClient = !client;
+  try {
+    for (const cat of categories) {
+      const existing = await db.dictCategory.findUnique({ where: { code: cat.code } });
+      if (existing) continue;
+      await db.dictCategory.create({
+        data: {
+          code: cat.code,
+          name: cat.name,
+          description: cat.description ?? null,
+          builtIn: cat.builtIn,
+          items: { create: cat.items },
+        },
+      });
+    }
+  } finally {
+    if (ownClient) await db.$disconnect();
+  }
+}
+
 async function main() {
   for (const cat of categories) {
     const existing = await prisma.dictCategory.findUnique({ where: { code: cat.code } });
@@ -182,6 +204,13 @@ async function main() {
   console.log("Dict seed done.");
 }
 
-main()
-  .then(() => prisma.$disconnect())
-  .catch((e) => { console.error(e); prisma.$disconnect(); process.exit(1); });
+const isDirectRun = process.argv[1]?.endsWith("seed-dict.ts");
+if (isDirectRun) {
+  main()
+    .then(() => prisma.$disconnect())
+    .catch((e) => {
+      console.error(e);
+      prisma.$disconnect();
+      process.exit(1);
+    });
+}
