@@ -30,17 +30,17 @@ export async function POST(
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return NextResponse.json({ error: "无权操作" }, { status: 403 });
 
-  const parsed = await parseMultipartForm(req);
-  if (!parsed.ok) return parsed.response;
-  const formData = parsed.formData;
+  const multipart = await parseMultipartForm(req);
+  if (!multipart.ok) return multipart.response;
+  const formData = multipart.formData;
   const raw = Object.fromEntries(formData.entries());
-  const parsed = updateSchema.safeParse({
+  const validated = updateSchema.safeParse({
     ...raw,
     refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
     refPriceMax: raw.refPriceMax ? Number(raw.refPriceMax) : undefined,
   });
-  if (!parsed.success) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
-  const d = parsed.data;
+  if (!validated.success) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
+  const d = validated.data;
   await prisma.asset.update({
     where: { id },
     data: {
