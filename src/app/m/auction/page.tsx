@@ -2,11 +2,13 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { format } from "date-fns";
 import { refreshAuctionProjectStatuses } from "@/lib/cron";
+import { refreshDemoAuctionIfExpired } from "@/lib/demo";
 import { getDictMap } from "@/lib/dict";
 import { Gavel } from "lucide-react";
 
 export default async function MAuctionListPage() {
   await refreshAuctionProjectStatuses();
+  await refreshDemoAuctionIfExpired();
   const projects = await prisma.auctionProject.findMany({
     where: { status: { in: ["SCHEDULED", "LIVE", "ENDED"] } },
     include: { asset: true },
