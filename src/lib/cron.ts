@@ -11,4 +11,6 @@ export async function refreshAuctionProjectStatuses() {
     where: { status: "LIVE", endsAt: { lte: now } },
     data: { status: "ENDED" },
   });
+  const { refreshDemoAuctionIfExpired } = await import("@/lib/demo");
+  await refreshDemoAuctionIfExpired();
 }
