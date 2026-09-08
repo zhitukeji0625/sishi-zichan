@@ -5,6 +5,7 @@ import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
 import { AssetStatus } from "@prisma/client";
+import { parseMultipartFormData } from "@/lib/form-data";
 
 const updateSchema = z.object({
   name: z.string().min(1),
@@ -28,8 +29,9 @@ export async function POST(
   if (!asset) return NextResponse.json({ error: "资产不存在" }, { status: 404 });
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return NextResponse.json({ error: "无权操作" }, { status: 403 });
-  const formData = await req.formData();
-  const raw = Object.fromEntries(formData.entries());
+  const multipart = await parseMultipartFormData(req);
+  if (!multipart.ok) return NextResponse.json({ error: multipart.error }, { status: 400 });
+  const raw = Object.fromEntries(multipart.formData.entries());
   const parsed = updateSchema.safeParse({
     ...raw,
     refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
