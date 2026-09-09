@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "4mb",
     },
   },
+  async rewrites() {
+    return [{ source: "/favicon.ico", destination: "/icon" }];
+  },
 };
 
 export default nextConfig;
