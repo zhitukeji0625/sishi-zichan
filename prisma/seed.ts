@@ -3,9 +3,27 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+async function refreshDemoAuction() {
+  const project = await prisma.auctionProject.findFirst({ orderBy: { createdAt: "desc" } });
+  if (!project) return;
+  const now = Date.now();
+  if (project.status !== "LIVE" || project.endsAt.getTime() < now) {
+    await prisma.auctionProject.update({
+      where: { id: project.id },
+      data: {
+        status: "LIVE",
+        startsAt: new Date(now - 60 * 1000),
+        endsAt: new Date(now + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+    console.log("Refreshed demo auction to LIVE (30 days).");
+  }
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuction();
     console.log("Seed skipped: data already present.");
     return;
   }
