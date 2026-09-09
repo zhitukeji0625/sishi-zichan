@@ -3,10 +3,31 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** Refresh expired demo auction projects so cron smoke tests can bid. */
+async function refreshDemoAuction() {
+  const now = new Date();
+  const expired = await prisma.auctionProject.findMany({
+    where: { OR: [{ status: "ENDED" }, { endsAt: { lt: now } }] },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
+  if (expired.length === 0) return;
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  for (const p of expired) {
+    await prisma.auctionProject.update({
+      where: { id: p.id },
+      data: { status: "LIVE", startsAt: starts, endsAt: ends },
+    });
+    console.log(`Refreshed demo auction ${p.code} -> LIVE until ${ends.toISOString()}`);
+  }
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
+    await refreshDemoAuction();
     return;
   }
 
