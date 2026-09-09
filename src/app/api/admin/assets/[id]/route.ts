@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+import { parseMultipartForm, MultipartRequiredError } from "@/lib/form-data";
 import { AssetStatus } from "@prisma/client";
 
 const updateSchema = z.object({
@@ -24,11 +25,19 @@ export async function POST(
   const { id } = await params;
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
+  let formData: FormData;
+  try {
+    formData = await parseMultipartForm(req);
+  } catch (e) {
+    if (e instanceof MultipartRequiredError) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
+    throw e;
+  }
   const asset = await prisma.asset.findUnique({ where: { id } });
   if (!asset) return NextResponse.json({ error: "资产不存在" }, { status: 404 });
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return NextResponse.json({ error: "无权操作" }, { status: 403 });
-  const formData = await req.formData();
   const raw = Object.fromEntries(formData.entries());
   const parsed = updateSchema.safeParse({
     ...raw,
