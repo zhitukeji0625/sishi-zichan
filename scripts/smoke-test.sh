@@ -126,9 +126,12 @@ LISTING_ID=$(cd "$(dirname "$0")/.." && npx tsx -e "
 " 2>/dev/null)
 
 if [[ -n "$LISTING_ID" ]]; then
+  # Use a unique future date range to avoid overlap with prior test runs
+  DRY_START=$(python3 -c "from datetime import date, timedelta; d=date.today()+timedelta(days=90); print(d.isoformat())")
+  DRY_END=$(python3 -c "from datetime import date, timedelta; d=date.today()+timedelta(days=93); print(d.isoformat())")
   body=$(curl -s -X POST "$BASE/api/m/drying/reserve" \
     -H "Content-Type: application/json" -b "$USER_COOKIE" \
-    -d "{\"listingId\":\"$LISTING_ID\",\"startDate\":\"2026-11-01\",\"endDate\":\"2026-11-05\"}" -w "\n%{http_code}")
+    -d "{\"listingId\":\"$LISTING_ID\",\"startDate\":\"$DRY_START\",\"endDate\":\"$DRY_END\"}" -w "\n%{http_code}")
   code=$(echo "$body" | tail -1)
   json=$(echo "$body" | head -n -1)
   assert_status "POST /api/m/drying/reserve" "200" "$code"
@@ -174,12 +177,37 @@ else
   echo "  ⚠ skip auction bid — no project"
 fi
 
-# --- Payment mock (duplicate should be 409) ---
-if [[ -n "${PROJECT_ID:-}" ]]; then
+# --- Payment mock (rent: first 200, duplicate 409) ---
+RENT_PROJECT=$(cd "$(dirname "$0")/.." && npx tsx -e "
+(async () => {
+  const { PrismaClient } = await import('@prisma/client');
+  const p = new PrismaClient();
+  const user = await p.endUser.findUnique({ where: { phone: '13800138000' } });
+  if (!user) { console.log(''); process.exit(0); }
+  const result = await p.auctionResult.findFirst({
+    where: { winnerId: user.id, status: 'PUBLISHED' },
+    select: { projectId: true },
+  });
+  console.log(result?.projectId ?? '');
+  await p.\$disconnect();
+})();
+" 2>/dev/null)
+
+if [[ -n "$RENT_PROJECT" ]]; then
   code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/m/payments/mock" \
     -H "Content-Type: application/json" -b "$USER_COOKIE" \
-    -d "{\"purpose\":\"AUCTION_RENT\",\"auctionProjectId\":\"$PROJECT_ID\"}")
-  assert_status "POST /api/m/payments/mock (duplicate rent)" "409" "$code"
+    -d "{\"purpose\":\"AUCTION_RENT\",\"auctionProjectId\":\"$RENT_PROJECT\"}")
+  if [[ "$code" == "200" ]]; then
+    assert_status "POST /api/m/payments/mock (rent)" "200" "$code"
+    code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/m/payments/mock" \
+      -H "Content-Type: application/json" -b "$USER_COOKIE" \
+      -d "{\"purpose\":\"AUCTION_RENT\",\"auctionProjectId\":\"$RENT_PROJECT\"}")
+    assert_status "POST /api/m/payments/mock (duplicate rent)" "409" "$code"
+  else
+    assert_status "POST /api/m/payments/mock (duplicate rent)" "409" "$code"
+  fi
+else
+  echo "  ⚠ skip rent payment — no published winner project"
 fi
 
 # --- Invalid bid amount ---
