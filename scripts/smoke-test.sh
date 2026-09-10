@@ -174,12 +174,24 @@ else
   echo "  ⚠ skip auction bid — no project"
 fi
 
-# --- Payment mock (duplicate should be 409) ---
+# --- Payment mock (first rent ok, duplicate 409) ---
 if [[ -n "${PROJECT_ID:-}" ]]; then
-  code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/m/payments/mock" \
+  body=$(curl -s -X POST "$BASE/api/m/payments/mock" \
     -H "Content-Type: application/json" -b "$USER_COOKIE" \
-    -d "{\"purpose\":\"AUCTION_RENT\",\"auctionProjectId\":\"$PROJECT_ID\"}")
-  assert_status "POST /api/m/payments/mock (duplicate rent)" "409" "$code"
+    -d "{\"purpose\":\"AUCTION_RENT\",\"auctionProjectId\":\"$PROJECT_ID\"}" -w "\n%{http_code}")
+  code=$(echo "$body" | tail -1)
+  json=$(echo "$body" | head -n -1)
+  if echo "$json" | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('ok') else 1)" 2>/dev/null; then
+    assert_status "POST /api/m/payments/mock (rent)" "200" "$code"
+    assert_json_ok "auction rent payment ok" "$json"
+    code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/api/m/payments/mock" \
+      -H "Content-Type: application/json" -b "$USER_COOKIE" \
+      -d "{\"purpose\":\"AUCTION_RENT\",\"auctionProjectId\":\"$PROJECT_ID\"}")
+    assert_status "POST /api/m/payments/mock (duplicate rent)" "409" "$code"
+  else
+    # Already paid from a previous run — duplicate should still be rejected
+    assert_status "POST /api/m/payments/mock (duplicate rent)" "409" "$code"
+  fi
 fi
 
 # --- Invalid bid amount ---
