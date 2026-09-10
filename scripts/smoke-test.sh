@@ -116,8 +116,22 @@ import { prisma } from './src/lib/prisma';
 " 2>/dev/null | tail -1)
 
 if [ -n "$PROJECT_ID" ]; then
+  BID_AMOUNT=$(cd /workspace && npx tsx -e "
+import { prisma } from './src/lib/prisma';
+import { Decimal } from '@prisma/client/runtime/library';
+(async () => {
+  const p = await prisma.auctionProject.findUnique({ where: { id: '$PROJECT_ID' } });
+  if (!p) { console.log('0'); return; }
+  const top = await prisma.auctionBid.findFirst({ where: { projectId: '$PROJECT_ID' }, orderBy: { amount: 'desc' } });
+  const min = top
+    ? new Decimal(top.amount.toString()).plus(p.bidStep.toString())
+    : new Decimal(p.startPrice.toString());
+  console.log(min.toNumber());
+  await prisma.\$disconnect();
+})();
+" 2>/dev/null | tail -1)
   resp=$(curl -s -b "$TMPDIR/user.txt" -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" \
-    -H 'Content-Type: application/json' -d '{"amount":8500}')
+    -H 'Content-Type: application/json' -d "{\"amount\":$BID_AMOUNT}")
   ok=$(echo "$resp" | python3 -c "import sys,json; print(json.load(sys.stdin).get('ok',False))" 2>/dev/null || echo "False")
   if [ "$ok" = "True" ]; then pass "POST bid on LIVE auction"; else fail "POST bid on LIVE auction: $resp"; fi
 else
