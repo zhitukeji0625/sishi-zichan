@@ -2,6 +2,23 @@ import { prisma } from "@/lib/prisma";
 
 export type DictOption = { value: string; label: string };
 
+/** Built-in fallbacks when dict seed has not run yet. */
+const BUILTIN_DICT: Record<string, DictOption[]> = {
+  asset_type: [
+    { value: "WORKSHOP", label: "厂房" },
+    { value: "MACHINERY", label: "农机设备" },
+    { value: "FACILITY", label: "农业设施" },
+    { value: "LAND", label: "闲置土地" },
+    { value: "DRYING_FIELD", label: "晒场" },
+    { value: "OTHER", label: "其他" },
+  ],
+  asset_status: [
+    { value: "IDLE", label: "闲置" },
+    { value: "IN_USE", label: "在用" },
+    { value: "MAINTENANCE", label: "维护中" },
+  ],
+};
+
 export async function getDictItems(categoryCode: string): Promise<DictOption[]> {
   const cat = await prisma.dictCategory.findUnique({
     where: { code: categoryCode },
@@ -12,7 +29,9 @@ export async function getDictItems(categoryCode: string): Promise<DictOption[]> 
       },
     },
   });
-  if (!cat) return [];
+  if (!cat || cat.items.length === 0) {
+    return BUILTIN_DICT[categoryCode] ?? [];
+  }
   return cat.items.map((i) => ({ value: i.value, label: i.label }));
 }
 
