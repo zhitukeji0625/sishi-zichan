@@ -3,9 +3,39 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** 若演示竞拍已过期则自动续期，便于 cron 冒烟测试 */
+async function refreshDemoAuctionIfExpired() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const reg = await prisma.auctionRegistration.findFirst({
+    where: { endUserId: demoUser.id },
+    include: { project: true },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!reg) return;
+
+  const now = new Date();
+  const expired = reg.project.status === "ENDED" || reg.project.endsAt <= now;
+  if (!expired) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: reg.projectId },
+    data: { status: "LIVE", startsAt: starts, endsAt: ends },
+  });
+  await prisma.auctionRegistration.update({
+    where: { id: reg.id },
+    data: { status: "APPROVED", depositPaid: true },
+  });
+  console.log(`Refreshed demo auction ${reg.project.code} → LIVE until ${ends.toISOString()}`);
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuctionIfExpired();
     console.log("Seed skipped: data already present.");
     return;
   }
