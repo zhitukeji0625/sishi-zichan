@@ -82,7 +82,9 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
     SCHEDULED: { label: "即将开始", cls: "status-scheduled" },
     ENDED: { label: "已结束", cls: "status-ended" },
   };
-  const st = statusInfo[project.status] ?? { label: project.status, cls: "status-ended" };
+  const displayStatus =
+    project.result?.status === "PUBLISHED" ? "ENDED" : project.status;
+  const st = statusInfo[displayStatus] ?? { label: displayStatus, cls: "status-ended" };
   const imageUrls = parseImageUrls(project.asset.imagesJson);
 
   return (
@@ -199,7 +201,7 @@ export default async function AuctionDetailPage({ params }: { params: Promise<{ 
               </button>
             </form>
           )}
-          {user && reg?.status === "APPROVED" && reg.depositPaid && project.status === "LIVE" && (() => {
+          {user && reg?.status === "APPROVED" && reg.depositPaid && displayStatus === "LIVE" && (() => {
             const minNext = top
               ? Number(top.toString()) + Number(project.bidStep.toString())
               : Number(project.startPrice.toString());
