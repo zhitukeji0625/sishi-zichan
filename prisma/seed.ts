@@ -3,10 +3,63 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** Ensure a LIVE demo auction exists for smoke tests and H5 demo user. */
+async function refreshDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  let project = await prisma.auctionProject.findFirst({
+    orderBy: { createdAt: "desc" },
+    include: { asset: true },
+  });
+
+  if (!project) {
+    const asset = await prisma.asset.findFirst({ where: { type: AssetType.LAND } });
+    if (!asset) return;
+    project = await prisma.auctionProject.create({
+      data: {
+        code: `AP${Date.now()}`,
+        assetId: asset.id,
+        startPrice: 8000,
+        bidStep: 200,
+        startsAt: new Date(Date.now() - 60_000),
+        endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        depositAmount: 500,
+        status: "LIVE",
+      },
+      include: { asset: true },
+    });
+  } else {
+    project = await prisma.auctionProject.update({
+      where: { id: project.id },
+      data: {
+        status: "LIVE",
+        startsAt: new Date(Date.now() - 60_000),
+        endsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+      include: { asset: true },
+    });
+  }
+
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    await refreshDemoAuction();
+    console.log("Seed skipped: data already present. Demo auction refreshed.");
     return;
   }
 
