@@ -1,23 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUp } from "lucide-react";
 
+function formatBidAmount(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
 export function BidForm({ projectId, minBid }: { projectId: string; minBid: number }) {
   const router = useRouter();
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(() => formatBidAmount(minBid));
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    setAmount(formatBidAmount(minBid));
+  }, [minBid]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const parsed = parseFloat(amount);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setMsg({ text: `请输入不低于 ¥${formatBidAmount(minBid)} 的出价`, ok: false });
+      return;
+    }
     setLoading(true);
     setMsg(null);
     const res = await fetch(`/api/m/auction/${projectId}/bid`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: parseFloat(amount) }),
+      body: JSON.stringify({ amount: parsed }),
     });
     setLoading(false);
     const j = await res.json().catch(() => ({}));
@@ -26,7 +39,6 @@ export function BidForm({ projectId, minBid }: { projectId: string; minBid: numb
       return;
     }
     setMsg({ text: "出价成功！", ok: true });
-    setAmount("");
     router.refresh();
   }
 

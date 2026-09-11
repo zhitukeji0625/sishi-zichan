@@ -3,10 +3,59 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+async function refreshDemoAuction() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const now = Date.now();
+  const starts = new Date(now - 60 * 1000);
+  const ends = new Date(now + 7 * 24 * 60 * 60 * 1000);
+  const live = await prisma.auctionProject.findFirst({
+    where: { status: "LIVE", endsAt: { gt: new Date() } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (live) {
+    await prisma.auctionRegistration.upsert({
+      where: {
+        projectId_endUserId: { projectId: live.id, endUserId: demoUser.id },
+      },
+      update: { status: "APPROVED", depositPaid: true },
+      create: {
+        projectId: live.id,
+        endUserId: demoUser.id,
+        status: "APPROVED",
+        depositPaid: true,
+      },
+    });
+    return;
+  }
+
+  const project = await prisma.auctionProject.findFirst({ orderBy: { createdAt: "desc" } });
+  if (!project) return;
+
+  await prisma.auctionProject.update({
+    where: { id: project.id },
+    data: { status: "LIVE", startsAt: starts, endsAt: ends },
+  });
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    await refreshDemoAuction();
+    console.log("Seed skipped: data already present. Demo auction refreshed.");
     return;
   }
 
