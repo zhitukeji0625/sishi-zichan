@@ -6,7 +6,7 @@ import { ArrowUp } from "lucide-react";
 
 export function BidForm({ projectId, minBid }: { projectId: string; minBid: number }) {
   const router = useRouter();
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(() => String(minBid));
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -14,10 +14,12 @@ export function BidForm({ projectId, minBid }: { projectId: string; minBid: numb
     e.preventDefault();
     setLoading(true);
     setMsg(null);
+    const parsed = parseFloat(amount);
+    const bidAmount = Number.isFinite(parsed) && parsed > 0 ? parsed : minBid;
     const res = await fetch(`/api/m/auction/${projectId}/bid`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: parseFloat(amount) }),
+      body: JSON.stringify({ amount: bidAmount }),
     });
     setLoading(false);
     const j = await res.json().catch(() => ({}));
