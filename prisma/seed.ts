@@ -3,9 +3,70 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** Ensure a LIVE demo auction exists for testing when seed data is stale. */
+async function refreshDemoAuctionIfStale() {
+  const now = new Date();
+  const live = await prisma.auctionProject.findFirst({
+    where: { status: "LIVE", endsAt: { gt: now } },
+  });
+  if (live) return;
+
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  const asset = await prisma.asset.findFirst({
+    where: { status: "IDLE", type: "LAND" },
+  });
+  if (!asset) return;
+
+  const stale = await prisma.auctionProject.findFirst({
+    where: { status: { in: ["ENDED", "LIVE"] } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const starts = new Date(now.getTime() - 60_000);
+  const ends = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  if (stale && stale.status === "ENDED") {
+    const project = await prisma.auctionProject.create({
+      data: {
+        code: `AP${Date.now()}`,
+        assetId: asset.id,
+        startPrice: stale.startPrice,
+        bidStep: stale.bidStep,
+        startsAt: starts,
+        endsAt: ends,
+        depositAmount: stale.depositAmount,
+        status: "LIVE",
+      },
+    });
+    if (demoUser) {
+      await prisma.auctionRegistration.upsert({
+        where: { projectId_endUserId: { projectId: project.id, endUserId: demoUser.id } },
+        update: { status: "APPROVED", depositPaid: true },
+        create: {
+          projectId: project.id,
+          endUserId: demoUser.id,
+          status: "APPROVED",
+          depositPaid: true,
+        },
+      });
+    }
+    console.log(`Refreshed demo auction: ${project.code}`);
+    return;
+  }
+
+  if (stale) {
+    await prisma.auctionProject.update({
+      where: { id: stale.id },
+      data: { status: "LIVE", startsAt: starts, endsAt: ends },
+    });
+    console.log(`Extended stale auction: ${stale.code}`);
+  }
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
+    await refreshDemoAuctionIfStale();
     console.log("Seed skipped: data already present.");
     return;
   }
