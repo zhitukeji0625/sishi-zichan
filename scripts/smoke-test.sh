@@ -85,6 +85,7 @@ PROJECT_ID=$(echo "$DB_OUT" | node -e "let d='';process.stdin.on('data',c=>d+=c)
 LISTING_ID=$(echo "$DB_OUT" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).listingId||'')}catch{console.log('')}})")
 START_PRICE=$(echo "$DB_OUT" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).startPrice||'100')}catch{console.log('100')}})")
 BID_STEP=$(echo "$DB_OUT" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).bidStep||'10')}catch{console.log('10')}})")
+TOP_BID=$(echo "$DB_OUT" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).topBid||'')}catch{console.log('')}})")
 
 if [ -n "$PROJECT_ID" ]; then
   # 13. Auction detail page
@@ -92,7 +93,7 @@ if [ -n "$PROJECT_ID" ]; then
   check_status "Auction detail page" "200" "$code"
 
   # 14. Place bid
-  BID_AMT=$(node -e "const sp=parseFloat('$START_PRICE');const bs=parseFloat('$BID_STEP');console.log(sp+bs*2)")
+  BID_AMT=$(node -e "const sp=parseFloat('$START_PRICE');const bs=parseFloat('$BID_STEP');const top=parseFloat('$TOP_BID'||'0');const min=top>0?top+bs:sp;console.log(min)")
   resp=$(curl -s -w "\n%{http_code}" -b "$COOKIE_JAR" -X POST "$BASE/api/m/auction/$PROJECT_ID/bid" \
     -H "Content-Type: application/json" -d "{\"amount\":$BID_AMT}")
   body=$(echo "$resp" | head -n -1)

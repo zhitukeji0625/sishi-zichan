@@ -5,7 +5,12 @@ const prisma = new PrismaClient();
 async function main() {
   const proj = await prisma.auctionProject.findFirst({
     where: { status: "LIVE" },
-    select: { id: true, startPrice: true, bidStep: true },
+    select: {
+      id: true,
+      startPrice: true,
+      bidStep: true,
+      bids: { orderBy: { amount: "desc" }, take: 1, select: { amount: true } },
+    },
   });
   const listing = await prisma.dryingFieldListing.findFirst({
     where: { status: "OPERATING" },
@@ -17,6 +22,7 @@ async function main() {
       projectId: proj?.id,
       startPrice: proj?.startPrice?.toString(),
       bidStep: proj?.bidStep?.toString(),
+      topBid: proj?.bids[0]?.amount?.toString(),
       listingId: listing?.id,
       orgId: org?.id,
     }),
