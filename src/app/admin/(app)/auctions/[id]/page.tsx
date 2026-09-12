@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
+import { adminCanAccessOrg } from "@/lib/rbac";
 import { getDictMap } from "@/lib/dict";
 
 export default async function AdminAuctionDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,6 +20,8 @@ export default async function AdminAuctionDetailPage({ params }: { params: Promi
     },
   });
   if (!project) notFound();
+  const canAccess = await adminCanAccessOrg(admin.role, admin.orgId, project.asset.orgId);
+  if (!canAccess) notFound();
 
   const auctionStatusMap = await getDictMap("auction_status");
   const assetTypeMap = await getDictMap("asset_type");

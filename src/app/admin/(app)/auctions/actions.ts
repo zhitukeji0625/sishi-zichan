@@ -29,6 +29,9 @@ export async function createAuctionProjectAction(formData: FormData) {
   const parsed = createSchema.safeParse(raw);
   if (!parsed.success) return { error: "表单无效" };
   const d = parsed.data;
+  if (new Date(d.endsAt) <= new Date(d.startsAt)) {
+    return { error: "结束时间须晚于开始时间" };
+  }
   const asset = await prisma.asset.findUnique({ where: { id: d.assetId } });
   if (!asset) return { error: "资产不存在" };
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
