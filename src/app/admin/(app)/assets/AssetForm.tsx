@@ -41,13 +41,12 @@ export function AssetForm({ orgs, defaultOrgId, action, typeOptions, statusOptio
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function handleSubmit(form: HTMLFormElement) {
     setSubmitting(true);
     setError(null);
-    const fd = new FormData(e.currentTarget);
+    const fd = new FormData(form);
     fd.set("imagesJson", JSON.stringify(images));
-    
+
     const url = action === "create" ? "/api/admin/assets" : `/api/admin/assets/${asset?.id}`;
     const res = await fetch(url, { method: "POST", body: fd });
     const j = await res.json().catch(() => ({}));
@@ -61,7 +60,13 @@ export function AssetForm({ orgs, defaultOrgId, action, typeOptions, statusOptio
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void handleSubmit(e.currentTarget);
+      }}
+      className="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+    >
       {action === "create" && (
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-700">所属组织</label>
