@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+import { parseMultipartForm } from "@/lib/form-data";
 import { AssetType, AssetStatus } from "@prisma/client";
 
 const schema = z.object({
@@ -22,15 +23,18 @@ const schema = z.object({
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formData = await req.formData();
-  const raw = Object.fromEntries(formData.entries());
-  const parsed = schema.safeParse({
+  const form = await parseMultipartForm(req);
+  if ("error" in form) {
+    return NextResponse.json({ error: form.error }, { status: 400 });
+  }
+  const raw = Object.fromEntries(form.entries());
+  const validated = schema.safeParse({
     ...raw,
     refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
     refPriceMax: raw.refPriceMax ? Number(raw.refPriceMax) : undefined,
   });
-  if (!parsed.success) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
-  const d = parsed.data;
+  if (!validated.success) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
+  const d = validated.data;
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, d.orgId);
   if (!ok) return NextResponse.json({ error: "无权在该组织录入资产" }, { status: 403 });
   await prisma.asset.create({

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+import { parseMultipartForm } from "@/lib/form-data";
 import { AssetStatus } from "@prisma/client";
 
 const updateSchema = z.object({
@@ -28,15 +29,18 @@ export async function POST(
   if (!asset) return NextResponse.json({ error: "资产不存在" }, { status: 404 });
   const ok = await adminCanAccessOrg(admin.role, admin.orgId, asset.orgId);
   if (!ok) return NextResponse.json({ error: "无权操作" }, { status: 403 });
-  const formData = await req.formData();
-  const raw = Object.fromEntries(formData.entries());
-  const parsed = updateSchema.safeParse({
+  const form = await parseMultipartForm(req);
+  if ("error" in form) {
+    return NextResponse.json({ error: form.error }, { status: 400 });
+  }
+  const raw = Object.fromEntries(form.entries());
+  const validated = updateSchema.safeParse({
     ...raw,
     refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
     refPriceMax: raw.refPriceMax ? Number(raw.refPriceMax) : undefined,
   });
-  if (!parsed.success) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
-  const d = parsed.data;
+  if (!validated.success) return NextResponse.json({ error: "表单数据无效" }, { status: 400 });
+  const d = validated.data;
   await prisma.asset.update({
     where: { id },
     data: {
