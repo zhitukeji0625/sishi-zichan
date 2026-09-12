@@ -6,18 +6,23 @@ import { ArrowUp } from "lucide-react";
 
 export function BidForm({ projectId, minBid }: { projectId: string; minBid: number }) {
   const router = useRouter();
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(String(minBid));
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const val = parseFloat(amount);
+    if (!Number.isFinite(val) || val <= 0) {
+      setMsg({ text: "请输入有效出价金额", ok: false });
+      return;
+    }
     setLoading(true);
     setMsg(null);
     const res = await fetch(`/api/m/auction/${projectId}/bid`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: parseFloat(amount) }),
+      body: JSON.stringify({ amount: val }),
     });
     setLoading(false);
     const j = await res.json().catch(() => ({}));
