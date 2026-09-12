@@ -19,11 +19,23 @@ const schema = z.object({
   imagesJson: z.string().optional(),
 });
 
+async function readFormFields(req: Request) {
+  const contentType = req.headers.get("content-type") ?? "";
+  if (
+    !contentType.includes("multipart/form-data") &&
+    !contentType.includes("application/x-www-form-urlencoded")
+  ) {
+    return null;
+  }
+  const formData = await req.formData();
+  return Object.fromEntries(formData.entries());
+}
+
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formData = await req.formData();
-  const raw = Object.fromEntries(formData.entries());
+  const raw = await readFormFields(req);
+  if (!raw) return NextResponse.json({ error: "请使用表单提交数据" }, { status: 400 });
   const parsed = schema.safeParse({
     ...raw,
     refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
