@@ -3,10 +3,62 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_AUCTION_CODE = "APDEMO";
+
+async function ensureDemoAuction(assetId: string, demoUserId: string) {
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  let project = await prisma.auctionProject.findFirst({
+    where: { code: DEMO_AUCTION_CODE },
+  });
+  if (!project) {
+    project = await prisma.auctionProject.create({
+      data: {
+        code: DEMO_AUCTION_CODE,
+        assetId,
+        startPrice: 8000,
+        bidStep: 200,
+        startsAt: starts,
+        endsAt: ends,
+        depositAmount: 500,
+        status: "LIVE",
+      },
+    });
+  } else if (project.status !== "LIVE" || project.endsAt <= new Date()) {
+    project = await prisma.auctionProject.update({
+      where: { id: project.id },
+      data: { startsAt: starts, endsAt: ends, status: "LIVE" },
+    });
+  }
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: project.id, endUserId: demoUserId },
+    },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: project.id,
+      endUserId: demoUserId,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  return project;
+}
+
 async function main() {
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
-    console.log("Seed skipped: data already present.");
+    const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+    const asset = await prisma.asset.findFirst({
+      where: { type: AssetType.LAND },
+      orderBy: { createdAt: "asc" },
+    });
+    if (demoUser && asset) {
+      await ensureDemoAuction(asset.id, demoUser.id);
+      console.log("Seed refreshed demo auction.");
+    } else {
+      console.log("Seed skipped: data already present.");
+    }
     return;
   }
 
@@ -150,31 +202,20 @@ async function main() {
 
   const starts = new Date(Date.now() - 60 * 1000);
   const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const project = await prisma.auctionProject.create({
-    data: {
-      code: `AP${Date.now()}`,
-      assetId: asset1.id,
-      startPrice: 8000,
-      bidStep: 200,
-      startsAt: starts,
-      endsAt: ends,
-      depositAmount: 500,
-      status: "LIVE",
-    },
-  });
-
   const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
   if (demoUser) {
-    await prisma.auctionRegistration.upsert({
-      where: {
-        projectId_endUserId: { projectId: project.id, endUserId: demoUser.id },
-      },
-      update: { status: "APPROVED", depositPaid: true },
-      create: {
-        projectId: project.id,
-        endUserId: demoUser.id,
-        status: "APPROVED",
-        depositPaid: true,
+    await ensureDemoAuction(asset1.id, demoUser.id);
+  } else {
+    await prisma.auctionProject.create({
+      data: {
+        code: DEMO_AUCTION_CODE,
+        assetId: asset1.id,
+        startPrice: 8000,
+        bidStep: 200,
+        startsAt: starts,
+        endsAt: ends,
+        depositAmount: 500,
+        status: "LIVE",
       },
     });
   }
