@@ -3,7 +3,44 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+/** 续期演示竞拍：若已 ENDED 或 endsAt 已过，重置为 LIVE 并保留报名。 */
+async function refreshDemoAuctionIfExpired() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: "13800138000" } });
+  if (!demoUser) return;
+
+  const expired = await prisma.auctionProject.findFirst({
+    where: {
+      OR: [{ status: "ENDED" }, { endsAt: { lt: new Date() } }],
+      registrations: { some: { endUserId: demoUser.id } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!expired) return;
+
+  const starts = new Date(Date.now() - 60 * 1000);
+  const ends = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await prisma.auctionProject.update({
+    where: { id: expired.id },
+    data: { status: "LIVE", startsAt: starts, endsAt: ends },
+  });
+  await prisma.auctionRegistration.upsert({
+    where: {
+      projectId_endUserId: { projectId: expired.id, endUserId: demoUser.id },
+    },
+    update: { status: "APPROVED", depositPaid: true },
+    create: {
+      projectId: expired.id,
+      endUserId: demoUser.id,
+      status: "APPROVED",
+      depositPaid: true,
+    },
+  });
+  console.log(`Refreshed demo auction ${expired.code} → LIVE until ${ends.toISOString()}`);
+}
+
 async function main() {
+  await refreshDemoAuctionIfExpired();
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
