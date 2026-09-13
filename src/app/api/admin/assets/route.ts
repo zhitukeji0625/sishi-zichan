@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentAdmin } from "@/lib/auth/session";
 import { adminCanAccessOrg } from "@/lib/rbac";
 import { writeAudit } from "@/lib/audit";
+import { parseMultipartForm } from "@/lib/form-data";
 import { AssetType, AssetStatus } from "@prisma/client";
 
 const schema = z.object({
@@ -22,8 +23,11 @@ const schema = z.object({
 export async function POST(req: Request) {
   const admin = await getCurrentAdmin();
   if (!admin) return NextResponse.json({ error: "未登录" }, { status: 401 });
-  const formData = await req.formData();
-  const raw = Object.fromEntries(formData.entries());
+  const parsedForm = await parseMultipartForm(req);
+  if (parsedForm instanceof Object && "error" in parsedForm) {
+    return NextResponse.json({ error: parsedForm.error }, { status: 400 });
+  }
+  const raw = Object.fromEntries(parsedForm.entries());
   const parsed = schema.safeParse({
     ...raw,
     refPriceMin: raw.refPriceMin ? Number(raw.refPriceMin) : undefined,
