@@ -33,6 +33,9 @@ assert_json_ok() {
 
 echo "=== Smoke Test: $BASE ==="
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+(cd "$ROOT" && npm run db:seed 2>&1) | grep -E 'Refreshed|Seed skipped' || true
+
 # 1. Homepage
 code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/")
 assert_status "GET /" 200 "$code"
