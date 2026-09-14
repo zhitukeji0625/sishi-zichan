@@ -3,7 +3,45 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_USER_PHONE = "13800138000";
+
+/** 演示竞拍过期后自动续期，便于冒烟测试与演示环境。 */
+async function refreshDemoAuctionIfExpired() {
+  const demoUser = await prisma.endUser.findUnique({ where: { phone: DEMO_USER_PHONE } });
+  if (!demoUser) return;
+
+  const regs = await prisma.auctionRegistration.findMany({
+    where: { endUserId: demoUser.id, status: "APPROVED", depositPaid: true },
+    include: { project: true },
+    orderBy: { createdAt: "desc" },
+  });
+  const now = Date.now();
+  for (const reg of regs) {
+    const p = reg.project;
+    const expired =
+      p.status !== "LIVE" || p.endsAt.getTime() < now || p.startsAt.getTime() > now;
+    if (!expired) continue;
+
+    await prisma.$transaction([
+      prisma.auctionBid.deleteMany({ where: { projectId: p.id } }),
+      prisma.auctionResult.deleteMany({ where: { projectId: p.id } }),
+      prisma.auctionProject.update({
+        where: { id: p.id },
+        data: {
+          status: "LIVE",
+          startsAt: new Date(now - 60 * 1000),
+          endsAt: new Date(now + 7 * 24 * 60 * 60 * 1000),
+        },
+      }),
+    ]);
+    console.log(`Refreshed demo auction ${p.code} (${p.id}) to LIVE.`);
+    break;
+  }
+}
+
 async function main() {
+  await refreshDemoAuctionIfExpired();
+
   const existing = await prisma.auctionProject.count();
   if (existing > 0) {
     console.log("Seed skipped: data already present.");
