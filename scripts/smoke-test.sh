@@ -6,7 +6,6 @@ PASS=0
 FAIL=0
 COOKIE_JAR=$(mktemp)
 ADMIN_JAR=$(mktemp)
-trap 'rm -f "$COOKIE_JAR" "$ADMIN_JAR"' EXIT
 
 assert_status() {
   local name="$1" expected="$2" actual="$3" body="${4:-}"
@@ -33,8 +32,17 @@ assert_json_ok() {
 
 echo "=== Smoke Test: $BASE ==="
 
+# 0. Detect corrupted .next (common when `npm run build` runs while `npm run dev` is active)
+HOME_BODY=$(mktemp)
+trap 'rm -f "$COOKIE_JAR" "$ADMIN_JAR" "$HOME_BODY"' EXIT
+code=$(curl -s -o "$HOME_BODY" -w "%{http_code}" "$BASE/")
+if [[ "$code" == "500" ]] && grep -q "Cannot find module" "$HOME_BODY" 2>/dev/null; then
+  echo "FATAL: Next.js dev 缓存损坏（常在 dev 运行时执行 build 后出现）。"
+  echo "修复: 停止 dev → rm -rf .next → 重新 npm run dev，勿在 dev 运行时 build。"
+  exit 2
+fi
+
 # 1. Homepage
-code=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/")
 assert_status "GET /" 200 "$code"
 
 # 2. Mobile pages
